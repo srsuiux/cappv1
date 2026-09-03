@@ -105,6 +105,8 @@ The processing unit is **one slide at a time**, not the whole deck — since sec
 
 **Error handling**: corrupt/unreadable files are skipped (rest of `input/` still processes); a single image's caption failure leaves that image's alt-text blank rather than failing the deck; 429/5xx/network errors retry with backoff (3 attempts), while 402/401/403 fail immediately with an actionable message since retrying can't fix those; state and output are checked for drift on every run so a deleted/moved output file gets regenerated instead of silently skipped forever.
 
+**Invariant**: the only thing this tool ever writes into a `.pptx` is the alt-text field on images — layout, positions, formatting, text, and slide order always come out identical to the input. See **[skills.md](skills.md)** if you're extending this codebase or working on it with an AI agent.
+
 ## Project structure
 
 ```
@@ -118,6 +120,10 @@ cappv1/
 │   └── cappv1                # symlinked onto PATH; subcommand dispatcher (start/doctor/models/clean)
 ├── run.sh                     # bootstraps .venv, runs python -m src.main
 ├── requirements.txt
+├── README.md                   # this file
+├── how-to-use-this-automation.md  # day-to-day usage walkthrough
+├── skills.md                       # guardrail: caption-only, nothing else about the pptx changes
+├── github-repo.md                   # repo name/description/topics for GitHub
 └── src/
     ├── main.py                 # CLI entrypoint (--file, --resume)
     ├── config.py                # .env loading
