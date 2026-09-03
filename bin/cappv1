@@ -2,7 +2,7 @@
 # Global launcher for the PPTX alt-text automation. Symlinked onto PATH
 # (~/.local/bin/cappv1) so it can be typed from any directory.
 #
-#   cappv1 start [--dry-run|--file NAME|--resume]   process input/ (background, live progress shown)
+#   cappv1 start [--file NAME|--resume]   process input/ (background, live progress shown)
 #   cappv1 doctor                                    check that the environment is set up correctly
 #   cappv1 clean                                       wipe input/, output/, and tracked run state
 set -euo pipefail
@@ -22,13 +22,12 @@ usage() {
 ${BOLD}cappv1${RESET} - PPTX alt-text automation
 
 ${BOLD}Usage${RESET}
-  cappv1 start [--dry-run] [--resume] [--file NAME]   start processing input/
-  cappv1 doctor                                        check your setup
-  cappv1 clean                                          wipe input/, output/, and run state
+  cappv1 start [--resume] [--file NAME]   start processing input/
+  cappv1 doctor                            check your setup
+  cappv1 clean                              wipe input/, output/, and run state
 
 ${BOLD}Examples${RESET}
   cappv1 start
-  cappv1 start --dry-run
   cappv1 start --file "deck.pptx"
   cappv1 doctor
   cappv1 clean

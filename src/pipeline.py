@@ -107,10 +107,9 @@ async def _process_slide(
     filename: str,
     section: str | None,
     config: Config,
-    client: httpx.AsyncClient | None,
+    client: httpx.AsyncClient,
     semaphore: asyncio.Semaphore,
     state: FileState,
-    dry_run: bool,
 ) -> None:
     context: SlideContext = get_slide_context(slide, slide_index, section)
     pictures = extract_pictures(slide, slide_index)
@@ -133,19 +132,13 @@ async def _process_slide(
 
         if is_too_small(image_bytes, config.min_image_size_px):
             decorative += 1
-            if not dry_run:
-                mark_decorative(shape)
+            mark_decorative(shape)
             return
 
         img_hash = perceptual_hash(image_bytes)
         if img_hash and img_hash in state.caption_cache:
             cached += 1
-            if not dry_run:
-                set_alt_text(shape, state.caption_cache[img_hash])
-            return
-
-        if dry_run:
-            captioned += 1
+            set_alt_text(shape, state.caption_cache[img_hash])
             return
 
         async with semaphore:
@@ -175,7 +168,7 @@ async def _process_slide(
     state.mark_slide_done(slide_index)
 
 
-async def run_file(config: Config, client: httpx.AsyncClient | None, semaphore: asyncio.Semaphore, path: Path, dry_run: bool) -> None:
+async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio.Semaphore, path: Path) -> None:
     filename = path.name
     logger.info("[file: %s] starting", filename)
 
@@ -189,14 +182,9 @@ async def run_file(config: Config, client: httpx.AsyncClient | None, semaphore: 
             continue
         await _process_slide(
             slide, index, total_slides, filename, section_map.get(index),
-            config, client, semaphore, state, dry_run,
+            config, client, semaphore, state,
         )
-        if not dry_run:
-            save_state(config.state_dir, state)
-
-    if dry_run:
-        logger.info("[file: %s] dry-run complete, no files written", filename)
-        return
+        save_state(config.state_dir, state)
 
     state.status = "complete"
     save_state(config.state_dir, state)
@@ -207,7 +195,7 @@ async def run_file(config: Config, client: httpx.AsyncClient | None, semaphore: 
     logger.info("[file: %s] saved to %s", filename, out_path)
 
 
-async def run(config: Config, only_file: str | None = None, resume_only: bool = False, dry_run: bool = False) -> None:
+async def run(config: Config, only_file: str | None = None, resume_only: bool = False) -> None:
     files = discover_files(config, only_file, resume_only)
     if not files:
         logger.info("nothing to process")
@@ -215,14 +203,9 @@ async def run(config: Config, only_file: str | None = None, resume_only: bool = 
 
     semaphore = asyncio.Semaphore(config.concurrency)
 
-    if dry_run:
-        for path in files:
-            await run_file(config, None, semaphore, path, dry_run=True)
-        return
-
     async with httpx.AsyncClient() as client:
         for path in files:
             try:
-                await run_file(config, client, semaphore, path, dry_run=False)
+                await run_file(config, client, semaphore, path)
             except Exception as exc:
                 logger.error("[file: %s] failed: %s", path.name, exc)

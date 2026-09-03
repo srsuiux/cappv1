@@ -131,11 +131,8 @@ Workspace is clean and ready to go - drop files into input/, then run: cappv1 st
 |---|---|
 | Process everything new in `input/` (background + live view) | `cappv1 start` |
 | Process just one specific file | `cappv1 start --file "my-deck.pptx"` |
-| Preview what *would* happen — no API calls, no files written | `cappv1 start --dry-run` |
 | Pick back up on a file that got interrupted partway | `cappv1 start --resume` |
 | Run in the current terminal, no backgrounding (blocks until done) | `/Users/ssharma33/Desktop/cappv1/run.sh` |
-
-**When to use `--dry-run`:** before running a big batch of decks for the first time, to sanity-check how many images will be captioned vs. skipped without spending any API calls.
 
 **When to use `--resume`:** if the machine slept, lost power, or you killed the process mid-run. The tool checkpoints after every slide, so just running `cappv1 start` again automatically picks up where it left off instead of starting the deck over — you don't lose progress or pay for images already captioned.
 

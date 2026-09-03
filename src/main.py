@@ -9,13 +9,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate PPTX alt-text using Claude via OpenRouter")
     parser.add_argument("--file", help="process a single file from input/", default=None)
     parser.add_argument("--resume", action="store_true", help="only resume in_progress files")
-    parser.add_argument("--dry-run", action="store_true", help="log planned work, no API calls or writes")
     args = parser.parse_args()
 
     config = load_config()
     setup_logging(config.logs_dir)
 
-    asyncio.run(run(config, only_file=args.file, resume_only=args.resume, dry_run=args.dry_run))
+    asyncio.run(run(config, only_file=args.file, resume_only=args.resume))
 
 
 if __name__ == "__main__":
