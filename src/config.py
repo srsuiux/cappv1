@@ -29,7 +29,7 @@ def load_config() -> Config:
         )
     return Config(
         api_key=api_key,
-        model=os.environ.get("MODEL", "anthropic/claude-sonnet-5"),
+        model=os.environ.get("MODEL", "minimax/minimax-m3:free"),
         concurrency=int(os.environ.get("CONCURRENCY", "4")),
         min_image_size_px=int(os.environ.get("MIN_IMAGE_SIZE_PX", "40")),
         max_alt_text_chars=int(os.environ.get("MAX_ALT_TEXT_CHARS", "125")),

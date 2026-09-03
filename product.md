@@ -89,7 +89,7 @@ cappv1/
 |---|---|---|
 | PPTX read/write | `python-pptx` | Standard library for OOXML; gives shape/image/text access and lets us set `descr` directly |
 | LLM access | OpenRouter API (OpenAI-compatible `/chat/completions`) | User has no direct Anthropic API key but does have OpenRouter, which proxies Claude |
-| Model | `anthropic/claude-sonnet-5` (configurable) | Vision-capable, good caption quality; swap to a cheaper model (e.g. `anthropic/claude-haiku-4.5`) via config if cost matters |
+| Model | `minimax/minimax-m3:free` (configurable) | Vision-capable, free tier - the account's OpenRouter key is free-tier and paid Claude models 402'd; swap to `anthropic/claude-sonnet-5` (or another paid model) via config once credits are added, for higher caption quality |
 | HTTP | `httpx` (async) | Lets slide-level captioning run concurrently with a bounded pool |
 | Image hashing (dedup) | `imagehash` + `Pillow` | Detect the same logo/icon repeated across slides so it's captioned once |
 | Logging | stdlib `logging`, rotating file handler + stdout | Real-time progress visibility during long runs |
@@ -139,7 +139,7 @@ Skip captioning (leave alt-text blank or mark `decorative`) when:
 ## 8. Config & Secrets
 
 - `OPENROUTER_API_KEY` loaded from `.env`, never hardcoded, never written into logs or state files. `.env` and `keys.txt` are both gitignored.
-- Other config in `.env` / `config.py`: `MODEL` (default `anthropic/claude-sonnet-5`), `CONCURRENCY` (default 4), `MIN_IMAGE_SIZE_PX` (default 40), `MAX_ALT_TEXT_CHARS` (default 125).
+- Other config in `.env` / `config.py`: `MODEL` (default `minimax/minimax-m3:free`), `CONCURRENCY` (default 4), `MIN_IMAGE_SIZE_PX` (default 40), `MAX_ALT_TEXT_CHARS` (default 125).
 
 ## 9. CLI
 
