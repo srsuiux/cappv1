@@ -129,10 +129,11 @@ Skip captioning (leave alt-text blank or mark `decorative`) when:
 ### 7.7 Save + Progress
 - After each slide finishes, update `.state/<filename>.json` with the completed slide index (this is the resume checkpoint).
 - After all slides in a file finish, save the deck to `output/<filename>.pptx` and mark state `complete`.
-- Log per-slide and per-image progress to both stdout and `logs/run-<timestamp>.log`:
+- Log per-slide and per-image progress, colorized, to both stdout and `logs/run-<timestamp>.log` (see §9 for the color/progress-bar mechanics):
   ```
-  [file: quarterly-review.pptx] [slide 4/12] [section: "Financials"] captioned 2/2 images
-  [file: quarterly-review.pptx] [slide 5/12] skipped 1 decorative image, captioned 1/1
+  [file: quarterly-review.pptx] [████--------------] 4/12 [section: "Financials"] captioned 2/2 images
+  [file: quarterly-review.pptx] [██████████---------] 5/12 [section: "Financials"] captioned 0, decorative 1, cached 0, failed 0 (of 1 images)
+  ✓ [file: quarterly-review.pptx] saved to output/quarterly-review.pptx
   ```
 
 ## 8. Config & Secrets
@@ -142,15 +143,17 @@ Skip captioning (leave alt-text blank or mark `decorative`) when:
 
 ## 9. CLI
 
-`run.sh` wraps `python -m src.main` and creates/activates the `.venv` automatically on first run. `bin/cappv1` is symlinked onto `PATH` (`~/.local/bin/cappv1`) as a subcommand dispatcher, so the whole workflow from any terminal is just typing `cappv1`:
+`run.sh` wraps `python -m src.main` and creates/activates the `.venv` automatically on first run. `bin/cappv1` is symlinked onto `PATH` (`~/.local/bin/cappv1`) as a subcommand dispatcher requiring an explicit subcommand:
 
 | Command | Behavior |
 |---|---|
-| `cappv1` / `cappv1 start` | Runs `src/doctor.py --quick` as a pre-flight (env/key present, folders writable); on failure, prints the failing checks and exits without launching anything — no raw traceback. If `input/` has no `.pptx` files, prints a one-line message and exits. Otherwise launches `run.sh` detached (`nohup … &`) and returns immediately. |
-| `cappv1 doctor` | Runs `src/doctor.py` (stdlib-only, works even without `.venv`): checks `.env`, key presence, a **live** OpenRouter key validation (`GET /api/v1/auth/key`), venv/dependency health, and folder writability. Prints a ✓/✗ report; exit code reflects pass/fail. |
+| `cappv1 start [--file/--dry-run/--resume]` | Runs `src/doctor.py --quick` as a pre-flight (env/key present, folders writable); on failure, prints the failing checks and exits without launching anything — no raw traceback. If `input/` has no `.pptx` files, prints a one-line message and exits. Otherwise launches `run.sh` detached (`nohup … &`), then auto-attaches (`tail -f`) to that run's fresh `logs/run-<timestamp>.log` once it appears (polls up to 30s, to cover first-run venv bootstrap) so progress is visible immediately without a separate command. `Ctrl+C` stops only the attached view (`disown`ed job keeps running). |
+| `cappv1 doctor` | Runs `src/doctor.py` (stdlib-only, works even without `.venv`): checks `.env`, key presence, a **live** OpenRouter key validation (`GET /api/v1/auth/key`), venv/dependency health, and folder writability. Prints a colored ✓/✗ report; exit code reflects pass/fail. |
 | `cappv1 clean` | Deletes every `.pptx` in `input/` and `output/` plus all `.state/*.json`, printing a ✓ summary of what was removed. Leaves `logs/` untouched. |
-| `cappv1 --file / --dry-run / --resume` | Passed straight through to `run.sh` / `python -m src.main`. |
+| `cappv1` (no args) / unknown subcommand | Prints usage and exits — does **not** start anything. `start` must be typed explicitly. |
 | `./run.sh [flags]` | Same pipeline, foregrounded (blocks, prints directly to terminal) instead of backgrounded — useful when actively watching a run. |
+
+**Progress display**: each per-slide log line embeds an inline bar (`pipeline.progress_bar()`, e.g. `[████--------------] 3/12`) rather than a redrawing/in-place terminal bar — this keeps it equally readable live (`tail -f`) or as static history in the log file. Output is colorized via a custom `logging.Formatter` (`_ColorFormatter` in `src/pipeline.py`): colored by log level (INFO cyan, WARNING yellow, ERROR red), with message-aware overrides (`saved to` → bold green with ✓, `already complete`/`nothing to process` → dim gray). The **console** handler colors only when `sys.stdout.isatty()` (so output redirected/piped, e.g. under `nohup`, stays plain); the **file** handler (`logs/run-<timestamp>.log`) is always colored, since it's meant to be tailed live in a terminal rather than opened in a plain-text editor.
 
 Output files keep the same filename as their input (`input/x.pptx` → `output/x.pptx`).
 

@@ -14,6 +14,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CHECK, CROSS, SKIP = "✓", "✗", "-"
 
+_USE_COLOR = sys.stdout.isatty()
+_RESET = "\033[0m" if _USE_COLOR else ""
+_BOLD = "\033[1m" if _USE_COLOR else ""
+_DIM = "\033[2m" if _USE_COLOR else ""
+_RED = "\033[31m" if _USE_COLOR else ""
+_GREEN = "\033[32m" if _USE_COLOR else ""
+
 
 def read_env_key() -> str | None:
     env_path = ROOT / ".env"
@@ -29,7 +36,7 @@ def read_env_key() -> str | None:
 def check_venv_deps() -> tuple[bool | None, str]:
     venv_python = ROOT / ".venv" / "bin" / "python"
     if not venv_python.exists():
-        return None, "will be created automatically the first time you run cappv1"
+        return None, "will be created automatically the first time you run cappv1 start"
     try:
         subprocess.run(
             [str(venv_python), "-c", "import pptx, httpx, PIL, imagehash, dotenv"],
@@ -37,7 +44,7 @@ def check_venv_deps() -> tuple[bool | None, str]:
         )
         return True, "installed"
     except Exception:
-        return False, "venv exists but dependencies are incomplete - try: rm -rf .venv && cappv1"
+        return False, "venv exists but dependencies are incomplete - try: rm -rf .venv && cappv1 start"
 
 
 def check_api_key_live(key: str) -> tuple[bool, str]:
@@ -70,10 +77,15 @@ def check_dir_writable(path: Path) -> bool:
 
 
 def report(ok: bool, label: str, detail: str = "") -> bool:
+    color = _GREEN if ok else _RED
     mark = CHECK if ok else CROSS
-    suffix = f" - {detail}" if detail else ""
-    print(f"  [{mark}] {label}{suffix}")
+    suffix = f"{_DIM} - {detail}{_RESET}" if detail else ""
+    print(f"  [{color}{mark}{_RESET}] {label}{suffix}")
     return ok
+
+
+def skip(label: str, detail: str) -> None:
+    print(f"  [{_DIM}{SKIP}{_RESET}] {_DIM}{label} - {detail}{_RESET}")
 
 
 def main() -> int:
@@ -81,7 +93,7 @@ def main() -> int:
     parser.add_argument("--quick", action="store_true", help="skip the live OpenRouter check")
     args = parser.parse_args()
 
-    print("cappv1 doctor - environment check\n")
+    print(f"{_BOLD}cappv1 doctor{_RESET} - environment check\n")
     all_ok = True
 
     env_exists = (ROOT / ".env").exists()
@@ -91,16 +103,16 @@ def main() -> int:
     all_ok &= report(bool(key), "OPENROUTER_API_KEY is set")
 
     if not key:
-        print(f"  [{SKIP}] API key check skipped (no key to test)")
+        skip("API key check", "no key to test")
     elif args.quick:
-        print(f"  [{SKIP}] API key live check skipped (--quick)")
+        skip("API key live check", "skipped (--quick)")
     else:
         ok, detail = check_api_key_live(key)
         all_ok &= report(ok, "API key is valid", detail)
 
     deps_ok, deps_detail = check_venv_deps()
     if deps_ok is None:
-        print(f"  [{SKIP}] Python environment ready - {deps_detail}")
+        skip("Python environment ready", deps_detail)
     else:
         all_ok &= report(deps_ok, "Python environment ready", deps_detail)
 
@@ -110,13 +122,13 @@ def main() -> int:
 
     if not args.quick:
         pptx_count = len(list(input_dir.glob("*.pptx")))
-        print(f"\n  {pptx_count} file(s) waiting in input/")
+        print(f"\n  {_BOLD}{pptx_count}{_RESET} file(s) waiting in input/")
 
     print()
     if all_ok:
-        print("All checks passed - ready to run. Type: cappv1")
+        print(f"{_BOLD}{_GREEN}All checks passed{_RESET} - ready to run. Type: cappv1 start")
     else:
-        print("Some checks failed. Fix the [x] items above, then run: cappv1 doctor")
+        print(f"{_BOLD}{_RED}Some checks failed.{_RESET} Fix the [{CROSS}] items above, then run: cappv1 doctor")
     return 0 if all_ok else 1
 
 

@@ -2,38 +2,84 @@
 # Global launcher for the PPTX alt-text automation. Symlinked onto PATH
 # (~/.local/bin/cappv1) so it can be typed from any directory.
 #
-#   cappv1            start processing input/ in the background
-#   cappv1 start       same as above (explicit)
-#   cappv1 clean        wipe input/, output/ and tracked run state
-#   cappv1 doctor        check that the environment is set up correctly
-#   cappv1 --dry-run/--file/--resume   passed straight through to the pipeline
+#   cappv1 start [--dry-run|--file NAME|--resume]   process input/ (background, live progress shown)
+#   cappv1 doctor                                    check that the environment is set up correctly
+#   cappv1 clean                                       wipe input/, output/, and tracked run state
 set -euo pipefail
 
 PROJECT_DIR="/Users/ssharma33/Desktop/cappv1"
 cd "$PROJECT_DIR"
 
+if [ -t 1 ]; then
+    RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'
+    CYAN=$'\033[36m'; DIM=$'\033[2m'; BOLD=$'\033[1m'; RESET=$'\033[0m'
+else
+    RED=""; GREEN=""; YELLOW=""; CYAN=""; DIM=""; BOLD=""; RESET=""
+fi
+
+usage() {
+    cat <<EOF
+${BOLD}cappv1${RESET} - PPTX alt-text automation
+
+${BOLD}Usage${RESET}
+  cappv1 start [--dry-run] [--resume] [--file NAME]   start processing input/
+  cappv1 doctor                                        check your setup
+  cappv1 clean                                          wipe input/, output/, and run state
+
+${BOLD}Examples${RESET}
+  cappv1 start
+  cappv1 start --dry-run
+  cappv1 start --file "deck.pptx"
+  cappv1 doctor
+  cappv1 clean
+EOF
+}
+
 start() {
     if ! python3 src/doctor.py --quick; then
         echo ""
-        echo "Not ready to run yet - see checks above, or run: cappv1 doctor"
+        echo "${RED}Not ready to run yet${RESET} - see checks above, or run: cappv1 doctor"
         exit 1
     fi
 
     shopt -s nullglob
     pptx_files=(input/*.pptx)
     if [ ${#pptx_files[@]} -eq 0 ]; then
-        echo "No .pptx files in input/ yet - add one, then run: cappv1"
+        echo ""
+        echo "${YELLOW}No .pptx files in input/ yet${RESET} - add one, then run: cappv1 start"
         exit 0
     fi
 
     mkdir -p logs
+    before_log=$(ls -t logs/run-*.log 2>/dev/null | head -1)
+
     nohup ./run.sh "$@" >> logs/cappv1-launcher.log 2>&1 &
     pid=$!
     disown
 
-    echo "cappv1 started in background (pid $pid)"
-    echo "watch progress: tail -f \"$PROJECT_DIR/logs\"/run-*.log"
-    echo "startup/errors:  tail -f \"$PROJECT_DIR/logs/cappv1-launcher.log\""
+    echo ""
+    echo "${BOLD}${GREEN}✓${RESET} cappv1 started in background (pid $pid)"
+    echo ""
+
+    log_file=""
+    for _ in $(seq 1 30); do
+        latest=$(ls -t logs/run-*.log 2>/dev/null | head -1)
+        if [ -n "$latest" ] && [ "$latest" != "$before_log" ]; then
+            log_file="$latest"
+            break
+        fi
+        sleep 1
+    done
+
+    if [ -z "$log_file" ]; then
+        echo "${DIM}Still setting up (first run installs dependencies) - check progress with:${RESET}"
+        echo "  tail -f \"$PROJECT_DIR/logs\"/run-*.log"
+        exit 0
+    fi
+
+    echo "${DIM}Live progress - Ctrl+C stops watching, the job keeps running in the background${RESET}"
+    echo ""
+    tail -n +1 -f "$log_file"
 }
 
 clean() {
@@ -49,13 +95,13 @@ clean() {
     [ "$n_out" -gt 0 ] && rm -f "${output_files[@]}"
     [ "$n_state" -gt 0 ] && rm -f "${state_files[@]}"
 
-    echo "cappv1 clean"
+    echo "${BOLD}cappv1 clean${RESET}"
     echo ""
-    echo "  ✓ removed $n_in file(s) from input/"
-    echo "  ✓ removed $n_out file(s) from output/"
-    echo "  ✓ cleared $n_state tracked run(s) from .state/"
+    echo "  ${GREEN}✓${RESET} removed $n_in file(s) from input/"
+    echo "  ${GREEN}✓${RESET} removed $n_out file(s) from output/"
+    echo "  ${GREEN}✓${RESET} cleared $n_state tracked run(s) from .state/"
     echo ""
-    echo "Workspace is clean and ready to go - drop files into input/, then run: cappv1"
+    echo "Workspace is clean and ready to go - drop files into input/, then run: cappv1 start"
 }
 
 doctor() {
@@ -64,20 +110,23 @@ doctor() {
 
 cmd="${1:-}"
 case "$cmd" in
-    clean)
-        clean
-        ;;
-    doctor)
-        doctor
-        ;;
     start)
         shift
         start "$@"
         ;;
-    "")
-        start
+    doctor)
+        doctor
+        ;;
+    clean)
+        clean
+        ;;
+    ""|-h|--help|help)
+        usage
         ;;
     *)
-        start "$@"
+        echo "${RED}Unknown command:${RESET} $cmd"
+        echo ""
+        usage
+        exit 1
         ;;
 esac
