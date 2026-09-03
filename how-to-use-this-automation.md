@@ -14,18 +14,13 @@ Do this once per machine.
    ```
    cd /Users/ssharma33/Desktop/cappv1
    ```
-2. Activate the project's Python environment:
-   ```
-   source .venv/bin/activate
-   ```
-   (You'll see `(.venv)` appear at the start of your terminal prompt — that means it worked.)
-3. Confirm your API key is in place. Open `.env` and make sure this line has a real key (it should already be set up):
+2. Confirm your API key is in place. Open `.env` and make sure this line has a real key (it should already be set up):
    ```
    OPENROUTER_API_KEY=sk-or-v1-...
    ```
    If this file or key is ever missing, the tool will tell you immediately when you try to run it, rather than failing partway through.
 
-That's it for setup — steps 4+ below are what you'll repeat every time.
+That's it — you never need to touch Python or virtual environments directly. `./run.sh` (used below) sets everything up the first time it's run and reuses it after that.
 
 ## 2. The basic workflow (every time you use it)
 
@@ -35,11 +30,11 @@ Drag and drop, or copy, your `.pptx` file(s) into the `input/` folder. You can d
 > Only `.pptx` works (the modern PowerPoint format). Old `.ppt` files need to be re-saved as `.pptx` from PowerPoint first (File → Save As → PowerPoint Presentation).
 
 ### Step 2 — Run the tool
-In your terminal (with `(.venv)` active):
+In your terminal:
 ```
-python -m src.main
+./run.sh
 ```
-You'll see live progress in the terminal, slide by slide:
+That's the whole command — it runs. You'll see live progress in the terminal, slide by slide:
 ```
 [file: quarterly-review.pptx] [slide 4/12] [section: "Financials"] captioned 2/2 images
 [file: quarterly-review.pptx] [slide 5/12] skipped 1 decorative image, captioned 1/1
@@ -56,14 +51,14 @@ Open the file from `output/` in PowerPoint, right-click an image → **Edit Alt 
 
 | What you want | Command |
 |---|---|
-| Process everything new in `input/` | `python -m src.main` |
-| Process just one specific file | `python -m src.main --file "my-deck.pptx"` |
-| Preview what *would* happen — no API calls, no files written | `python -m src.main --dry-run` |
-| Pick back up on a file that got interrupted partway | `python -m src.main --resume` |
+| Process everything new in `input/` | `./run.sh` |
+| Process just one specific file | `./run.sh --file "my-deck.pptx"` |
+| Preview what *would* happen — no API calls, no files written | `./run.sh --dry-run` |
+| Pick back up on a file that got interrupted partway | `./run.sh --resume` |
 
 **When to use `--dry-run`:** before running a big batch of decks for the first time, to sanity-check how many images will be captioned vs. skipped without spending any API calls.
 
-**When to use `--resume`:** if you closed the terminal, lost power, or hit `Ctrl+C` mid-run. The tool checkpoints after every slide, so re-running (even a plain `python -m src.main`) automatically picks up where it left off instead of starting the deck over — you don't lose progress or pay for images already captioned.
+**When to use `--resume`:** if you closed the terminal, lost power, or hit `Ctrl+C` mid-run. The tool checkpoints after every slide, so re-running (even a plain `./run.sh`) automatically picks up where it left off instead of starting the deck over — you don't lose progress or pay for images already captioned.
 
 ## 4. What happens to different kinds of images
 
@@ -94,11 +89,10 @@ You don't need to sort your images beforehand — the tool figures this out auto
 
 ```
 cd /Users/ssharma33/Desktop/cappv1
-source .venv/bin/activate
 
 # 1. drop .pptx files into input/
 # 2. run:
-python -m src.main
+./run.sh
 
 # 3. collect finished files from output/
 ```

@@ -139,12 +139,16 @@ Skip captioning (leave alt-text blank or mark `decorative`) when:
 
 ## 9. CLI
 
+`./run.sh` wraps `python -m src.main` and creates/activates the `.venv` automatically on first run, so it's the one command needed end to end:
+
 ```
-python -m src.main                 # process everything new in input/
-python -m src.main --file deck.pptx  # process a single file
-python -m src.main --resume        # resume any in_progress files only
-python -m src.main --dry-run       # log what would be captioned, no API calls, no writes
+./run.sh                    # process everything new in input/
+./run.sh --file deck.pptx   # process a single file
+./run.sh --resume           # resume any in_progress files only
+./run.sh --dry-run          # log what would be captioned, no API calls, no writes
 ```
+
+See `how-to-use-this-automation.md` for the user-facing walkthrough.
 
 ## 10. Error Handling
 
