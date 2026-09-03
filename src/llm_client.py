@@ -84,13 +84,7 @@ async def generate_caption(
     for attempt in range(1, max_retries + 1):
         try:
             resp = await client.post(OPENROUTER_URL, json=payload, headers=headers, timeout=60)
-            if resp.status_code == 429 or resp.status_code >= 500:
-                raise httpx.HTTPStatusError("retryable", request=resp.request, response=resp)
-            resp.raise_for_status()
-            data = resp.json()
-            text = data["choices"][0]["message"]["content"].strip()
-            return "" if text.upper() == "DECORATIVE" else text
-        except Exception as exc:
+        except httpx.RequestError as exc:
             if attempt == max_retries:
                 logger.error("caption generation failed permanently: %s", exc)
                 return None
@@ -100,4 +94,48 @@ async def generate_caption(
                 attempt, max_retries, exc, backoff,
             )
             await asyncio.sleep(backoff)
+            continue
+
+        if resp.status_code == 200:
+            data = resp.json()
+            text = data["choices"][0]["message"]["content"].strip()
+            return "" if text.upper() == "DECORATIVE" else text
+
+        if resp.status_code == 402:
+            logger.error(
+                "caption generation failed: OpenRouter billing error (402) - "
+                "'%s' needs credits. Run 'cappv1 models' to switch to a free model.",
+                config.model,
+            )
+            return None
+
+        if resp.status_code in (401, 403):
+            logger.error(
+                "caption generation failed: OpenRouter rejected the request (%d) - "
+                "check your API key with 'cappv1 doctor'.",
+                resp.status_code,
+            )
+            return None
+
+        if resp.status_code == 429 or resp.status_code >= 500:
+            if attempt == max_retries:
+                logger.error(
+                    "caption generation failed permanently after %d attempts (HTTP %d)",
+                    max_retries, resp.status_code,
+                )
+                return None
+            backoff = 2 ** attempt
+            logger.warning(
+                "caption attempt %d/%d failed (HTTP %d), retrying in %ds",
+                attempt, max_retries, resp.status_code, backoff,
+            )
+            await asyncio.sleep(backoff)
+            continue
+
+        # other 4xx - not retryable
+        logger.error(
+            "caption generation failed: unexpected response (HTTP %d): %s",
+            resp.status_code, resp.text[:200],
+        )
+        return None
     return None

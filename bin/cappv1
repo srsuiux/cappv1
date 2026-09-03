@@ -4,7 +4,8 @@
 #
 #   cappv1 start [--file NAME|--resume]   process input/ (background, live progress shown)
 #   cappv1 doctor                                    check that the environment is set up correctly
-#   cappv1 clean                                       wipe input/, output/, and tracked run state
+#   cappv1 models                                      pick a free OpenRouter model (fixes billing errors)
+#   cappv1 clean                                         wipe input/, output/, and tracked run state
 set -euo pipefail
 
 PROJECT_DIR="/Users/ssharma33/Desktop/cappv1"
@@ -24,12 +25,14 @@ ${BOLD}cappv1${RESET} - PPTX alt-text automation
 ${BOLD}Usage${RESET}
   cappv1 start [--resume] [--file NAME]   start processing input/
   cappv1 doctor                            check your setup
-  cappv1 clean                              wipe input/, output/, and run state
+  cappv1 models                             pick a free model (fixes billing errors)
+  cappv1 clean                               wipe input/, output/, and run state
 
 ${BOLD}Examples${RESET}
   cappv1 start
   cappv1 start --file "deck.pptx"
   cappv1 doctor
+  cappv1 models
   cappv1 clean
 EOF
 }
@@ -107,6 +110,10 @@ doctor() {
     python3 src/doctor.py
 }
 
+models() {
+    python3 src/models.py
+}
+
 cmd="${1:-}"
 case "$cmd" in
     start)
@@ -115,6 +122,9 @@ case "$cmd" in
         ;;
     doctor)
         doctor
+        ;;
+    models)
+        models
         ;;
     clean)
         clean

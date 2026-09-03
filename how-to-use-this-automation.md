@@ -78,12 +78,13 @@ Once you see the green `✓ ... saved to output/...` line, your captioned deck i
 ### Step 4 — Spot-check it (recommended)
 Right-click an image → **Edit Alt Text**, and confirm the caption reads well. The model is good but not perfect — for anything going to an external audience, a quick human skim is worth it.
 
-## 3. The three commands
+## 3. The commands
 
 | Command | What it does |
 |---|---|
 | `cappv1 start` | Starts processing everything in `input/`, in the background, then shows you live colored progress. This is the one you'll use almost every time. |
 | `cappv1 doctor` | Checks your setup — API key (live-verified), Python environment, folders — and prints a colored ✓/✗ report. Safe to run any time, changes nothing. |
+| `cappv1 models` | Lists free vision-capable models currently available on OpenRouter and lets you switch to one — the fix for billing errors. See below. |
 | `cappv1 clean` | Wipes `input/`, `output/`, and the tracked run history (`.state/`), so you're starting from a totally empty workspace. **Deletes files — see warning below.** |
 | `cappv1` (no args) | Prints the usage/help text above. Does not start anything. |
 
@@ -107,6 +108,27 @@ cappv1 doctor - environment check
 All checks passed - ready to run. Type: cappv1 start
 ```
 If something's wrong, each failing line is marked `[✗]` in red with a plain-English reason. `cappv1 start` runs this same check (a faster version, skipping the live API call) before doing anything else — if it fails, it prints the failure and stops, rather than crashing partway through, and tells you to run `cappv1 doctor` for the full picture.
+
+### `cappv1 models` — billing errors
+If a caption fails with something like `OpenRouter billing error (402) - '...' needs credits`, your current model needs credits you don't have. Run:
+```
+cappv1 models
+```
+It fetches the live list of free, vision-capable models on OpenRouter and lets you pick one:
+```
+cappv1 models - free vision-capable models on OpenRouter
+
+  Current: anthropic/claude-sonnet-5
+
+   1  dots-studio/dots-3-note-preview:free - Dots Studio: Dots3-Note Preview (free)
+   2  google/gemma-4-26b-a4b-it:free - Google: Gemma 4 26B A4B  (free)
+   3  google/gemma-4-31b-it:free - Google: Gemma 4 31B (free)
+   4  minimax/minimax-m3:free - MiniMax: MiniMax M3 (free)
+   ...
+
+Pick a number (1-8), or Enter to keep current:
+```
+Type a number and hit Enter — it writes the choice straight into `.env` (`MODEL=...`) and you're ready to run `cappv1 start` again. Press Enter with no number to leave things as they are. The default (`minimax/minimax-m3:free`) is already a solid free option; this command exists for when you want to try another one, or when your current model 402s.
 
 ### `cappv1 clean` ⚠️
 ```
@@ -161,7 +183,9 @@ You don't need to sort your images beforehand — the tool figures this out auto
 | `cappv1 start` says "Not ready to run yet" | A quick check failed (usually the API key) | Run `cappv1 doctor` for the full picture and a plain-English reason |
 | `No .pptx files in input/ yet` | `input/` is empty — nothing to process | Drop a `.pptx` file into `input/`, then run `cappv1 start` again |
 | A file logs `already complete, skipping` (shown dimmed/gray) | The tool already fully processed this file in a previous run | Either that's expected (nothing changed), or run `cappv1 clean` to reset and reprocess everything |
-| `caption generation failed permanently` for a specific image | The API call failed 3 times in a row (rate limit, network blip, temporary outage) | Alt-text is left blank for that image; just run `cappv1 start` again — it'll retry only what's missing |
+| `caption generation failed permanently` for a specific image (after 3 retries) | The API call failed 3 times in a row (rate limit, network blip, temporary outage) | Alt-text is left blank for that image; just run `cappv1 start` again — it'll retry only what's missing |
+| `OpenRouter billing error (402) - needs credits` | Your current model needs credits you don't have (fails instantly, no wasted retries) | Run `cappv1 models` and pick a free one, then `cappv1 start` again |
+| `OpenRouter rejected the request (401/403)` | Your API key is invalid or was revoked | Run `cappv1 doctor` — the live key check will confirm and explain |
 | A whole file fails and gets skipped | The `.pptx` is corrupted or not a valid PowerPoint file | Re-save the file from PowerPoint and drop it back into `input/` |
 | Terminal shows raw codes like `[36m` instead of color | Your terminal/log viewer doesn't interpret ANSI color codes (e.g. some editors, or piping to a file) | View it in a normal terminal with `tail -f`; colors are automatically disabled when output isn't a real terminal |
 

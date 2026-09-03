@@ -77,7 +77,8 @@ cappv1/
 │   ├── image_filter.py        # decorative/tiny/duplicate detection (perceptual hash + size)
 │   ├── llm_client.py           # OpenRouter API client (vision request, retries, backoff)
 │   ├── state.py                # per-file progress tracking, resume support
-│   └── doctor.py                # stdlib-only setup diagnostics for `cappv1 doctor`
+│   ├── doctor.py                # stdlib-only setup diagnostics for `cappv1 doctor`
+│   └── models.py                 # stdlib-only free-model picker for `cappv1 models`
 ├── logs/                    # per-run logs (run-<timestamp>.log) + cappv1-launcher.log
 ├── requirements.txt
 └── product.md
@@ -149,6 +150,7 @@ Skip captioning (leave alt-text blank or mark `decorative`) when:
 |---|---|
 | `cappv1 start [--file/--resume]` | Runs `src/doctor.py --quick` as a pre-flight (env/key present, folders writable); on failure, prints the failing checks and exits without launching anything — no raw traceback. If `input/` has no `.pptx` files, prints a one-line message and exits. Otherwise launches `run.sh` detached (`nohup … &`), then auto-attaches (`tail -f`) to that run's fresh `logs/run-<timestamp>.log` once it appears (polls up to 30s, to cover first-run venv bootstrap) so progress is visible immediately without a separate command. `Ctrl+C` stops only the attached view (`disown`ed job keeps running). |
 | `cappv1 doctor` | Runs `src/doctor.py` (stdlib-only, works even without `.venv`): checks `.env`, key presence, a **live** OpenRouter key validation (`GET /api/v1/auth/key`), venv/dependency health, and folder writability. Prints a colored ✓/✗ report; exit code reflects pass/fail. |
+| `cappv1 models` | Runs `src/models.py` (stdlib-only): fetches `GET /api/v1/models` (unauthenticated), filters to `id.endswith(":free")` with `"image"` in `architecture.input_modalities`, prints a numbered menu (current model marked), and on a numeric choice rewrites `MODEL=` in `.env` in place. The fix path when a caption call 402s. |
 | `cappv1 clean` | Deletes every `.pptx` in `input/` and `output/` plus all `.state/*.json`, printing a ✓ summary of what was removed. Leaves `logs/` untouched. |
 | `cappv1` (no args) / unknown subcommand | Prints usage and exits — does **not** start anything. `start` must be typed explicitly. |
 | `./run.sh [flags]` | Same pipeline, foregrounded (blocks, prints directly to terminal) instead of backgrounded — useful when actively watching a run. |
@@ -165,6 +167,7 @@ See `how-to-use-this-automation.md` for the user-facing walkthrough.
 - Single image caption failure → log, leave blank, continue deck.
 - API key missing/invalid → fail fast at startup with a clear message, before touching any files.
 - Partial run (crash, kill) → next run picks up from `.state/` at the last completed slide.
+- `llm_client.generate_caption` distinguishes retryable from permanent failures rather than retrying everything blindly: **429/5xx/network errors** retry with backoff (up to 3 attempts); **402** (billing) and **401/403** (auth) fail immediately on the first attempt — with a message pointing to `cappv1 models` or `cappv1 doctor` respectively — since retrying a billing or auth error can't ever succeed and previously wasted ~6s of backoff per image before failing anyway.
 
 ## 11. Open Questions / Future Enhancements
 
