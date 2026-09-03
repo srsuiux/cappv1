@@ -1,0 +1,11 @@
+.env
+keys.txt
+.venv/
+__pycache__/
+*.pyc
+.state/
+logs/
+output/*.pptx
+!output/.gitkeep
+input/*.pptx
+!input/.gitkeep
