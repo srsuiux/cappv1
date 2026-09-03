@@ -1,6 +1,6 @@
 # How to Use: PPTX Alt-Text Automation
 
-This is the day-to-day guide for running the tool — no code reading required. For the technical spec, see `product.md`.
+This is the day-to-day guide for running the tool — no code reading required. For the project overview and architecture, see `README.md`.
 
 ## What it does, in one line
 
@@ -182,7 +182,7 @@ You don't need to sort your images beforehand — the tool figures this out auto
 | Typing `cappv1` alone just prints help and nothing happens | Expected — `start` is required | Type `cappv1 start` |
 | `cappv1 start` says "Not ready to run yet" | A quick check failed (usually the API key) | Run `cappv1 doctor` for the full picture and a plain-English reason |
 | `No .pptx files in input/ yet` | `input/` is empty — nothing to process | Drop a `.pptx` file into `input/`, then run `cappv1 start` again |
-| A file logs `already complete, skipping` (shown dimmed/gray) | The tool already fully processed this file in a previous run | Either that's expected (nothing changed), or run `cappv1 clean` to reset and reprocess everything |
+| A file logs `already complete, skipping` (shown dimmed/gray) | The tool already fully processed this file in a previous run | Expected — nothing changed. (If `output/` is missing that file despite this, the tool detects that automatically and reprocesses it for you — no action needed.) To force a full redo anyway, run `cappv1 clean` |
 | `caption generation failed permanently` for a specific image (after 3 retries) | The API call failed 3 times in a row (rate limit, network blip, temporary outage) | Alt-text is left blank for that image; just run `cappv1 start` again — it'll retry only what's missing |
 | `OpenRouter billing error (402) - needs credits` | Your current model needs credits you don't have (fails instantly, no wasted retries) | Run `cappv1 models` and pick a free one, then `cappv1 start` again |
 | `OpenRouter rejected the request (401/403)` | Your API key is invalid or was revoked | Run `cappv1 doctor` — the live key check will confirm and explain |

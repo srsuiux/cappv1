@@ -6,7 +6,7 @@ from src.pipeline import run, setup_logging
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate PPTX alt-text using Claude via OpenRouter")
+    parser = argparse.ArgumentParser(description="Generate PPTX alt-text using a vision LLM via OpenRouter")
     parser.add_argument("--file", help="process a single file from input/", default=None)
     parser.add_argument("--resume", action="store_true", help="only resume in_progress files")
     args = parser.parse_args()

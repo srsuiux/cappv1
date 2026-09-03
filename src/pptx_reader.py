@@ -17,12 +17,6 @@ class SlideContext:
     notes: str
 
 
-@dataclass
-class PictureRef:
-    shape: object  # pptx.shapes.picture.Picture
-    slide_index: int
-
-
 def open_presentation(path: Path) -> Presentation:
     return Presentation(str(path))
 
@@ -55,14 +49,6 @@ def get_section_map(prs: Presentation) -> dict[int, str]:
         return {}
 
 
-def _placeholder_text(slide, idx_types: set[int]) -> str:
-    parts = []
-    for shape in slide.placeholders:
-        if shape.placeholder_format.idx is not None and shape.has_text_frame:
-            parts.append(shape.text_frame.text)
-    return "\n".join(p for p in parts if p.strip())
-
-
 def get_slide_context(slide, index: int, section: str | None) -> SlideContext:
     title = ""
     if slide.shapes.title is not None:
@@ -83,18 +69,18 @@ def get_slide_context(slide, index: int, section: str | None) -> SlideContext:
     return SlideContext(index=index, section=section, title=title, body_text=body_text, notes=notes)
 
 
-def _walk_pictures(shapes, slide_index: int) -> list[PictureRef]:
+def _walk_pictures(shapes) -> list:
     refs = []
     for shape in shapes:
         if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
-            refs.append(PictureRef(shape=shape, slide_index=slide_index))
+            refs.append(shape)
         elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-            refs.extend(_walk_pictures(shape.shapes, slide_index))
+            refs.extend(_walk_pictures(shape.shapes))
     return refs
 
 
-def extract_pictures(slide, slide_index: int) -> list[PictureRef]:
-    return _walk_pictures(slide.shapes, slide_index)
+def extract_pictures(slide) -> list:
+    return _walk_pictures(slide.shapes)
 
 
 def _find_cnvpr(shape_element):

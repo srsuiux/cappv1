@@ -7,7 +7,7 @@ from pathlib import Path
 import httpx
 
 from src.config import Config
-from src.image_filter import image_size_px, is_too_small, perceptual_hash
+from src.image_filter import is_too_small, perceptual_hash
 from src.llm_client import generate_caption
 from src.pptx_reader import (
     SlideContext,
@@ -125,7 +125,7 @@ async def _process_slide(
     state: FileState,
 ) -> None:
     context: SlideContext = get_slide_context(slide, slide_index, section)
-    pictures = extract_pictures(slide, slide_index)
+    pictures = extract_pictures(slide)
     bar = progress_bar(slide_index + 1, total_slides)
 
     if not pictures:
@@ -170,7 +170,7 @@ async def _process_slide(
         if img_hash:
             state.caption_cache[img_hash] = caption
 
-    await asyncio.gather(*(handle_one(p.shape) for p in pictures))
+    await asyncio.gather(*(handle_one(shape) for shape in pictures))
 
     logger.info(
         "[file: %s] %s %d/%d [section: %s] captioned %d, decorative %d, "
