@@ -62,7 +62,15 @@ start() {
     fi
 
     mkdir -p logs
-    before_log=$(ls -t logs/run-*.log 2>/dev/null | head -1)
+    # nullglob is on, so this is always a real (possibly empty) array -
+    # never pass a bare logs/run-*.log glob straight to `ls`: when it
+    # matches nothing, nullglob makes the glob vanish from the command
+    # line entirely, silently turning `ls -t logs/run-*.log` into a
+    # bare `ls -t` that lists the *project root* instead - which is
+    # exactly what happens on a fresh clone's very first run, before
+    # any run-*.log file has ever existed.
+    before_logs=(logs/run-*.log)
+    before_count=${#before_logs[@]}
 
     nohup ./run.sh "$@" >> logs/cappv1-launcher.log 2>&1 &
     pid=$!
@@ -73,10 +81,10 @@ start() {
     echo ""
 
     log_file=""
-    for _ in $(seq 1 30); do
-        latest=$(ls -t logs/run-*.log 2>/dev/null | head -1)
-        if [ -n "$latest" ] && [ "$latest" != "$before_log" ]; then
-            log_file="$latest"
+    for _ in $(seq 1 60); do
+        current_logs=(logs/run-*.log)
+        if [ ${#current_logs[@]} -gt "$before_count" ]; then
+            log_file=$(ls -t "${current_logs[@]}" | head -1)
             break
         fi
         sleep 1
