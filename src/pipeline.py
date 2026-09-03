@@ -92,8 +92,21 @@ def discover_files(config: Config, only_file: str | None, resume_only: bool) -> 
     for f in files:
         state = load_state(config.state_dir, f.name)
         if state.status == "complete":
-            logger.info("[file: %s] already complete, skipping", f.name)
-            continue
+            if (config.output_dir / f.name).exists():
+                logger.info("[file: %s] already complete, skipping", f.name)
+                continue
+            # state and output/ have drifted apart (output was deleted/moved
+            # without clearing state) - reprocess rather than skip forever.
+            # Cached captions are kept, so this costs no extra API calls for
+            # images already captioned.
+            logger.warning(
+                "[file: %s] marked complete but output/%s is missing - "
+                "reprocessing (cached captions are reused, no extra API cost)",
+                f.name, f.name,
+            )
+            state.status = "in_progress"
+            state.completed_slide_indices = []
+            save_state(config.state_dir, state)
         if resume_only and state.status != "in_progress":
             continue
         result.append(f)
