@@ -147,7 +147,7 @@ From the pre-release security review (2026-09-03). Not applied yet — deferred 
   +    trap 'rmdir "$lock_dir" 2>/dev/null' EXIT
   ```
 
-- [ ] **Hardcoded personal path published on GitHub** (`bin/cappv1`, `how-to-use-this-automation.md`) — leaks OS username, breaks the script for anyone else who clones the repo.
+- [ ] **Hardcoded personal path published on GitHub** (`bin/cappv1`, `README.md`) — leaks OS username, breaks the script for anyone else who clones the repo.
   ```diff
   --- bin/cappv1
   -PROJECT_DIR="/Users/ssharma33/Desktop/cappv1"
