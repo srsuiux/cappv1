@@ -1,19 +1,83 @@
 #!/usr/bin/env bash
-# Global launcher: lets you type `cappv1` from anywhere to run the
-# PPTX alt-text automation in the background against whatever's in
-# this project's input/ folder.
+# Global launcher for the PPTX alt-text automation. Symlinked onto PATH
+# (~/.local/bin/cappv1) so it can be typed from any directory.
+#
+#   cappv1            start processing input/ in the background
+#   cappv1 start       same as above (explicit)
+#   cappv1 clean        wipe input/, output/ and tracked run state
+#   cappv1 doctor        check that the environment is set up correctly
+#   cappv1 --dry-run/--file/--resume   passed straight through to the pipeline
 set -euo pipefail
 
 PROJECT_DIR="/Users/ssharma33/Desktop/cappv1"
 cd "$PROJECT_DIR"
 
-mkdir -p logs
-LAUNCH_LOG="logs/cappv1-launcher.log"
+start() {
+    if ! python3 src/doctor.py --quick; then
+        echo ""
+        echo "Not ready to run yet - see checks above, or run: cappv1 doctor"
+        exit 1
+    fi
 
-nohup ./run.sh "$@" >> "$LAUNCH_LOG" 2>&1 &
-PID=$!
-disown
+    shopt -s nullglob
+    pptx_files=(input/*.pptx)
+    if [ ${#pptx_files[@]} -eq 0 ]; then
+        echo "No .pptx files in input/ yet - add one, then run: cappv1"
+        exit 0
+    fi
 
-echo "cappv1 started in background (pid $PID)"
-echo "watch progress: tail -f \"$PROJECT_DIR/logs\"/run-*.log"
-echo "startup/errors:  tail -f \"$PROJECT_DIR/$LAUNCH_LOG\""
+    mkdir -p logs
+    nohup ./run.sh "$@" >> logs/cappv1-launcher.log 2>&1 &
+    pid=$!
+    disown
+
+    echo "cappv1 started in background (pid $pid)"
+    echo "watch progress: tail -f \"$PROJECT_DIR/logs\"/run-*.log"
+    echo "startup/errors:  tail -f \"$PROJECT_DIR/logs/cappv1-launcher.log\""
+}
+
+clean() {
+    shopt -s nullglob
+    input_files=(input/*.pptx)
+    output_files=(output/*.pptx)
+    state_files=(.state/*.json)
+    n_in=${#input_files[@]}
+    n_out=${#output_files[@]}
+    n_state=${#state_files[@]}
+
+    [ "$n_in" -gt 0 ] && rm -f "${input_files[@]}"
+    [ "$n_out" -gt 0 ] && rm -f "${output_files[@]}"
+    [ "$n_state" -gt 0 ] && rm -f "${state_files[@]}"
+
+    echo "cappv1 clean"
+    echo ""
+    echo "  ✓ removed $n_in file(s) from input/"
+    echo "  ✓ removed $n_out file(s) from output/"
+    echo "  ✓ cleared $n_state tracked run(s) from .state/"
+    echo ""
+    echo "Workspace is clean and ready to go - drop files into input/, then run: cappv1"
+}
+
+doctor() {
+    python3 src/doctor.py
+}
+
+cmd="${1:-}"
+case "$cmd" in
+    clean)
+        clean
+        ;;
+    doctor)
+        doctor
+        ;;
+    start)
+        shift
+        start "$@"
+        ;;
+    "")
+        start
+        ;;
+    *)
+        start "$@"
+        ;;
+esac

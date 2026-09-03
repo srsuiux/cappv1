@@ -66,7 +66,7 @@ cappv1/
 ├── .state/                 # per-file progress (json) so a rerun resumes instead of restarting
 ├── .env                    # OPENROUTER_API_KEY=... (gitignored, never committed)
 ├── bin/
-│   └── cappv1               # symlinked onto PATH (~/.local/bin/cappv1); backgrounds run.sh
+│   └── cappv1               # symlinked onto PATH (~/.local/bin/cappv1); subcommands below
 ├── run.sh                   # sets up/activates .venv, then runs python -m src.main "$@"
 ├── src/
 │   ├── main.py              # CLI entrypoint
@@ -76,7 +76,8 @@ cappv1/
 │   │                          # and alt-text (descr attribute) read/write
 │   ├── image_filter.py        # decorative/tiny/duplicate detection (perceptual hash + size)
 │   ├── llm_client.py           # OpenRouter API client (vision request, retries, backoff)
-│   └── state.py                # per-file progress tracking, resume support
+│   ├── state.py                # per-file progress tracking, resume support
+│   └── doctor.py                # stdlib-only setup diagnostics for `cappv1 doctor`
 ├── logs/                    # per-run logs (run-<timestamp>.log) + cappv1-launcher.log
 ├── requirements.txt
 └── product.md
@@ -136,22 +137,20 @@ Skip captioning (leave alt-text blank or mark `decorative`) when:
 
 ## 8. Config & Secrets
 
-- `OPENROUTER_API_KEY` loaded from `.env`, never hardcoded, never written into logs or state files.
-- **Action needed before first run:** move the key currently in `keys.txt` into `.env` as `OPENROUTER_API_KEY=...`, then delete `keys.txt` (or at minimum add both `keys.txt` and `.env` to `.gitignore` before this project is ever put under git — the key in `keys.txt` today is in plaintext with no gitignore protection).
+- `OPENROUTER_API_KEY` loaded from `.env`, never hardcoded, never written into logs or state files. `.env` and `keys.txt` are both gitignored.
 - Other config in `.env` / `config.py`: `MODEL` (default `anthropic/claude-sonnet-5`), `CONCURRENCY` (default 4), `MIN_IMAGE_SIZE_PX` (default 40), `MAX_ALT_TEXT_CHARS` (default 125).
 
 ## 9. CLI
 
-`run.sh` wraps `python -m src.main` and creates/activates the `.venv` automatically on first run. `bin/cappv1` is a thin wrapper around `run.sh` that's symlinked onto `PATH` (`~/.local/bin/cappv1`) and launches it detached (`nohup … &`), so the whole workflow from any terminal is just typing `cappv1`:
+`run.sh` wraps `python -m src.main` and creates/activates the `.venv` automatically on first run. `bin/cappv1` is symlinked onto `PATH` (`~/.local/bin/cappv1`) as a subcommand dispatcher, so the whole workflow from any terminal is just typing `cappv1`:
 
-```
-cappv1                    # process everything new in input/, in the background
-cappv1 --file deck.pptx   # process a single file
-cappv1 --resume           # resume any in_progress files only
-cappv1 --dry-run          # log what would be captioned, no API calls, no writes
-
-./run.sh                  # same thing, foregrounded (blocks, prints directly to terminal)
-```
+| Command | Behavior |
+|---|---|
+| `cappv1` / `cappv1 start` | Runs `src/doctor.py --quick` as a pre-flight (env/key present, folders writable); on failure, prints the failing checks and exits without launching anything — no raw traceback. If `input/` has no `.pptx` files, prints a one-line message and exits. Otherwise launches `run.sh` detached (`nohup … &`) and returns immediately. |
+| `cappv1 doctor` | Runs `src/doctor.py` (stdlib-only, works even without `.venv`): checks `.env`, key presence, a **live** OpenRouter key validation (`GET /api/v1/auth/key`), venv/dependency health, and folder writability. Prints a ✓/✗ report; exit code reflects pass/fail. |
+| `cappv1 clean` | Deletes every `.pptx` in `input/` and `output/` plus all `.state/*.json`, printing a ✓ summary of what was removed. Leaves `logs/` untouched. |
+| `cappv1 --file / --dry-run / --resume` | Passed straight through to `run.sh` / `python -m src.main`. |
+| `./run.sh [flags]` | Same pipeline, foregrounded (blocks, prints directly to terminal) instead of backgrounded — useful when actively watching a run. |
 
 Output files keep the same filename as their input (`input/x.pptx` → `output/x.pptx`).
 
