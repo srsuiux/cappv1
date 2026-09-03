@@ -147,7 +147,7 @@ From the pre-release security review (2026-09-03). Not applied yet — deferred 
   +    trap 'rmdir "$lock_dir" 2>/dev/null' EXIT
   ```
 
-- [ ] **Hardcoded personal path published on GitHub** (`bin/cappv1`, `README.md`) — leaks OS username, breaks the script for anyone else who clones the repo.
+- [x] **Hardcoded personal path published on GitHub** (`bin/cappv1`, `README.md`) — leaks OS username, breaks the script for anyone else who clones the repo. **Fixed**: `bin/cappv1` now resolves its own real location by following the symlink back (the diff below is what was applied), and `README.md`'s setup steps no longer hardcode a path. Verified by simulating a fresh clone at a completely different path (`/tmp/cappv1-elsewhere`, different symlink name) and confirming it correctly found *that* location's `.env`, not the original.
   ```diff
   --- bin/cappv1
   -PROJECT_DIR="/Users/ssharma33/Desktop/cappv1"

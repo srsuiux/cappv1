@@ -29,10 +29,7 @@ You'll need three things.
 
 ## Setup (do this once)
 
-1. Open Terminal and go to the project folder:
-   ```
-   cd /Users/ssharma33/Desktop/cappv1
-   ```
+1. Open Terminal and go to the project folder. If you're not sure how to type the path, there's an easy way: open the project folder in Finder, then drag that folder's icon onto the Terminal window right after typing `cd ` (with a space after it), and press Enter. Terminal fills in the correct path for you.
 2. Create your settings file from the template, and open it:
    ```
    cp .env.example .env
@@ -80,7 +77,7 @@ Your original files in `input` are never changed or deleted.
 
 | What you see | What it means | What to do |
 |---|---|---|
-| `command not found` when typing `cappv1` | The command isn't linked yet, or Terminal doesn't know where to find it | Run `mkdir -p ~/.local/bin && ln -sf /Users/ssharma33/Desktop/cappv1/bin/cappv1 ~/.local/bin/cappv1`. Still not working? Run `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc`, then try again. |
+| `command not found` when typing `cappv1` | The command isn't linked yet, or Terminal doesn't know where to find it | Go back to the project folder (see Setup, step 1) and run `mkdir -p ~/.local/bin && ln -sf "$(pwd)/bin/cappv1" ~/.local/bin/cappv1`. Still not working? Run `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc`, then try again. |
 | A red X in `cappv1 doctor` | Something in setup needs attention | The message next to the X explains what's wrong |
 | An image has no description after running | The AI service had a temporary hiccup | Run `cappv1 start` again. It retries only what didn't finish, not the whole file. |
 | A message mentioning "billing" or "402" | The AI model you're using needs payment | Run `cappv1 models` and pick a free one instead |
@@ -94,4 +91,4 @@ If the process is interrupted partway through (the laptop closes, the network dr
 
 ## For developers
 
-Settings live in `.env` (model choice, how many images to process at once, and so on; see `.env.example` for the full list). Source code is in `src/`. `skills.md` documents the one rule any change here has to follow: this tool only ever writes to a picture's alt-text field, nothing else in the file. `TODO-security.md` tracks known hardening work that hasn't been done yet, including that `bin/cappv1` currently has this machine's file path hardcoded into it, so cloning this repo onto a different computer needs that updated first.
+Settings live in `.env` (model choice, how many images to process at once, and so on; see `.env.example` for the full list). Source code is in `src/`. `skills.md` documents the one rule any change here has to follow: this tool only ever writes to a picture's alt-text field, nothing else in the file. `TODO-security.md` tracks known hardening work that hasn't been done yet.

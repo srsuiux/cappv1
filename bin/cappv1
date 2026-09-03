@@ -8,7 +8,16 @@
 #   cappv1 clean                                         wipe input/, output/, and tracked run state
 set -euo pipefail
 
-PROJECT_DIR="/Users/ssharma33/Desktop/cappv1"
+# Resolve this script's real location, following the symlink at
+# ~/.local/bin/cappv1 back to wherever the project actually lives - so
+# this works regardless of whose machine or which folder it's cloned into.
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+    DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+PROJECT_DIR="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
 cd "$PROJECT_DIR"
 
 if [ -t 1 ]; then
