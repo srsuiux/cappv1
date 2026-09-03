@@ -123,7 +123,13 @@ async def _process_slide(
     client: httpx.AsyncClient,
     semaphore: asyncio.Semaphore,
     state: FileState,
-) -> None:
+) -> int:
+    """Returns the number of images on this slide that failed to caption.
+
+    A slide is only marked done when this is 0, so a transient failure
+    (rate limit, network blip) leaves the slide eligible for automatic
+    retry on the next run instead of being silently locked in forever.
+    """
     context: SlideContext = get_slide_context(slide, slide_index, section)
     pictures = extract_pictures(slide)
     bar = progress_bar(slide_index + 1, total_slides)
@@ -134,7 +140,7 @@ async def _process_slide(
             filename, bar, slide_index + 1, total_slides, section or "-",
         )
         state.mark_slide_done(slide_index)
-        return
+        return 0
 
     captioned, decorative, cached, failed = 0, 0, 0, 0
 
@@ -178,7 +184,9 @@ async def _process_slide(
         filename, bar, slide_index + 1, total_slides, section or "-",
         captioned, decorative, cached, failed, len(pictures),
     )
-    state.mark_slide_done(slide_index)
+    if failed == 0:
+        state.mark_slide_done(slide_index)
+    return failed
 
 
 async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio.Semaphore, path: Path) -> None:
@@ -190,16 +198,28 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     total_slides = len(prs.slides)
     state = load_state(config.state_dir, filename)
 
+    any_failed = False
     for index, slide in enumerate(prs.slides):
         if state.is_slide_done(index):
             continue
-        await _process_slide(
+        failed = await _process_slide(
             slide, index, total_slides, filename, section_map.get(index),
             config, client, semaphore, state,
         )
+        any_failed = any_failed or failed > 0
         save_state(config.state_dir, state)
 
-    state.status = "complete"
+    if any_failed:
+        # leave status "in_progress" so a plain rerun retries just the
+        # failed slides - succeeded images on them are still cached, so
+        # nothing gets re-captioned unnecessarily.
+        logger.warning(
+            "[file: %s] finished with some images uncaptioned - rerun cappv1 start "
+            "to retry them (cached captions won't be re-fetched)",
+            filename,
+        )
+    else:
+        state.status = "complete"
     save_state(config.state_dir, state)
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
