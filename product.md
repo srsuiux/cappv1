@@ -60,21 +60,24 @@ Processing unit is **one slide at a time**, not the whole deck — this is the "
 ## 5. Architecture
 
 ```
-pptx-alt-text/
+cappv1/
 ├── input/                  # user drops .pptx files here
-├── output/                 # finished .pptx files land here
+├── output/                 # finished .pptx files land here, same filename as input
 ├── .state/                 # per-file progress (json) so a rerun resumes instead of restarting
 ├── .env                    # OPENROUTER_API_KEY=... (gitignored, never committed)
+├── bin/
+│   └── cappv1               # symlinked onto PATH (~/.local/bin/cappv1); backgrounds run.sh
+├── run.sh                   # sets up/activates .venv, then runs python -m src.main "$@"
 ├── src/
 │   ├── main.py              # CLI entrypoint
 │   ├── config.py            # env/config loading, model name, concurrency, thresholds
 │   ├── pipeline.py           # orchestrates discover → parse → caption → write → save
-│   ├── pptx_reader.py         # python-pptx wrapper: slides, sections, images, context text
+│   ├── pptx_reader.py         # python-pptx wrapper: slides, sections, images, context text,
+│   │                          # and alt-text (descr attribute) read/write
 │   ├── image_filter.py        # decorative/tiny/duplicate detection (perceptual hash + size)
 │   ├── llm_client.py           # OpenRouter API client (vision request, retries, backoff)
-│   ├── alt_text_writer.py      # writes descr attribute into picture shape XML
 │   └── state.py                # per-file progress tracking, resume support
-├── logs/                    # rotating run logs
+├── logs/                    # per-run logs (run-<timestamp>.log) + cappv1-launcher.log
 ├── requirements.txt
 └── product.md
 ```
@@ -139,14 +142,18 @@ Skip captioning (leave alt-text blank or mark `decorative`) when:
 
 ## 9. CLI
 
-`./run.sh` wraps `python -m src.main` and creates/activates the `.venv` automatically on first run, so it's the one command needed end to end:
+`run.sh` wraps `python -m src.main` and creates/activates the `.venv` automatically on first run. `bin/cappv1` is a thin wrapper around `run.sh` that's symlinked onto `PATH` (`~/.local/bin/cappv1`) and launches it detached (`nohup … &`), so the whole workflow from any terminal is just typing `cappv1`:
 
 ```
-./run.sh                    # process everything new in input/
-./run.sh --file deck.pptx   # process a single file
-./run.sh --resume           # resume any in_progress files only
-./run.sh --dry-run          # log what would be captioned, no API calls, no writes
+cappv1                    # process everything new in input/, in the background
+cappv1 --file deck.pptx   # process a single file
+cappv1 --resume           # resume any in_progress files only
+cappv1 --dry-run          # log what would be captioned, no API calls, no writes
+
+./run.sh                  # same thing, foregrounded (blocks, prints directly to terminal)
 ```
+
+Output files keep the same filename as their input (`input/x.pptx` → `output/x.pptx`).
 
 See `how-to-use-this-automation.md` for the user-facing walkthrough.
 

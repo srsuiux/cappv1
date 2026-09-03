@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Global launcher: lets you type `cappv1` from anywhere to run the
+# PPTX alt-text automation in the background against whatever's in
+# this project's input/ folder.
+set -euo pipefail
+
+PROJECT_DIR="/Users/ssharma33/Desktop/cappv1"
+cd "$PROJECT_DIR"
+
+mkdir -p logs
+LAUNCH_LOG="logs/cappv1-launcher.log"
+
+nohup ./run.sh "$@" >> "$LAUNCH_LOG" 2>&1 &
+PID=$!
+disown
+
+echo "cappv1 started in background (pid $PID)"
+echo "watch progress: tail -f \"$PROJECT_DIR/logs\"/run-*.log"
+echo "startup/errors:  tail -f \"$PROJECT_DIR/$LAUNCH_LOG\""

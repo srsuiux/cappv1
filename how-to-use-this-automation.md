@@ -4,61 +4,73 @@ This is the day-to-day guide for running the tool — no code reading required. 
 
 ## What it does, in one line
 
-You drop PowerPoint files into `input/`, run one command, and get the same files back in `output/` with accessibility alt-text automatically written onto every meaningful image.
+You drop PowerPoint files into `input/`, run one command, and get the same files back in `output/` — same filename — with accessibility alt-text automatically written onto every meaningful image. `input/quarterly-review.pptx` becomes `output/quarterly-review.pptx`.
 
 ## 1. One-time setup
 
 Do this once per machine.
 
-1. Open a terminal in the project folder:
-   ```
-   cd /Users/ssharma33/Desktop/cappv1
-   ```
-2. Confirm your API key is in place. Open `.env` and make sure this line has a real key (it should already be set up):
+1. Confirm your API key is in place. Open `.env` (in the project folder) and make sure this line has a real key (it should already be set up):
    ```
    OPENROUTER_API_KEY=sk-or-v1-...
    ```
    If this file or key is ever missing, the tool will tell you immediately when you try to run it, rather than failing partway through.
 
-That's it — you never need to touch Python or virtual environments directly. `./run.sh` (used below) sets everything up the first time it's run and reuses it after that.
+That's it. You never need to touch Python, virtual environments, or even `cd` into the project folder — the `cappv1` command below handles all of that.
 
 ## 2. The basic workflow (every time you use it)
 
 ### Step 1 — Add your PowerPoint files
-Drag and drop, or copy, your `.pptx` file(s) into the `input/` folder. You can drop in one file or many at once — the tool processes every `.pptx` it finds there.
+Drag and drop, or copy, your `.pptx` file(s) into the project's `input/` folder. Any filename works, and you can drop in one file or many at once — every `.pptx` sitting there gets processed.
 
 > Only `.pptx` works (the modern PowerPoint format). Old `.ppt` files need to be re-saved as `.pptx` from PowerPoint first (File → Save As → PowerPoint Presentation).
 
-### Step 2 — Run the tool
-In your terminal:
+### Step 2 — Run it
+Open a terminal — from anywhere, no `cd` needed — and type:
 ```
-./run.sh
+cappv1
 ```
-That's the whole command — it runs. You'll see live progress in the terminal, slide by slide:
+That's it. It starts the job in the background and hands your terminal right back:
+```
+cappv1 started in background (pid 20195)
+watch progress: tail -f "/Users/ssharma33/Desktop/cappv1/logs"/run-*.log
+startup/errors:  tail -f "/Users/ssharma33/Desktop/cappv1/logs/cappv1-launcher.log"
+```
+You're free to close that terminal, open other things, or run `cappv1` again later — it keeps working in the background.
+
+**Want to watch it live instead?** Run this once to follow along:
+```
+tail -f /Users/ssharma33/Desktop/cappv1/logs/run-*.log
+```
+You'll see progress slide by slide:
 ```
 [file: quarterly-review.pptx] [slide 4/12] [section: "Financials"] captioned 2/2 images
 [file: quarterly-review.pptx] [slide 5/12] skipped 1 decorative image, captioned 1/1
 [file: quarterly-review.pptx] saved to output/quarterly-review.pptx
 ```
+(`Ctrl+C` just stops watching the log — it does not stop the background job.)
 
 ### Step 3 — Get your finished file
-Once you see the `saved to output/...` line, your captioned deck is in the `output/` folder, ready to open in PowerPoint. The original file in `input/` is untouched — the tool never edits it in place.
+Once `output/<same filename>.pptx` shows up, it's done — open it straight from `output/` in PowerPoint. The original in `input/` is never touched.
 
 ### Step 4 — Spot-check it (recommended)
-Open the file from `output/` in PowerPoint, right-click an image → **Edit Alt Text**, and confirm the caption reads well. The model is good but not perfect — for anything going to an external audience, a quick human skim is worth it.
+Right-click an image → **Edit Alt Text**, and confirm the caption reads well. The model is good but not perfect — for anything going to an external audience, a quick human skim is worth it.
 
 ## 3. Other ways to run it
 
+`cappv1` accepts the same flags as the underlying script, so all of these work:
+
 | What you want | Command |
 |---|---|
-| Process everything new in `input/` | `./run.sh` |
-| Process just one specific file | `./run.sh --file "my-deck.pptx"` |
-| Preview what *would* happen — no API calls, no files written | `./run.sh --dry-run` |
-| Pick back up on a file that got interrupted partway | `./run.sh --resume` |
+| Process everything new in `input/` (background) | `cappv1` |
+| Process just one specific file | `cappv1 --file "my-deck.pptx"` |
+| Preview what *would* happen — no API calls, no files written | `cappv1 --dry-run` |
+| Pick back up on a file that got interrupted partway | `cappv1 --resume` |
+| Run in the current terminal instead of the background (see output directly, blocks until done) | `/Users/ssharma33/Desktop/cappv1/run.sh` |
 
 **When to use `--dry-run`:** before running a big batch of decks for the first time, to sanity-check how many images will be captioned vs. skipped without spending any API calls.
 
-**When to use `--resume`:** if you closed the terminal, lost power, or hit `Ctrl+C` mid-run. The tool checkpoints after every slide, so re-running (even a plain `./run.sh`) automatically picks up where it left off instead of starting the deck over — you don't lose progress or pay for images already captioned.
+**When to use `--resume`:** if the machine slept, lost power, or you killed the process mid-run. The tool checkpoints after every slide, so just running `cappv1` again automatically picks up where it left off instead of starting the deck over — you don't lose progress or pay for images already captioned.
 
 ## 4. What happens to different kinds of images
 
@@ -71,28 +83,34 @@ You don't need to sort your images beforehand — the tool figures this out auto
 
 ## 5. Checking on a run
 
-- **Live progress**: printed to your terminal as it runs.
-- **Full history**: every run also writes a timestamped log file to `logs/`, e.g. `logs/run-20260903-114347.log` — useful if you want to check what happened after the fact, or share a log with someone debugging an issue.
+- **Is it still running?** `ps aux | grep run.sh`
+- **Live/full progress**: `tail -f /Users/ssharma33/Desktop/cappv1/logs/run-*.log` — every run writes a timestamped log here (e.g. `run-20260903-122604.log`), so history is kept across runs, not just the current one.
+- **Startup problems** (e.g. missing API key, before the tool's own logging kicks in): `cat /Users/ssharma33/Desktop/cappv1/logs/cappv1-launcher.log`
 - **Per-file status**: `.state/<filename>.pptx.json` tracks whether each file is `in_progress` or `complete`. You don't need to open these — the tool reads and updates them automatically — but they're there if you're curious why a file did or didn't get reprocessed.
 
 ## 6. Troubleshooting
 
 | Symptom | What's going on | Fix |
 |---|---|---|
+| `cappv1: command not found` | The `~/.local/bin/cappv1` symlink is missing or `~/.local/bin` isn't on your `PATH` | Run `ln -sf /Users/ssharma33/Desktop/cappv1/bin/cappv1 ~/.local/bin/cappv1`, then open a new terminal |
 | `OPENROUTER_API_KEY is not set` | `.env` is missing or the key line is empty | Open `.env`, make sure `OPENROUTER_API_KEY=...` has a real value |
 | A file logs `already complete, skipping` | The tool already fully processed this file in a previous run | If you want to redo it, delete `.state/<filename>.pptx.json` and run again |
-| `caption generation failed permanently` for a specific image | The API call failed 3 times in a row (rate limit, network blip, temporary outage) | Alt-text is left blank for that image; just run the tool again — it'll retry only what's missing |
+| `caption generation failed permanently` for a specific image | The API call failed 3 times in a row (rate limit, network blip, temporary outage) | Alt-text is left blank for that image; just run `cappv1` again — it'll retry only what's missing |
 | A whole file fails and gets skipped | The `.pptx` is corrupted or not a valid PowerPoint file | Re-save the file from PowerPoint and drop it back into `input/` |
 | Nothing happens / "nothing to process" | `input/` is empty, or every file in it is already marked complete | Check that your files are actually in `input/` and end in `.pptx` |
 
 ## 7. Quick reference
 
 ```
-cd /Users/ssharma33/Desktop/cappv1
+# 1. drop .pptx files into:
+/Users/ssharma33/Desktop/cappv1/input/
 
-# 1. drop .pptx files into input/
-# 2. run:
-./run.sh
+# 2. from anywhere, run:
+cappv1
 
-# 3. collect finished files from output/
+# 3. watch it (optional):
+tail -f /Users/ssharma33/Desktop/cappv1/logs/run-*.log
+
+# 4. collect finished files (same names as input) from:
+/Users/ssharma33/Desktop/cappv1/output/
 ```
