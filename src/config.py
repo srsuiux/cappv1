@@ -12,6 +12,7 @@ load_dotenv(ROOT / ".env")
 class Config:
     api_key: str
     model: str
+    fallback_model: str
     concurrency: int
     min_image_size_px: int
     max_alt_text_chars: int
@@ -30,6 +31,7 @@ def load_config() -> Config:
     return Config(
         api_key=api_key,
         model=os.environ.get("MODEL", "minimax/minimax-m3:free"),
+        fallback_model=os.environ.get("FALLBACK_MODEL", "google/gemma-3-12b-it"),
         concurrency=int(os.environ.get("CONCURRENCY", "4")),
         min_image_size_px=int(os.environ.get("MIN_IMAGE_SIZE_PX", "40")),
         max_alt_text_chars=int(os.environ.get("MAX_ALT_TEXT_CHARS", "125")),
