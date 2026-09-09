@@ -69,18 +69,26 @@ def get_slide_context(slide, index: int, section: str | None) -> SlideContext:
     return SlideContext(index=index, section=section, title=title, body_text=body_text, notes=notes)
 
 
-def _walk_pictures(shapes) -> list:
+def _walk_shapes(shapes, predicate) -> list:
     refs = []
     for shape in shapes:
-        if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            refs.extend(_walk_shapes(shape.shapes, predicate))
+        elif predicate(shape):
             refs.append(shape)
-        elif shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-            refs.extend(_walk_pictures(shape.shapes))
     return refs
 
 
 def extract_pictures(slide) -> list:
-    return _walk_pictures(slide.shapes)
+    return _walk_shapes(slide.shapes, lambda s: s.shape_type == MSO_SHAPE_TYPE.PICTURE)
+
+
+def extract_tables(slide) -> list:
+    return _walk_shapes(slide.shapes, lambda s: getattr(s, "has_table", False))
+
+
+def extract_charts(slide) -> list:
+    return _walk_shapes(slide.shapes, lambda s: getattr(s, "has_chart", False))
 
 
 def _find_cnvpr(shape_element):
@@ -111,3 +119,40 @@ def mark_decorative(shape) -> None:
     """Mark an image as decorative (empty alt-text) rather than skip alt-text
     entirely, matching how PowerPoint's own 'Mark as decorative' works."""
     set_alt_text(shape, "")
+
+
+_MAX_TABLE_ROWS_IN_TEXT = 20
+
+
+def table_to_text(table) -> str:
+    """Renders a table's cell text as pipe-delimited rows for an LLM prompt.
+
+    Truncates very long tables since only enough rows to convey structure and
+    a representative sample of content are needed for a description.
+    """
+    rows = list(table.rows)
+    lines = [" | ".join(cell.text.strip() for cell in row.cells) for row in rows[:_MAX_TABLE_ROWS_IN_TEXT]]
+    if len(rows) > _MAX_TABLE_ROWS_IN_TEXT:
+        lines.append(f"... ({len(rows) - _MAX_TABLE_ROWS_IN_TEXT} more rows)")
+    return "\n".join(lines)
+
+
+def chart_to_text(chart) -> str:
+    """Renders a chart's type, title, and data as text for an LLM prompt.
+
+    No image of the chart exists to send to a vision model, but python-pptx
+    exposes the underlying data directly, which is enough to describe it.
+    """
+    lines = [f"Chart type: {chart.chart_type.name}"]
+    if chart.has_title:
+        lines.append(f"Title: {chart.chart_title.text_frame.text}")
+    try:
+        categories = [str(c) for c in chart.plots[0].categories]
+    except (IndexError, ValueError):
+        categories = []
+    if categories:
+        lines.append("Categories: " + ", ".join(categories))
+    for series in chart.series:
+        values = ", ".join("" if v is None else str(v) for v in series.values)
+        lines.append(f"Series '{series.name}': {values}")
+    return "\n".join(lines)

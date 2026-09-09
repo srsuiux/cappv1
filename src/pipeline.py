@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import logging
 import sys
 import time
@@ -8,16 +9,20 @@ import httpx
 
 from src.config import Config
 from src.image_filter import is_too_small, perceptual_hash
-from src.llm_client import generate_caption
+from src.llm_client import generate_caption, generate_chart_alt_text, generate_table_alt_text
 from src.pptx_reader import (
     SlideContext,
+    chart_to_text,
+    extract_charts,
     extract_pictures,
+    extract_tables,
     get_alt_text,
     get_section_map,
     get_slide_context,
     mark_decorative,
     open_presentation,
     set_alt_text,
+    table_to_text,
 )
 from src.state import FileState, load_state, save_state
 
@@ -132,11 +137,14 @@ async def _process_slide(
     """
     context: SlideContext = get_slide_context(slide, slide_index, section)
     pictures = extract_pictures(slide)
+    tables = extract_tables(slide)
+    charts = extract_charts(slide)
     bar = progress_bar(slide_index + 1, total_slides)
+    total_elements = len(pictures) + len(tables) + len(charts)
 
-    if not pictures:
+    if total_elements == 0:
         logger.info(
-            "[file: %s] %s %d/%d [section: %s] no images",
+            "[file: %s] %s %d/%d [section: %s] no images, tables, or charts",
             filename, bar, slide_index + 1, total_slides, section or "-",
         )
         state.mark_slide_done(slide_index)
@@ -144,7 +152,7 @@ async def _process_slide(
 
     captioned, decorative, cached, failed = 0, 0, 0, 0
 
-    async def handle_one(shape):
+    async def handle_picture(shape):
         nonlocal captioned, decorative, cached, failed
         image = shape.image
         image_bytes, ext = image.blob, image.ext
@@ -176,13 +184,60 @@ async def _process_slide(
         if img_hash:
             state.caption_cache[img_hash] = caption
 
-    await asyncio.gather(*(handle_one(shape) for shape in pictures))
+    async def handle_table(shape):
+        nonlocal captioned, cached, failed
+        table = shape.table
+        text_repr = table_to_text(table)
+        content_hash = "table:" + hashlib.sha256(text_repr.encode()).hexdigest()
+        if content_hash in state.caption_cache:
+            cached += 1
+            set_alt_text(shape, state.caption_cache[content_hash])
+            return
+
+        async with semaphore:
+            caption = await generate_table_alt_text(client, config, text_repr, context)
+
+        if caption is None:
+            failed += 1
+            return
+
+        captioned += 1
+        set_alt_text(shape, caption)
+        state.caption_cache[content_hash] = caption
+
+    async def handle_chart(shape):
+        nonlocal captioned, cached, failed
+        chart = shape.chart
+        text_repr = chart_to_text(chart)
+        content_hash = "chart:" + hashlib.sha256(text_repr.encode()).hexdigest()
+        if content_hash in state.caption_cache:
+            cached += 1
+            set_alt_text(shape, state.caption_cache[content_hash])
+            return
+
+        async with semaphore:
+            caption = await generate_chart_alt_text(client, config, text_repr, context)
+
+        if caption is None:
+            failed += 1
+            return
+
+        captioned += 1
+        set_alt_text(shape, caption)
+        state.caption_cache[content_hash] = caption
+
+    await asyncio.gather(
+        *(handle_picture(shape) for shape in pictures),
+        *(handle_table(shape) for shape in tables),
+        *(handle_chart(shape) for shape in charts),
+    )
 
     logger.info(
-        "[file: %s] %s %d/%d [section: %s] captioned %d, decorative %d, "
-        "cached %d, failed %d (of %d images)",
+        "[file: %s] %s %d/%d [section: %s] captioned %d, decorative %d, cached %d, "
+        "failed %d (of %d elements: %d images, %d tables, %d charts)",
         filename, bar, slide_index + 1, total_slides, section or "-",
-        captioned, decorative, cached, failed, len(pictures),
+        captioned, decorative, cached, failed,
+        total_elements, len(pictures), len(tables), len(charts),
     )
     if failed == 0:
         state.mark_slide_done(slide_index)

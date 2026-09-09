@@ -1,6 +1,6 @@
 # cappv1: PPTX Alt-Text Automation
 
-This tool looks at the pictures inside a PowerPoint file and writes a short description for each one, called "alt text," so that people using screen readers can understand what's in the images. You give it PowerPoint files, and it gives you back the same files with those descriptions added. Nothing else about your slides changes: no layout, text, fonts, or colors are touched.
+This tool looks at the pictures, tables, and charts inside a PowerPoint file and writes a short description for each one, called "alt text," so that people using screen readers can understand what's on the slide. You give it PowerPoint files, and it gives you back the same files with those descriptions added. Nothing else about your slides changes: no layout, text, fonts, or colors are touched.
 
 ## Who this is for
 
@@ -58,9 +58,9 @@ Every time you have PowerPoint files to process:
    ```
    cappv1 start
    ```
-3. **Wait.** You'll see progress printed for each slide as it works. This can take anywhere from a few seconds to a few minutes, depending on how many images there are.
+3. **Wait.** You'll see progress printed for each slide as it works. This can take anywhere from a few seconds to a few minutes, depending on how many images, tables, and charts there are.
 4. **Get your files.** Once you see a line saying `saved to output/...`, your finished file is in the `output` folder, under the same name it had before.
-5. **Check it.** Open the file from `output` in PowerPoint. Right-click an image and choose **Edit Alt Text** to see what was written. The descriptions are usually good, but it's worth a quick read-through before sharing anything important.
+5. **Check it.** Open the file from `output` in PowerPoint. Right-click a picture, table, or chart and choose **Edit Alt Text** to see what was written. The descriptions are usually good, but it's worth a quick read-through before sharing anything important.
 
 Your original files in `input` are never changed or deleted.
 
@@ -79,16 +79,16 @@ Your original files in `input` are never changed or deleted.
 |---|---|---|
 | `command not found` when typing `cappv1` | The command isn't linked yet, or Terminal doesn't know where to find it | Go back to the project folder (see Setup, step 1) and run `mkdir -p ~/.local/bin && ln -sf "$(pwd)/bin/cappv1" ~/.local/bin/cappv1`. Still not working? Run `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc`, then try again. |
 | A red X in `cappv1 doctor` | Something in setup needs attention | The message next to the X explains what's wrong |
-| An image has no description after running | The AI service had a temporary hiccup | Run `cappv1 start` again. It retries only what didn't finish, not the whole file. |
+| An image, table, or chart has no description after running | The AI service had a temporary hiccup | Run `cappv1 start` again. It retries only what didn't finish, not the whole file. |
 | A message mentioning "billing" or "402" | The AI model you're using needs payment | Run `cappv1 models` and pick a free one instead |
 | A file doesn't process at all | The PowerPoint file may be damaged | Re-save it from PowerPoint and add it to `input` again |
 
 ## How it works, briefly
 
-The tool opens each PowerPoint file and goes through it one slide at a time. For each picture it finds, it sends the image to the AI along with that slide's title and notes, so the description fits the context instead of being a generic guess. The AI's response is written into that picture's alt-text field, the same field PowerPoint's own **Edit Alt Text** tool uses. Everything else in the file stays exactly as it was.
+The tool opens each PowerPoint file and goes through it one slide at a time. For each picture, table, or chart it finds, it sends that content to the AI along with that slide's title and notes, so the description fits the context instead of being a generic guess — pictures are sent as images, while tables and charts (which have no image to send) are sent as their text/data content. The AI's response is written into that shape's alt-text field, the same field PowerPoint's own **Edit Alt Text** tool uses. Everything else in the file stays exactly as it was.
 
 If the process is interrupted partway through (the laptop closes, the network drops, power is lost), running `cappv1 start` again picks up where it left off instead of starting over.
 
 ## For developers
 
-Settings live in `.env` (model choice, how many images to process at once, and so on; see `.env.example` for the full list). Source code is in `src/`. `skills.md` documents the one rule any change here has to follow: this tool only ever writes to a picture's alt-text field, nothing else in the file. `TODO-security.md` tracks known hardening work that hasn't been done yet.
+Settings live in `.env` (model choice, fallback model, how many elements to process at once, and so on; see `.env.example` for the full list). Source code is in `src/`. `skills.md` documents the one rule any change here has to follow: this tool only ever writes to a shape's alt-text field (picture, table, or chart), nothing else in the file. `TODO-security.md` tracks known hardening work that hasn't been done yet.
