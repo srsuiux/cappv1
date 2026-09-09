@@ -17,7 +17,7 @@ A correct run, diffed against its input (ignoring the one XML attribute describe
 - **Slide layout, slide master, theme, fonts, colors** — unchanged.
 - **Text content** (titles, body, speaker notes) — read-only. It's used *as context* for writing better captions, never rewritten or "improved."
 - **Slide order, slide count, sections** — unchanged.
-- The **only** field this tool ever modifies is the `descr` attribute on a shape's `<p:cNvPr>` element — i.e. exactly the field PowerPoint's own "Edit Alt Text" panel edits. This applies to picture shapes, and (as of the table/chart extension) table and chart graphic-frame shapes too — never anything else on the shape. See `set_alt_text()` in `src/pptx_reader.py`; it's the single write path into the presentation XML.
+- The **only** field this tool ever modifies is the `descr` attribute on a shape's `<p:cNvPr>` element — i.e. exactly the field PowerPoint's own "Edit Alt Text" panel edits. This applies to picture, table, chart, and embedded-OLE-object shapes, plus a narrow, provably-safe decorative-marking pass on zero-pixel AutoShapes (see below) — never anything else on the shape. See `set_alt_text()` in `src/pptx_reader.py`; it's the single write path into the presentation XML.
 
 ## Shape extraction — match on the XML element tag, never `shape.shape_type`
 
@@ -34,6 +34,29 @@ Two sharp edges this tag-matching approach creates, both already handled in `_is
 ## The captioning model (called via OpenRouter)
 
 It never sees or touches the `.pptx` file itself. For images it receives one base64-encoded image plus slide-context text (title/body/notes); for tables and charts it receives a text rendering of their content/data instead (no image exists to send) — see `table_to_text()`/`chart_to_text()` in `src/pptx_reader.py`. Either way it returns a caption string — nothing more. See the system prompts in `src/llm_client.py`, which explicitly ask for alt-text only, no formatting, no extra commentary. It has no mechanism to alter the file; this section documents the constraint rather than guarding against a real risk.
+
+## Embedded OLE objects — heuristic text extraction, not a real parser
+
+`extract_ole_objects()`/`ole_object_to_text()`/`generate_ole_alt_text()` in `src/pptx_reader.py`/`src/llm_client.py` handle embedded Word/Excel/Visio objects (`p:graphicFrame` with `has_oleobj`) — common in decks pasted together from Word docs on old software. This was a known gap earlier in this tool's life; it's now handled, but by a real, evidence-tested compromise worth understanding before you touch it:
+
+- **The OLE fallback preview image is a dead end, confirmed, don't revisit it.** Its `p:pic` (nested inside `p:oleObj`/`mc:AlternateContent`, see above) is a Windows vector metafile (WMF/EMF). Pillow can't rasterize it (`.load()` fails), and every vision backend tried through OpenRouter (Anthropic, Google, Amazon, Azure) rejected it outright with "Could not process image." There is no image to send here.
+- **Modern OOXML embeds** (`progId` like `Word.Document.12`) are real `.docx` zip files — read properly via `python-docx` (`_docx_to_text()`), clean and accurate.
+- **Legacy OLE2-binary embeds** (`Word.Document.8`, `Word.Picture.8`, `Visio.Drawing.11`/`.6` — the majority in an old deck) have no lightweight Python parser for their actual binary format. `_ole2_binary_to_text()` instead opens the container with `olefile` and regex-scrapes every stream for plausible cp1252 text runs. This is **not a transcript** — it comes back as noisy, out-of-order fragments mixed with font-table and metadata junk (`"System System System Times New Roman FacNo..."`). It works anyway: tested against this tool's own real embeds (a Faculty Data table, five Visio relational-algebra diagrams), the resulting captions were accurate and specific in every case, because the prompt (`_OLE_SYSTEM_PROMPT`) explicitly tells the model the input is noisy and to use only what makes sense. If you change that prompt, keep that instruction — without it this approach doesn't work.
+- If the extracted text is pure noise, the model returns the literal string `UNKNOWN`, and `handle_ole()` in `src/pipeline.py` substitutes an honest, non-invented fallback (`"Embedded {progId} (automatic description unavailable)"`) rather than inventing content or leaving `descr` empty (empty would read as "reviewed, decorative," which an undescribed OLE object is not).
+- No LibreOffice or other external-binary dependency was needed for any of this — `olefile` and `python-docx` are both pure-Python, pip-installable. If a future deck's embeds genuinely defeat this heuristic (all-noise extraction, no signal), that's the point to reconsider a heavier dependency, not before.
+
+## SmartArt diagrams — clean XML, easier than OLE objects
+
+`extract_smartart()`/`smartart_to_text()`/`generate_smartart_alt_text()` handle SmartArt graphics — the OOXML spec calls this content type a "Diagram" (`p:graphicFrame` with `graphicData uri=".../drawingml/2006/diagram"`), a fourth `graphicData` type alongside table/chart/ole that **python-pptx has zero support for** (no `GRAPHIC_DATA_URI_DIAGRAM` constant, no `.diagram` property anywhere in the library — confirmed by reading its source, not assumed).
+
+Unlike an OLE object, there's nothing heuristic here — a SmartArt's content lives in a separate XML part (`data1.xml`, found via `<dgm:relIds r:dm="rIdN"/>` on the graphicFrame) that's clean, well-formed DrawingML: plain `<a:t>` text runs per node (`<dgm:pt>`), with real parent-child edges (`<dgm:cxn>`, default/`type="parOf"` — other `type` values like `presOf`/`presParOf` are presentation-layer plumbing, not data relationships, and must be filtered out or the hierarchy comes out wrong). `smartart_to_text()` walks this into an indented outline, and the prompt is told to describe the *relationships* the outline encodes, not just list the node text.
+
+This covers the common case (a single connected hierarchy/list layout). It will NOT handle a SmartArt with multiple disconnected root nodes meaningfully beyond outputting them as separate top-level entries — no deck has exercised that case yet, so it's untested, not proven broken.
+
+## Known gaps (deliberately unhandled, not oversights)
+
+- **Decorative-marking exists for pictures and for a narrow class of AutoShapes, not tables/charts/OLE objects/SmartArt.** `mark_decorative()` triggers for pictures via `is_too_small()` or the vision model's own `DECORATIVE` response, and for AutoShapes/connectors via `extract_invisible_shapes()`/`_is_invisible_shape()` — which only matches a shape with an **explicit** `<a:noFill/>` on both fill and line and no text: provably zero rendered pixels, not a judgment call. It deliberately does *not* match a shape that merely omits a fill/line element (which could inherit a visible theme style) — verified against a real deck's diagram connectors (arrows with `cx=0` because they're vertical, but a real `solidFill` stroke) to make sure those aren't caught. An inserted table/chart/OLE/SmartArt essentially always carries real data, so none of those get a decorative path.
+- **Grouped native-PowerPoint diagrams** — a `p:grpSp` containing AutoShapes with no picture/table/chart/OLE/SmartArt inside (e.g. a set of ovals+lines forming a Venn-style diagram drawn by hand in PowerPoint) — are still unhandled. There's no image to send (it's not a picture) and no single coherent text source (its content is scattered across sibling shapes' individual text runs, not one XML part like the cases above). The practical workaround in use is manually flattening this specific case to a picture in PowerPoint first, which routes it through the already-solid picture-captioning path.
 
 ## If you're extending this codebase
 

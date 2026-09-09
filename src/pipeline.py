@@ -9,19 +9,30 @@ import httpx
 
 from src.config import Config
 from src.image_filter import is_too_small, perceptual_hash
-from src.llm_client import generate_caption, generate_chart_alt_text, generate_table_alt_text
+from src.llm_client import (
+    generate_caption,
+    generate_chart_alt_text,
+    generate_ole_alt_text,
+    generate_smartart_alt_text,
+    generate_table_alt_text,
+)
 from src.pptx_reader import (
     SlideContext,
     chart_to_text,
     extract_charts,
+    extract_invisible_shapes,
+    extract_ole_objects,
     extract_pictures,
+    extract_smartart,
     extract_tables,
     get_alt_text,
     get_section_map,
     get_slide_context,
     mark_decorative,
+    ole_object_to_text,
     open_presentation,
     set_alt_text,
+    smartart_to_text,
     table_to_text,
 )
 from src.state import FileState, load_state, save_state
@@ -139,8 +150,14 @@ async def _process_slide(
     pictures = extract_pictures(slide)
     tables = extract_tables(slide)
     charts = extract_charts(slide)
+    ole_objects = extract_ole_objects(slide)
+    smartart_shapes = extract_smartart(slide)
+    invisible_shapes = extract_invisible_shapes(slide)
     bar = progress_bar(slide_index + 1, total_slides)
-    total_elements = len(pictures) + len(tables) + len(charts)
+    total_elements = (
+        len(pictures) + len(tables) + len(charts) + len(ole_objects)
+        + len(smartart_shapes) + len(invisible_shapes)
+    )
 
     if total_elements == 0:
         logger.info(
@@ -151,6 +168,14 @@ async def _process_slide(
         return 0
 
     captioned, decorative, cached, failed = 0, 0, 0, 0
+
+    # No LLM call needed here - these are provably zero-pixel shapes (explicit
+    # no-fill + no-line + no text), not a judgment call, so marking them
+    # decorative is a pure XML write, same as PowerPoint's own "Mark as
+    # decorative" action.
+    for shape in invisible_shapes:
+        decorative += 1
+        mark_decorative(shape)
 
     async def handle_picture(shape):
         nonlocal captioned, decorative, cached, failed
@@ -226,18 +251,77 @@ async def _process_slide(
         set_alt_text(shape, caption)
         state.caption_cache[content_hash] = caption
 
+    async def handle_ole(shape):
+        nonlocal captioned, cached, failed
+        of = shape.ole_format
+        blob = of.blob
+        if blob is None:
+            failed += 1
+            return
+        text_repr = ole_object_to_text(blob)
+        content_hash = "ole:" + hashlib.sha256(blob).hexdigest()
+        if content_hash in state.caption_cache:
+            cached += 1
+            set_alt_text(shape, state.caption_cache[content_hash])
+            return
+
+        caption = None
+        if text_repr:
+            async with semaphore:
+                caption = await generate_ole_alt_text(client, config, text_repr, context)
+
+        if caption is None:
+            failed += 1
+            return
+        if caption.strip().upper() == "UNKNOWN":
+            # Heuristic extraction gave the model nothing usable - still
+            # better than silence: an honest, non-invented fallback naming
+            # what kind of object this is, not what it contains.
+            caption = f"Embedded {of.prog_id or 'object'} (automatic description unavailable)"
+
+        captioned += 1
+        set_alt_text(shape, caption)
+        state.caption_cache[content_hash] = caption
+
+    async def handle_smartart(shape):
+        nonlocal captioned, cached, failed
+        text_repr = smartart_to_text(shape)
+        if not text_repr:
+            failed += 1
+            return
+        content_hash = "smartart:" + hashlib.sha256(text_repr.encode()).hexdigest()
+        if content_hash in state.caption_cache:
+            cached += 1
+            set_alt_text(shape, state.caption_cache[content_hash])
+            return
+
+        async with semaphore:
+            caption = await generate_smartart_alt_text(client, config, text_repr, context)
+
+        if caption is None:
+            failed += 1
+            return
+
+        captioned += 1
+        set_alt_text(shape, caption)
+        state.caption_cache[content_hash] = caption
+
     await asyncio.gather(
         *(handle_picture(shape) for shape in pictures),
         *(handle_table(shape) for shape in tables),
         *(handle_chart(shape) for shape in charts),
+        *(handle_ole(shape) for shape in ole_objects),
+        *(handle_smartart(shape) for shape in smartart_shapes),
     )
 
     logger.info(
         "[file: %s] %s %d/%d [section: %s] captioned %d, decorative %d, cached %d, "
-        "failed %d (of %d elements: %d images, %d tables, %d charts)",
+        "failed %d (of %d elements: %d images, %d tables, %d charts, %d OLE objects, "
+        "%d SmartArt, %d invisible shapes)",
         filename, bar, slide_index + 1, total_slides, section or "-",
         captioned, decorative, cached, failed,
-        total_elements, len(pictures), len(tables), len(charts),
+        total_elements, len(pictures), len(tables), len(charts), len(ole_objects),
+        len(smartart_shapes), len(invisible_shapes),
     )
     if failed == 0:
         state.mark_slide_done(slide_index)

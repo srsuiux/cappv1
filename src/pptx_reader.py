@@ -1,6 +1,11 @@
+import io
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
+import olefile
+from docx import Document
+from lxml import etree
 from pptx import Presentation
 from pptx.oxml.ns import qn
 
@@ -135,6 +140,180 @@ def extract_tables(slide) -> list:
 
 def extract_charts(slide) -> list:
     return _walk_shapes(slide.shapes, lambda s: getattr(s, "has_chart", False))
+
+
+def _is_ole_object(shape) -> bool:
+    graphic_frame = getattr(shape, "_graphicFrame", None)
+    return graphic_frame is not None and graphic_frame.has_oleobj
+
+
+def extract_ole_objects(slide) -> list:
+    return _walk_shapes(slide.shapes, _is_ole_object)
+
+
+_MAX_OLE_TEXT_CHARS = 4000
+# Matches plausible words/numbers, not punctuation/symbol noise - keeps the
+# heuristic scrape below from flooding the LLM prompt with binary garbage.
+_OLE_TEXT_RUN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ,.\-_/]{3,}")
+
+
+def _docx_to_text(blob: bytes) -> str:
+    doc = Document(io.BytesIO(blob))
+    parts = [p.text for p in doc.paragraphs if p.text.strip()]
+    for table in doc.tables:
+        for row in table.rows:
+            parts.append(" | ".join(cell.text.strip() for cell in row.cells))
+    return "\n".join(parts)[:_MAX_OLE_TEXT_CHARS]
+
+
+def _ole2_binary_to_text(blob: bytes) -> str:
+    """Scrapes plausible text runs out of every stream in a legacy OLE2
+    container (Word 97-2003 .doc, Visio .vsd, etc.). This does NOT parse
+    those binary formats - there's no lightweight pure-Python reader for
+    them. It's a crude heuristic (cp1252-decode + regex for printable runs),
+    not a faithful transcript: verified against a real embedded Word table
+    (extracted its column headers and row values correctly) and a real
+    embedded Visio drawing (extracted fragmented but legible text from its
+    PRINT stream). Good enough for an LLM to describe what the object shows,
+    which is all this is used for - never shown to a user directly.
+    """
+    try:
+        ole = olefile.OleFileIO(io.BytesIO(blob))
+    except Exception:
+        return ""
+    fragments = []
+    for stream_path in ole.listdir():
+        try:
+            data = ole.openstream(stream_path).read()
+        except Exception:
+            continue
+        fragments.extend(_OLE_TEXT_RUN_RE.findall(data.decode("cp1252", errors="ignore")))
+    ole.close()
+    return " ".join(fragments)[:_MAX_OLE_TEXT_CHARS]
+
+
+def ole_object_to_text(blob: bytes) -> str:
+    """Best-effort text for LLM captioning input from an embedded OLE
+    object's raw bytes (shape.ole_format.blob). Modern OOXML embeds (.docx)
+    are read properly; legacy OLE2-binary embeds get the heuristic scrape.
+    """
+    if blob[:2] == b"PK":
+        return _docx_to_text(blob)
+    if blob[:4] == b"\xd0\xcf\x11\xe0":
+        return _ole2_binary_to_text(blob)
+    return ""
+
+
+# SmartArt ("Diagram" in the OOXML spec) is a fourth p:graphicFrame content
+# type alongside table/chart/ole - python-pptx has no support for it at all
+# (no GRAPHIC_DATA_URI_DIAGRAM constant, no .diagram property), so this
+# reaches the relationship and XML directly, the same way _is_ole_object
+# does for OLE fallback pics.
+_DIAGRAM_GRAPHIC_DATA_URI = "http://schemas.openxmlformats.org/drawingml/2006/diagram"
+_DGM_NS = "http://schemas.openxmlformats.org/drawingml/2006/diagram"
+
+
+def _dgm_qn(tag: str) -> str:
+    return f"{{{_DGM_NS}}}{tag}"
+
+
+def _is_smartart(shape) -> bool:
+    graphic_frame = getattr(shape, "_graphicFrame", None)
+    return graphic_frame is not None and graphic_frame.graphicData_uri == _DIAGRAM_GRAPHIC_DATA_URI
+
+
+def extract_smartart(slide) -> list:
+    return _walk_shapes(slide.shapes, _is_smartart)
+
+
+def smartart_to_text(shape) -> str:
+    """Renders a SmartArt diagram's node text and hierarchy as indented text
+    for an LLM prompt. Unlike an OLE object, the diagram's data model
+    (data1.xml, found via the <dgm:relIds r:dm="..."/> relationship on the
+    graphicFrame) is clean, well-structured XML - no heuristic scrape needed,
+    same as table_to_text()/chart_to_text(). Returns "" if the data model
+    can't be found or parsed (caller treats that as no signal).
+    """
+    rel_ids = shape._element.find(f".//{_dgm_qn('relIds')}")
+    if rel_ids is None:
+        return ""
+    dm_rid = rel_ids.get(qn("r:dm"))
+    if not dm_rid:
+        return ""
+    try:
+        data_root = etree.fromstring(shape.part.related_part(dm_rid).blob)
+    except (KeyError, etree.XMLSyntaxError):
+        return ""
+
+    points = {}
+    for pt in data_root.iter(_dgm_qn("pt")):
+        model_id = pt.get("modelId")
+        text = " ".join(t.text for t in pt.findall(f".//{qn('a:t')}") if t.text)
+        if text:
+            points[model_id] = text
+
+    # Parent-child edges: a <dgm:cxn> with no "type" attribute, or an
+    # explicit type="parOf", represents the actual data hierarchy - other
+    # types (presOf, presParOf, ...) are presentation-layer plumbing, not
+    # content relationships.
+    children: dict[str, list[str]] = {}
+    all_children: set[str] = set()
+    for cxn in data_root.iter(_dgm_qn("cxn")):
+        if cxn.get("type") not in (None, "parOf"):
+            continue
+        src, dst = cxn.get("srcId"), cxn.get("destId")
+        if src in points and dst in points:
+            children.setdefault(src, []).append(dst)
+            all_children.add(dst)
+
+    roots = [pid for pid in points if pid not in all_children]
+
+    lines = []
+
+    def walk(point_id, depth):
+        lines.append("  " * depth + points[point_id])
+        for child_id in children.get(point_id, []):
+            walk(child_id, depth + 1)
+
+    for root_id in roots:
+        walk(root_id, 0)
+
+    return "\n".join(lines)
+
+
+def _is_invisible_shape(shape) -> bool:
+    """True for an AutoShape/connector that renders zero visible pixels:
+    explicit no-fill AND explicit no-line AND no text. Provably decorative
+    by construction - there's nothing to see - not a judgment call like
+    "this AutoShape looks unimportant."
+
+    Deliberately narrow: a shape that merely *omits* a fill/line element
+    (which then inherits from a theme/shape-style reference and could still
+    render visibly) is NOT matched here - only an explicit <a:noFill/> on
+    both fill and line. Real diagram connectors (e.g. an arrow with cx=0
+    because it's drawn as a vertical line) keep a real <a:ln> stroke with a
+    solidFill, so they're correctly left alone by this check.
+    """
+    element = shape._element
+    if element.tag not in (qn("p:sp"), qn("p:cxnSp")):
+        return False
+    if shape.has_text_frame and shape.text_frame.text.strip():
+        return False
+    spPr = element.find(qn("p:spPr"))
+    if spPr is None:
+        return False
+    has_explicit_nofill = spPr.find(qn("a:noFill")) is not None
+    ln = spPr.find(qn("a:ln"))
+    has_explicit_noline = ln is not None and ln.find(qn("a:noFill")) is not None
+    return has_explicit_nofill and has_explicit_noline
+
+
+def extract_invisible_shapes(slide) -> list:
+    """Top-level only - not recursing into groups like _walk_shapes does for
+    pictures/tables/charts. A shape nested inside a meaningful group isn't
+    independently announced by a screen reader anyway, so there's no
+    accessibility reason to reach into groups for this check."""
+    return [s for s in slide.shapes if _is_invisible_shape(s)]
 
 
 def _find_cnvpr(shape_element):

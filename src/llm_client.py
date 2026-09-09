@@ -48,6 +48,37 @@ _CHART_SYSTEM_PROMPT = (
     "- Output only the alt-text. No quotes, no preamble."
 )
 
+_OLE_SYSTEM_PROMPT = (
+    "You write alt-text for embedded objects (a Word document, an Excel sheet, a "
+    "Visio drawing, etc.) in PowerPoint slides, for screen-reader accessibility. "
+    "The text you're given was extracted by a best-effort heuristic scrape of the "
+    "embedded file's raw internal data, not a clean transcript - it will likely "
+    "contain garbled fragments, repeated font/metadata noise (e.g. 'System', font "
+    "names, author names), and text in a strange order. Rules:\n"
+    "- Use only the fragments that clearly make sense together; ignore metadata "
+    "noise and anything you can't confidently interpret.\n"
+    "- Describe what the object shows and its purpose on the slide, the same way "
+    "you would for a table or chart.\n"
+    "- Be concise: aim for under {max_chars} characters.\n"
+    "- Never start with 'Embedded object' or 'A document showing' - screen readers "
+    "already announce it as an object.\n"
+    "- If the extracted text gives no usable signal at all - it's entirely noise, "
+    "you cannot tell what the object contains - respond with exactly: UNKNOWN\n"
+    "- Output only the alt-text (or UNKNOWN). No quotes, no preamble."
+)
+
+_SMARTART_SYSTEM_PROMPT = (
+    "You write alt-text for SmartArt diagrams embedded in PowerPoint slides, for "
+    "screen-reader accessibility. You are given the diagram's node text as an "
+    "indented outline reflecting its actual hierarchy (not an image). Rules:\n"
+    "- Describe the structure and relationships the diagram conveys - who reports "
+    "to whom, what leads to what - not just a flat list of every node's text.\n"
+    "- Be concise: aim for under {max_chars} characters.\n"
+    "- Never start with 'Diagram of' or 'SmartArt showing' - screen readers "
+    "already announce it as a diagram.\n"
+    "- Output only the alt-text. No quotes, no preamble."
+)
+
 
 def _error_detail(resp: httpx.Response) -> str:
     """Pulls the useful part out of an OpenRouter error body, if present."""
@@ -261,5 +292,40 @@ async def generate_chart_alt_text(
     """Returns a text description of a chart's data, or None on permanent failure."""
     messages = _build_text_messages(
         _CHART_SYSTEM_PROMPT, chart_text, context, config.max_alt_text_chars, "Chart data"
+    )
+    return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
+
+
+async def generate_ole_alt_text(
+    client: httpx.AsyncClient,
+    config: Config,
+    ole_text: str,
+    context: SlideContext,
+    max_retries: int = 3,
+    primary_max_retries: int = 1,
+) -> str | None:
+    """Returns a text description of an embedded OLE object's content, the
+    literal string "UNKNOWN" if the model found no usable signal in the
+    heuristically-extracted text, or None on permanent failure. The caller
+    decides what to do with "UNKNOWN" (e.g. a progId-based fallback string) -
+    this function doesn't guess at that."""
+    messages = _build_text_messages(
+        _OLE_SYSTEM_PROMPT, ole_text, context, config.max_alt_text_chars, "Embedded object content"
+    )
+    return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
+
+
+async def generate_smartart_alt_text(
+    client: httpx.AsyncClient,
+    config: Config,
+    smartart_text: str,
+    context: SlideContext,
+    max_retries: int = 3,
+    primary_max_retries: int = 1,
+) -> str | None:
+    """Returns a text description of a SmartArt diagram's structure, or None
+    on permanent failure."""
+    messages = _build_text_messages(
+        _SMARTART_SYSTEM_PROMPT, smartart_text, context, config.max_alt_text_chars, "Diagram outline"
     )
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
