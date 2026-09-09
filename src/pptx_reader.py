@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from pptx import Presentation
-from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.oxml.ns import qn
 
 _NV_PR_TAGS = ("p:nvPicPr", "p:nvSpPr", "p:nvGrpSpPr", "p:nvGraphicFramePr", "p:nvCxnSpPr")
@@ -70,17 +69,64 @@ def get_slide_context(slide, index: int, section: str | None) -> SlideContext:
 
 
 def _walk_shapes(shapes, predicate) -> list:
+    """Recurses into groups by XML tag, not `shape.shape_type` - python-pptx
+    unconditionally reports MSO_SHAPE_TYPE.PLACEHOLDER for any shape (picture,
+    table, chart, ...) that's wrapped in a slide placeholder, which masks its
+    real type. Matching on the element tag instead sidesteps that entirely."""
     refs = []
     for shape in shapes:
-        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+        if shape._element.tag == qn("p:grpSp"):
             refs.extend(_walk_shapes(shape.shapes, predicate))
         elif predicate(shape):
             refs.append(shape)
     return refs
 
 
+def _is_picture(shape) -> bool:
+    """True for a real embedded picture. Excludes `p:pic` elements that are
+    actually video shapes (python-pptx's `Movie`, which has no `.image`) -
+    same XML tag, discriminated by an `a:videoFile` child, matching
+    python-pptx's own Picture-vs-Movie dispatch in shapetree.py."""
+    element = shape._element
+    if element.tag != qn("p:pic"):
+        return False
+    return len(element.xpath("./p:nvPicPr/p:nvPr/a:videoFile")) == 0
+
+
+def _count_raw_pictures(slide) -> int:
+    """Independent, low-level recount of real (non-video) `p:pic` elements
+    straight from the slide's XML tree, bypassing python-pptx shape wrappers
+    and _walk_shapes. Used as a cross-check so a future extraction bug - the
+    same class as the placeholder shape_type bug - fails loudly instead of
+    silently dropping a shape.
+
+    Excludes `p:pic` elements nested inside a `p:oleObj` - an embedded OLE
+    object (e.g. a Word doc) carries a `<p:pic>` fallback preview image inside
+    its `mc:AlternateContent` for viewers that can't activate the object.
+    That `p:pic` has no real shape id (id="0") and isn't reachable via
+    `slide.shapes` at all - it's not an independently addressable shape, it's
+    part of the OLE object's own representation. The OLE object itself (a
+    GraphicFrame) is a separate, currently-unhandled alt-text target - not
+    this fallback picture.
+    """
+    return sum(
+        1
+        for pic in slide.shapes._element.iter(qn("p:pic"))
+        if len(pic.xpath("./p:nvPicPr/p:nvPr/a:videoFile")) == 0
+        and len(pic.xpath("ancestor::p:oleObj")) == 0
+    )
+
+
 def extract_pictures(slide) -> list:
-    return _walk_shapes(slide.shapes, lambda s: s.shape_type == MSO_SHAPE_TYPE.PICTURE)
+    pictures = _walk_shapes(slide.shapes, _is_picture)
+    expected = _count_raw_pictures(slide)
+    if len(pictures) != expected:
+        raise RuntimeError(
+            f"picture extraction mismatch: {expected} real <p:pic> element(s) "
+            f"found in slide XML but only {len(pictures)} entered the "
+            f"candidate list - a picture is being silently dropped"
+        )
+    return pictures
 
 
 def extract_tables(slide) -> list:
