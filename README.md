@@ -91,4 +91,4 @@ If the process is interrupted partway through (the laptop closes, the network dr
 
 ## For developers
 
-Settings live in `.env` (model choice, fallback model, how many elements to process at once, and so on; see `.env.example` for the full list). Source code is in `src/`. `skills.md` documents the one rule any change here has to follow: this tool only ever writes to a shape's alt-text field (picture, table, or chart), nothing else in the file. `TODO-security.md` tracks known hardening work that hasn't been done yet.
+Settings live in `.env` (model choice, fallback model, how many elements to process at once, and so on; see `.env.example` for the full list). Source code is in `src/`. `skills.md` documents the one rule any change here has to follow: this tool only ever writes to a shape's alt-text field (picture, table, or chart), nothing else in the file.
