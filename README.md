@@ -1,98 +1,122 @@
 # cappv1: PPTX Alt-Text Automation
 
-This tool looks at the pictures, tables, charts, and other embedded content (like an old Word document or diagram someone pasted into the slide) inside a PowerPoint file and writes a short description for each one, called "alt text," so that people using screen readers can understand what's on the slide. You give it PowerPoint files, and it gives you back the same files with those descriptions added. Nothing else about your slides changes: no layout, text, fonts, or colors are touched.
+cappv1 looks at the pictures, tables, charts, and other embedded content (like a pasted-in Word document or diagram) in your PowerPoint files and writes a short description for each one. These descriptions are called "alt text," and screen readers read them aloud to people who can't see the slide.
 
-## Who this is for
+You drop in `.pptx` files and get the same files back with the descriptions added. Nothing else changes: no layout, text, fonts, or colors. Your originals are never modified.
 
-If you have a stack of presentations that need image descriptions for accessibility, and writing them by hand for every slide isn't realistic, this does that work for you. You don't need to know how to code to use it. For example, an instructor preparing lecture slides for a class with a blind or low-vision student could use this to make sure every chart, photo, and diagram has a proper description before sharing the deck.
+**Example:** an instructor preparing lecture slides for a blind or low-vision student can use this to make sure every chart, photo, and diagram has a description before sharing the deck.
 
-## Before you start
+## What you need
 
-You'll need three things.
+| You need | How to check |
+|---|---|
+| **A Mac or Linux computer** (Windows isn't supported yet) | |
+| **Python 3.11 or newer** | Open **Terminal** (`Cmd + Space`, type `Terminal`, press Enter) and type `python3 --version`. If it shows 3.11 or higher, you're set. Otherwise install Python from [python.org/downloads](https://www.python.org/downloads/). |
+| **An API key from one AI service** | See the next section. |
 
-**A Mac or Linux computer.** This doesn't currently run on Windows.
+### Choosing an AI service
 
-**Python, version 3.11 or newer.** Most Macs already have this installed. To check:
+An API key is like a password that lets this tool use an AI service. You only need **one** of these:
 
-1. Open the **Terminal** app: press `Cmd + Space`, type `Terminal`, and press Enter.
-2. Type this and press Enter:
-   ```
-   python3 --version
-   ```
-3. If you see `Python 3.11` or higher, you're set. If you see an error, or an older version, install Python from [python.org/downloads](https://www.python.org/downloads/) and check again.
+| Service | Cost | Where to get a key |
+|---|---|---|
+| **OpenRouter** | Has free models (the default) | [openrouter.ai](https://openrouter.ai) → account settings → API Keys. Keys start with `sk-or-v1-`. |
+| **OpenAI** | Paid, a fraction of a cent per image | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| **Anthropic** | Paid, a fraction of a cent per image | [console.anthropic.com](https://console.anthropic.com) → API Keys |
 
-**An API key from one AI service.** The tool works with OpenRouter (has free models), OpenAI, or Anthropic. An API key is like a password just for this tool. Note that an OpenAI or Anthropic key only works with that company directly; OpenRouter needs its own OpenRouter key, even for OpenAI or Anthropic models.
+Each key only works with its own service. For example, an OpenAI key can't be used through OpenRouter.
 
-1. Go to [openrouter.ai](https://openrouter.ai) and create a free account.
-2. In your account settings, find **API Keys** and create a new one.
-3. Copy the key somewhere safe. It's a long string starting with `sk-or-v1-`, and you'll need it in the next step.
+> **Privacy:** free OpenRouter models send your slide content through shared third-party providers that may log or train on it. If your slides contain anything sensitive (student names, grades, ID numbers, unpublished research), use a paid OpenAI or Anthropic key instead.
 
-### A note on privacy
+## Install (one time)
 
-By default, this tool uses a free AI model. Free models on OpenRouter route your slide content through a shared, rotating pool of third-party providers, and OpenRouter's policy allows some of those providers to log or train on what gets sent — there's no guarantee of privacy on the free tier. If any of your slides contain sensitive information (student names, grades, ID numbers, unpublished research), don't run them through the free default. Instead, open `.env` and change the `MODEL=` line to a paid vision model instead (note: `cappv1 models` only lists free options, so you'll need to set this one by hand — any model marked "vision" on [openrouter.ai/models](https://openrouter.ai/models) works, and paid ones typically cost a fraction of a cent per image).
+**1. Download the project and open it in Terminal.**
 
-## Setup (do this once)
+```
+git clone https://github.com/srsuiux/cappv1.git
+cd cappv1
+```
 
-1. Open Terminal and go to the project folder. If you're not sure how to type the path, there's an easy way: open the project folder in Finder, then drag that folder's icon onto the Terminal window right after typing `cd ` (with a space after it), and press Enter. Terminal fills in the correct path for you.
-2. Create your settings file from the template, and open it:
-   ```
-   cp .env.example .env
-   open -e .env
-   ```
-   A text editor window opens. Set `PROVIDER=` to `openrouter`, `openai`, or `anthropic`, then paste your key after the matching line (`OPENROUTER_API_KEY=`, `OPENAI_API_KEY=`, or `ANTHROPIC_API_KEY=`). If you leave `PROVIDER` out, the first key you filled in is used. Leave `MODEL=` blank to use that provider's default, or set a model from that same provider. Don't add spaces, and don't change anything else. Save (`Cmd + S`) and close the window.
-3. Turn on the `cappv1` command so you can type it from anywhere:
-   ```
-   mkdir -p ~/.local/bin
-   ln -sf "$(pwd)/bin/cappv1" ~/.local/bin/cappv1
-   ```
-4. Check that everything is working:
-   ```
-   cappv1 doctor
-   ```
-   You should see a list of green checkmarks. If anything shows a red X, the line next to it explains what to fix in plain language.
+**2. Create your settings file and open it.**
 
-The first time you run `cappv1 doctor` or `cappv1 start`, it may pause for a few extra seconds to finish setting itself up. That's normal and only happens once.
+```
+cp .env.example .env
+open -e .env
+```
 
-## How to use it
+A text editor opens. Make two edits, with no spaces around the `=`:
 
-Every time you have PowerPoint files to process:
+- Set `PROVIDER=` to `openrouter`, `openai`, or `anthropic`.
+- Paste your key after the matching line, for example `OPENAI_API_KEY=sk-...`.
 
-1. **Add your files.** Drag your `.pptx` files into the `input` folder inside the project. Any filename works, and you can add more than one at a time.
+Leave everything else as it is, then save (`Cmd + S`) and close the window.
+
+**3. Turn on the `cappv1` command.**
+
+```
+mkdir -p ~/.local/bin
+ln -sf "$(pwd)/bin/cappv1" ~/.local/bin/cappv1
+```
+
+**4. Check that it works.**
+
+```
+cappv1 doctor
+```
+
+You should see a list of green checkmarks. A red ✗ means something needs fixing, and the line next to it says what.
+
+The first time you run `cappv1 doctor` or `cappv1 start`, it pauses for a few extra seconds to install what it needs. That's normal and only happens once.
+
+## Using it
+
+1. **Add your files.** Drag your `.pptx` files into the `input` folder inside the project. Add as many as you like, with any filenames.
 2. **Run it.** In Terminal, type:
    ```
    cappv1 start
    ```
-3. **Wait.** You'll see progress printed for each slide as it works. This can take anywhere from a few seconds to a few minutes, depending on how much content there is to describe.
-4. **Get your files.** Once you see a line saying `saved to output/...`, your finished file is in the `output` folder, under the same name it had before.
-5. **Check it.** Open the file from `output` in PowerPoint. Right-click a picture, table, chart, or other object and choose **Edit Alt Text** to see what was written. The descriptions are usually good, but it's worth a quick read-through before sharing anything important.
+3. **Wait.** It processes the files one after another, in alphabetical order, and prints progress for each file and slide (for example `file 2/5`). Each file can take from a few seconds to a few minutes.
+4. **Collect your files.** Each finished file appears in the `output` folder under its original name, and the log shows a `saved to output/...` line.
+5. **Check the result.** Open a file from `output` in PowerPoint, right-click a picture, table, or chart, and choose **Edit Alt Text**. The descriptions are usually good, but give them a quick read before sharing anything important.
 
-Your original files in `input` are never changed or deleted.
+If one file fails, the others still run, and the failed file names are listed at the end. If the run is interrupted (laptop closes, network drops), run `cappv1 start` again. It skips finished files and picks up where it left off.
 
-## The commands
+## Commands
 
 | Type this | What it does |
 |---|---|
-| `cappv1 start` | Processes everything in the `input` folder. |
-| `cappv1 doctor` | Checks that everything is set up correctly. Safe to run any time, since it doesn't change anything. |
-| `cappv1 models` | Lets you switch which free OpenRouter model is used (OpenRouter only; for OpenAI or Anthropic, set `MODEL=` in `.env`). |
-| `cappv1 clean` | Empties the `input` and `output` folders completely, so you can start fresh. There's no undo, so only use this once you've saved anything you need. |
+| `cappv1 start` | Processes every `.pptx` in `input`, one by one. Add `--resume` to only continue unfinished files. |
+| `cappv1 doctor` | Checks your setup. Safe to run any time; it changes nothing. |
+| `cappv1 models` | Lets you pick a different free OpenRouter model. (For OpenAI or Anthropic, set `MODEL=` in `.env` instead.) |
+| `cappv1 clean` | **Permanently deletes** everything in `input` and `output`, plus saved progress. There's no undo, so save anything you need first. |
+
+## Switching AI service or model
+
+Open `.env` and change `PROVIDER=` to another service (make sure that service's key is filled in). Leave `MODEL=` blank to use the service's default, or set a model from that same service:
+
+| Service | Default model |
+|---|---|
+| OpenRouter | `minimax/minimax-m3:free` (falls back to `google/gemma-3-12b-it`) |
+| OpenAI | `gpt-4o-mini` |
+| Anthropic | `claude-haiku-5-5` |
 
 ## If something goes wrong
 
-| What you see | What it means | What to do |
-|---|---|---|
-| `command not found` when typing `cappv1` | The command isn't linked yet, or Terminal doesn't know where to find it | Go back to the project folder (see Setup, step 1) and run `mkdir -p ~/.local/bin && ln -sf "$(pwd)/bin/cappv1" ~/.local/bin/cappv1`. Still not working? Run `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc`, then try again. |
-| A red X in `cappv1 doctor` | Something in setup needs attention | The message next to the X explains what's wrong |
-| An image, table, chart, or other object has no description after running | The AI service had a temporary hiccup | Run `cappv1 start` again. It retries only what didn't finish, not the whole file. |
-| A message mentioning "billing" or "402" | The AI model you're using needs payment | Run `cappv1 models` and pick a free one instead |
-| A file doesn't process at all | The PowerPoint file may be damaged | Re-save it from PowerPoint and add it to `input` again |
+| What you see | What to do |
+|---|---|
+| `command not found: cappv1` | Run step 3 of Install again from the project folder. If it still fails, run `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc`, then try again. |
+| A red ✗ in `cappv1 doctor` | Read the message beside it. It says what to fix. |
+| `API key is not set` or `rejected this key (401)` | Re-check the key in `.env`: no spaces or quotes, and it's on the line that matches your `PROVIDER`. |
+| Some images, tables, or charts have no description | The AI service had a temporary hiccup. Run `cappv1 start` again; it retries only what's missing. |
+| A message mentioning "billing" or "402" | That model needs payment. On OpenRouter run `cappv1 models` and pick a free one. On OpenAI or Anthropic, add credit to your account. |
+| A file doesn't process at all | The file may be damaged. Re-save it from PowerPoint and add it to `input` again. |
 
-## How it works, briefly
+## How it works
 
-The tool opens each PowerPoint file and goes through it one slide at a time. For each picture, table, chart, or embedded object (like a pasted-in Word document, Excel sheet, Visio drawing, or SmartArt diagram) it finds, it sends that content to the AI along with that slide's title and notes, so the description fits the context instead of being a generic guess — pictures are sent as images, while everything else (which has no image to send) is sent as text content instead. The AI's response is written into that shape's alt-text field, the same field PowerPoint's own **Edit Alt Text** tool uses. A small number of shapes that are completely invisible — leftover from editing, with no fill, no outline, and no text — get automatically marked as decorative instead, the same way PowerPoint's own "Mark as decorative" button would, so screen readers skip over them without you needing to notice they're there. Everything else in the file stays exactly as it was.
+For each file, the tool goes through the slides one at a time. For each picture, table, chart, or embedded object (a pasted-in Word, Excel, or Visio file, or a SmartArt diagram) it sends the content to the AI along with the slide's title and notes, so the description fits its context. Pictures are sent as images; everything else is sent as text. The AI's answer is written into that shape's alt-text field, the same one PowerPoint's **Edit Alt Text** uses.
 
-If the process is interrupted partway through (the laptop closes, the network drops, power is lost), running `cappv1 start` again picks up where it left off instead of starting over.
+Shapes that are completely invisible (no fill, no outline, no text) are marked as decorative, like PowerPoint's own "Mark as decorative" button, so screen readers skip them. Everything else in the file stays exactly as it was.
 
 ## For developers
 
-Settings live in `.env` (model choice, fallback model, how many elements to process at once, and so on; see `.env.example` for the full list). Source code is in `src/`. `skills.md` documents the one rule any change here has to follow: this tool only ever writes to a shape's alt-text field, nothing else in the file.
+Settings live in `.env`; see `.env.example` for the full list (provider, model, fallback model, concurrency, minimum image size, maximum alt-text length). Source code is in `src/`. `skills.md` documents the one rule any change must follow: this tool only ever writes to a shape's alt-text field, nothing else in the file.
