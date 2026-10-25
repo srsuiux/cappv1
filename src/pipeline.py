@@ -96,13 +96,7 @@ def setup_logging(logs_dir: Path) -> None:
     logger.addHandler(file_handler)
 
 
-def discover_files(config: Config, only_file: str | None, resume_only: bool) -> list[Path]:
-    if only_file:
-        path = config.input_dir / only_file
-        if not path.exists():
-            raise FileNotFoundError(f"{path} not found")
-        return [path]
-
+def discover_files(config: Config, resume_only: bool) -> list[Path]:
     files = sorted(config.input_dir.glob("*.pptx"))
     result = []
     for f in files:
@@ -367,17 +361,27 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     logger.info("[file: %s] saved to %s", filename, out_path)
 
 
-async def run(config: Config, only_file: str | None = None, resume_only: bool = False) -> None:
-    files = discover_files(config, only_file, resume_only)
+async def run(config: Config, resume_only: bool = False) -> None:
+    files = discover_files(config, resume_only)
     if not files:
         logger.info("nothing to process")
         return
 
     semaphore = asyncio.Semaphore(config.concurrency)
+    total = len(files)
+    failed_files: list[str] = []
 
+    # Files run strictly one at a time, in order; the semaphore only bounds
+    # concurrent API calls within a file. One bad file doesn't stop the rest.
     async with httpx.AsyncClient() as client:
-        for path in files:
+        for n, path in enumerate(files, start=1):
+            logger.info("=== file %d/%d: %s ===", n, total, path.name)
             try:
                 await run_file(config, client, semaphore, path)
             except Exception as exc:
                 logger.error("[file: %s] failed: %s", path.name, exc)
+                failed_files.append(path.name)
+
+    logger.info("finished %d/%d file(s) without errors", total - len(failed_files), total)
+    if failed_files:
+        logger.error("failed: %s", ", ".join(failed_files))

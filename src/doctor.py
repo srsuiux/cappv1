@@ -22,15 +22,35 @@ _RED = "\033[31m" if _USE_COLOR else ""
 _GREEN = "\033[32m" if _USE_COLOR else ""
 
 
-def read_env_key() -> str | None:
+# provider -> (API key env var, display name)
+PROVIDERS = {
+    "openrouter": ("OPENROUTER_API_KEY", "OpenRouter"),
+    "openai": ("OPENAI_API_KEY", "OpenAI"),
+    "anthropic": ("ANTHROPIC_API_KEY", "Anthropic"),
+}
+
+
+def read_env_file() -> dict[str, str]:
     env_path = ROOT / ".env"
-    if not env_path.exists():
-        return None
-    for raw_line in env_path.read_text().splitlines():
-        stripped = raw_line.strip()
-        if stripped.startswith("OPENROUTER_API_KEY="):
-            return stripped.split("=", 1)[1].strip() or None
-    return None
+    values = {}
+    if env_path.exists():
+        for raw_line in env_path.read_text().splitlines():
+            stripped = raw_line.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                name, value = stripped.split("=", 1)
+                values[name.strip()] = value.strip()
+    return values
+
+
+def pick_provider(env: dict[str, str]) -> str:
+    """Mirrors src.config.resolve_provider (this file stays stdlib-only)."""
+    chosen = env.get("PROVIDER", "").lower()
+    if chosen in PROVIDERS:
+        return chosen
+    for name, (key_var, _) in PROVIDERS.items():
+        if env.get(key_var):
+            return name
+    return "openrouter"
 
 
 def check_venv_deps() -> tuple[bool | None, str]:
@@ -47,22 +67,27 @@ def check_venv_deps() -> tuple[bool | None, str]:
         return False, "venv exists but dependencies are incomplete - try: rm -rf .venv && cappv1 start"
 
 
-def check_api_key_live(key: str) -> tuple[bool, str]:
-    req = urllib.request.Request(
-        "https://openrouter.ai/api/v1/auth/key",
-        headers={"Authorization": f"Bearer {key}"},
-    )
+def check_api_key_live(provider: str, key: str) -> tuple[bool, str]:
+    name = PROVIDERS[provider][1]
+    if provider == "openrouter":
+        url, headers = "https://openrouter.ai/api/v1/auth/key", {"Authorization": f"Bearer {key}"}
+    elif provider == "openai":
+        url, headers = "https://api.openai.com/v1/models", {"Authorization": f"Bearer {key}"}
+    else:
+        url = "https://api.anthropic.com/v1/models"
+        headers = {"x-api-key": key, "anthropic-version": "2023-06-01"}
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
             if resp.status == 200:
-                return True, "verified with OpenRouter"
+                return True, f"verified with {name}"
             return False, f"unexpected response ({resp.status})"
     except urllib.error.HTTPError as exc:
         if exc.code == 401:
-            return False, "OpenRouter rejected this key (401 unauthorized)"
-        return False, f"OpenRouter returned an error ({exc.code})"
+            return False, f"{name} rejected this key (401 unauthorized)"
+        return False, f"{name} returned an error ({exc.code})"
     except Exception as exc:
-        return False, f"couldn't reach OpenRouter ({exc.__class__.__name__})"
+        return False, f"couldn't reach {name} ({exc.__class__.__name__})"
 
 
 def check_dir_writable(path: Path) -> bool:
@@ -90,7 +115,7 @@ def skip(label: str, detail: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--quick", action="store_true", help="skip the live OpenRouter check")
+    parser.add_argument("--quick", action="store_true", help="skip the live API key check")
     args = parser.parse_args()
 
     print(f"{_BOLD}cappv1 doctor{_RESET} - environment check\n")
@@ -99,15 +124,19 @@ def main() -> int:
     env_exists = (ROOT / ".env").exists()
     all_ok &= report(env_exists, ".env file found")
 
-    key = read_env_key() if env_exists else None
-    all_ok &= report(bool(key), "OPENROUTER_API_KEY is set")
+    env = read_env_file() if env_exists else {}
+    provider = pick_provider(env)
+    key_var, provider_name = PROVIDERS[provider]
+    key = env.get(key_var) or None
+    print(f"  {_DIM}provider: {provider_name}{_RESET}")
+    all_ok &= report(bool(key), f"{key_var} is set")
 
     if not key:
         skip("API key check", "no key to test")
     elif args.quick:
         skip("API key live check", "skipped (--quick)")
     else:
-        ok, detail = check_api_key_live(key)
+        ok, detail = check_api_key_live(provider, key)
         all_ok &= report(ok, "API key is valid", detail)
 
     deps_ok, deps_detail = check_venv_deps()

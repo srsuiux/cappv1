@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import io
 import json
 import logging
 
@@ -10,7 +11,14 @@ from src.pptx_reader import SlideContext
 
 logger = logging.getLogger("pptx_alt_text")
 
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+_CHAT_URLS = {
+    "openrouter": "https://openrouter.ai/api/v1/chat/completions",
+    "openai": "https://api.openai.com/v1/chat/completions",
+    "anthropic": "https://api.anthropic.com/v1/messages",
+}
+_PROVIDER_LABELS = {"openrouter": "OpenRouter", "openai": "OpenAI", "anthropic": "Anthropic"}
+_ANTHROPIC_VERSION = "2023-06-01"
+_ANTHROPIC_IMAGE_MIMES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
 _IMAGE_SYSTEM_PROMPT = (
     "You write alt-text for images embedded in PowerPoint slides, for screen-reader "
@@ -81,10 +89,12 @@ _SMARTART_SYSTEM_PROMPT = (
 
 
 def _error_detail(resp: httpx.Response) -> str:
-    """Pulls the useful part out of an OpenRouter error body, if present."""
+    """Pulls the useful part out of a provider error body, if present."""
     try:
         err = resp.json().get("error", {})
     except (json.JSONDecodeError, ValueError):
+        return resp.text[:200]
+    if not isinstance(err, dict):
         return resp.text[:200]
     metadata = err.get("metadata", {})
     parts = [err.get("message", "")]
@@ -151,23 +161,81 @@ def _build_text_messages(system_prompt: str, element_text: str, context: SlideCo
     ]
 
 
+def _to_anthropic_image(url: str) -> dict:
+    """Converts an OpenAI-style data-URL image part to an Anthropic image block,
+    re-encoding to PNG when the format (e.g. BMP) isn't one Anthropic accepts."""
+    header, b64 = url.split(",", 1)
+    mime = header[len("data:"):].split(";")[0]
+    if mime not in _ANTHROPIC_IMAGE_MIMES:
+        try:
+            from PIL import Image
+
+            with Image.open(io.BytesIO(base64.b64decode(b64))) as img:
+                out = io.BytesIO()
+                img.convert("RGBA").save(out, format="PNG")
+            mime, b64 = "image/png", base64.b64encode(out.getvalue()).decode("ascii")
+        except Exception:
+            pass
+    return {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}}
+
+
+def _build_request(config: Config, model: str, messages: list[dict]) -> tuple[str, dict, dict]:
+    """Returns (url, headers, payload) for the configured provider. Messages are
+    built once in OpenAI chat format and translated here for Anthropic."""
+    url = _CHAT_URLS[config.provider]
+
+    if config.provider == "anthropic":
+        headers = {
+            "x-api-key": config.api_key,
+            "anthropic-version": _ANTHROPIC_VERSION,
+            "Content-Type": "application/json",
+        }
+        system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
+        converted = []
+        for m in messages:
+            if m["role"] == "system":
+                continue
+            content = m["content"]
+            if isinstance(content, list):
+                content = [
+                    _to_anthropic_image(part["image_url"]["url"]) if part["type"] == "image_url" else part
+                    for part in content
+                ]
+            converted.append({"role": m["role"], "content": content})
+        payload = {"model": model, "system": system, "messages": converted, "max_tokens": 200}
+        return url, headers, payload
+
+    headers = {"Authorization": f"Bearer {config.api_key}", "Content-Type": "application/json"}
+    payload = {"model": model, "messages": messages}
+    # OpenAI's newer models reject max_tokens in favor of max_completion_tokens
+    payload["max_completion_tokens" if config.provider == "openai" else "max_tokens"] = 200
+    return url, headers, payload
+
+
+def _parse_completion(config: Config, data: dict) -> str:
+    if config.provider == "anthropic":
+        return "".join(b.get("text", "") for b in data["content"] if b.get("type") == "text").strip()
+    return data["choices"][0]["message"]["content"].strip()
+
+
 class _ModelUnavailable(Exception):
     """Raised for failures worth falling back to another model for."""
 
 
 async def _request_completion(
     client: httpx.AsyncClient,
+    config: Config,
     model: str,
     messages: list[dict],
-    headers: dict,
     max_retries: int,
 ) -> str | None:
     """Returns the raw completion text, or raises _ModelUnavailable."""
-    payload = {"model": model, "messages": messages, "max_tokens": 200}
+    url, headers, payload = _build_request(config, model, messages)
+    label = _PROVIDER_LABELS[config.provider]
 
     for attempt in range(1, max_retries + 1):
         try:
-            resp = await client.post(OPENROUTER_URL, json=payload, headers=headers, timeout=60)
+            resp = await client.post(url, json=payload, headers=headers, timeout=60)
         except httpx.RequestError as exc:
             if attempt == max_retries:
                 raise _ModelUnavailable(str(exc)) from exc
@@ -180,17 +248,16 @@ async def _request_completion(
             continue
 
         if resp.status_code == 200:
-            data = resp.json()
-            return data["choices"][0]["message"]["content"].strip()
+            return _parse_completion(config, resp.json())
 
         if resp.status_code == 402:
             raise _ModelUnavailable(f"billing error (402) - '{model}' needs credits: {_error_detail(resp)}")
 
         if resp.status_code in (401, 403):
             logger.error(
-                "caption generation failed: OpenRouter rejected the request (%d) - "
+                "caption generation failed: %s rejected the request (%d) - "
                 "check your API key with 'cappv1 doctor'.",
-                resp.status_code,
+                label, resp.status_code,
             )
             return None
 
@@ -224,13 +291,8 @@ async def _complete_with_fallback(
 
     Returns the raw completion text, or None on permanent failure.
     """
-    headers = {
-        "Authorization": f"Bearer {config.api_key}",
-        "Content-Type": "application/json",
-    }
-
     try:
-        return await _request_completion(client, config.model, messages, headers, primary_max_retries)
+        return await _request_completion(client, config, config.model, messages, primary_max_retries)
     except _ModelUnavailable as exc:
         logger.warning("'%s' unavailable (%s)", config.model, exc)
 
@@ -240,7 +302,7 @@ async def _complete_with_fallback(
 
     logger.info("falling back to '%s'", config.fallback_model)
     try:
-        return await _request_completion(client, config.fallback_model, messages, headers, max_retries)
+        return await _request_completion(client, config, config.fallback_model, messages, max_retries)
     except _ModelUnavailable as exc:
         logger.error(
             "caption generation failed permanently: fallback model '%s' also unavailable (%s)",

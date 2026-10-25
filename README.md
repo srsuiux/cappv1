@@ -21,7 +21,7 @@ You'll need three things.
    ```
 3. If you see `Python 3.11` or higher, you're set. If you see an error, or an older version, install Python from [python.org/downloads](https://www.python.org/downloads/) and check again.
 
-**A free OpenRouter account and API key.** OpenRouter is the service this tool uses to reach the AI that writes the descriptions. An API key is like a password just for this tool.
+**An API key from one AI service.** The tool works with OpenRouter (has free models), OpenAI, or Anthropic. An API key is like a password just for this tool. Note that an OpenAI or Anthropic key only works with that company directly; OpenRouter needs its own OpenRouter key, even for OpenAI or Anthropic models.
 
 1. Go to [openrouter.ai](https://openrouter.ai) and create a free account.
 2. In your account settings, find **API Keys** and create a new one.
@@ -39,7 +39,7 @@ By default, this tool uses a free AI model. Free models on OpenRouter route your
    cp .env.example .env
    open -e .env
    ```
-   A text editor window opens. Find the line `OPENROUTER_API_KEY=your-key-here` and replace `your-key-here` with the key you copied earlier. Don't add spaces, and don't change anything else. Save (`Cmd + S`) and close the window.
+   A text editor window opens. Set `PROVIDER=` to `openrouter`, `openai`, or `anthropic`, then paste your key after the matching line (`OPENROUTER_API_KEY=`, `OPENAI_API_KEY=`, or `ANTHROPIC_API_KEY=`). If you leave `PROVIDER` out, the first key you filled in is used. Leave `MODEL=` blank to use that provider's default, or set a model from that same provider. Don't add spaces, and don't change anything else. Save (`Cmd + S`) and close the window.
 3. Turn on the `cappv1` command so you can type it from anywhere:
    ```
    mkdir -p ~/.local/bin
@@ -74,7 +74,7 @@ Your original files in `input` are never changed or deleted.
 |---|---|
 | `cappv1 start` | Processes everything in the `input` folder. |
 | `cappv1 doctor` | Checks that everything is set up correctly. Safe to run any time, since it doesn't change anything. |
-| `cappv1 models` | Lets you switch which AI model is used, in case the current one stops working or runs out of free usage. |
+| `cappv1 models` | Lets you switch which free OpenRouter model is used (OpenRouter only; for OpenAI or Anthropic, set `MODEL=` in `.env`). |
 | `cappv1 clean` | Empties the `input` and `output` folders completely, so you can start fresh. There's no undo, so only use this once you've saved anything you need. |
 
 ## If something goes wrong
