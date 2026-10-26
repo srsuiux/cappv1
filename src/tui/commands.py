@@ -154,156 +154,164 @@ def cmd_doctor(session, args: str) -> None:
     session.console.print()
 
 
-# ---------------------------------------------------------------- /init
-_SERVICES = [
-    ("ollama", "Ollama", "Private: runs on this computer. Free, works offline"),
-    ("openrouter", "OpenRouter", "Online. Has free models"),
-    ("openai", "OpenAI", "Online. Paid, a fraction of a cent per image"),
-    ("anthropic", "Anthropic", "Online. Paid, a fraction of a cent per image"),
-]
+# ---------------------------------------------------------------- /models, /init
+# Both commands open the same flow: pick a service, then a model for it.
+_SERVICES = [("ollama", "Ollama"), ("openrouter", "OpenRouter"), ("openai", "OpenAI"), ("anthropic", "Anthropic")]
 _KEY_HELP = {
     "openrouter": "openrouter.ai -> account settings -> API Keys (starts with sk-or-v1-)",
     "openai": "platform.openai.com/api-keys",
     "anthropic": "console.anthropic.com -> API Keys",
 }
+# Short lists of vision-capable models. "Other..." covers anything newer.
+_CURATED = {
+    "openai": [("gpt-4o-mini", "default, lowest cost"), ("gpt-4o", "higher quality"), ("gpt-4.1-mini", "newer, low cost")],
+    "anthropic": [("claude-haiku-5-5", "default, lowest cost"), ("claude-sonnet-5-5", "higher quality"),
+                  ("claude-opus-5-5", "best quality, highest cost")],
+}
 
 
-def cmd_init(session, args: str) -> None:
+def _service_rows(env: dict[str, str], active: str | None) -> list[tuple[str, str]]:
+    rows = []
+    for provider, name in _SERVICES:
+        if provider == "ollama":
+            note = "private: runs on this computer"
+        else:
+            note = f"sends slides to {name}" + (", key saved" if env.get(doctor.PROVIDERS[provider][0]) else "")
+        rows.append((name + ("  (active)" if provider == active else ""), note))
+    return rows
+
+
+def cmd_models(session, args: str) -> None:
     console = session.console
     console.print()
     env = _env()
-    current = doctor.pick_provider(env) if envfile.ENV_PATH.exists() else None
-    default = next((i for i, s in enumerate(_SERVICES) if s[0] == current), 0)
-    choice = select("Which AI service should cappv1 use?", [(n, d) for _, n, d in _SERVICES], default)
+    active = doctor.pick_provider(env) if envfile.ENV_PATH.exists() else None
+    start = next((i for i, (p, _) in enumerate(_SERVICES) if p == active), 0)
+    choice = select("Which AI service?", _service_rows(env, active), start)
     if choice is None:
-        console.print(Text(" Setup cancelled.", style=MUTED))
+        console.print(Text(" Nothing changed.", style=MUTED))
         return
-    provider, name, _ = _SERVICES[choice]
+    provider, name = _SERVICES[choice]
     console.print(Text(f" {TICK} Service: {name}", style=OK))
-    values = {"PROVIDER": provider}
-    previous = env.get("PROVIDER", "")
 
+    # the model last used with this service, so switching back is one Enter
+    remembered = env.get(f"MODEL_{provider.upper()}") or (env.get("MODEL", "") if provider == active else "")
+    values = {"PROVIDER": provider}
     if provider == "ollama":
-        model = _setup_ollama(session, env)
-        if model is None:
-            return
-        values["MODEL"] = model
-        values["FALLBACK_MODEL"] = ""
+        model = _setup_ollama(session, env, remembered)
     else:
         key_var = doctor.PROVIDERS[provider][0]
-        existing = env.get(key_var, "")
-        console.print(Text(f"   Get a key at {_KEY_HELP[provider]}", style=MUTED))
-        if existing:
-            console.print(Text(f"   A key ending ...{existing[-4:]} is already saved. Press Enter to keep it.", style=MUTED))
-        from prompt_toolkit import prompt
-        try:
-            key = prompt(f" Paste your {name} key (hidden): ", is_password=True).strip() or existing
-        except (EOFError, KeyboardInterrupt):
-            console.print(Text("\n Setup cancelled.", style=MUTED))
+        key = _ensure_key(session, provider, name, env.get(key_var, ""))
+        if key is None:
             return
-        if not key:
-            _fail(session, "No key entered.")
-            return
-        ok, detail = _checking(session, f"Checking the key with {name}", lambda: doctor.check_api_key_live(provider, key))
-        if ok:
-            _ok(session, f"{name} accepted the key")
-        else:
-            _fail(session, detail)
-            keep = select("Save it anyway?", [("No, let me try again", ""), ("Yes, save it", "")])
-            if keep != 1:
-                console.print(Text(" Nothing saved. Run /init to try again.", style=MUTED))
-                return
-        values[key_var] = key
-        if previous and previous != provider:
-            # a model from the old service would be rejected by the new one
-            values["MODEL"] = ""
-            values["FALLBACK_MODEL"] = ""
+        if key != env.get(key_var, ""):
+            values[key_var] = key
+        model = _pick_model(session, provider, name, remembered)
+    if not model:
+        return
 
+    # FALLBACK_MODEL is blanked so the new service's own default applies
+    values.update({"MODEL": model, "FALLBACK_MODEL": "", f"MODEL_{provider.upper()}": model})
     envfile.set_values(values)
-    _ok(session, "Saved to .env (readable only by you)")
-    if provider != "ollama":
-        console.print(Text("   Slide content will be sent to that service. For sensitive files, run /init and pick Ollama.", style=MUTED))
-    console.print(Text("\n You're set. Drag a .pptx in here, then type /run.\n", style=OK))
     session.refresh()
+    _ok(session, f"Now using {name} · {model}")
+    console.print(Text("   ", style=MUTED), session.privacy_text(provider), sep="")
+    console.print()
 
 
-def _setup_ollama(session, env: dict[str, str]) -> str | None:
+def _ensure_key(session, provider: str, name: str, existing: str) -> str | None:
+    """The saved key, or a newly entered and checked one. None means stop."""
+    if existing:
+        return existing
+    from prompt_toolkit import prompt
+
+    console = session.console
+    console.print(Text(f"   Get a key at {_KEY_HELP[provider]}", style=MUTED))
+    try:
+        key = prompt(f" Paste your {name} key (hidden): ", is_password=True).strip()
+    except (EOFError, KeyboardInterrupt):
+        key = ""
+    if not key:
+        console.print(Text(" Nothing changed.", style=MUTED))
+        return None
+    ok, detail = _checking(session, f"Checking the key with {name}", lambda: doctor.check_api_key_live(provider, key))
+    if ok:
+        _ok(session, f"{name} accepted the key")
+        return key
+    _fail(session, detail)
+    if select("Save it anyway?", [("No, let me try again", ""), ("Yes, save it", "")]) == 1:
+        return key
+    console.print(Text(" Nothing changed. Run /models to try again.", style=MUTED))
+    return None
+
+
+def _pick_model(session, provider: str, name: str, remembered: str) -> str | None:
+    if provider == "openrouter":
+        try:
+            found = _checking(session, "Fetching models from OpenRouter", models.fetch_free_vision_models)
+        except Exception as exc:
+            _fail(session, f"Couldn't reach OpenRouter ({exc.__class__.__name__}).", "Check your internet connection.")
+            return None
+        options = [(mid, label) for mid, label in found]
+    else:
+        options = list(_CURATED[provider]) + [("Other...", "type a model name")]
+    if not options:
+        _fail(session, "No image-capable models found right now.")
+        return None
+    start = next((i for i, (mid, _) in enumerate(options) if mid == remembered), 0)
+    options = [(mid, "last used" if mid == remembered else desc) for mid, desc in options]
+    pick = select(f"Which {name} model?", options, start)
+    if pick is None:
+        session.console.print(Text(" Nothing changed.", style=MUTED))
+        return None
+    chosen = options[pick][0]
+    if chosen != "Other...":
+        return chosen
+    from prompt_toolkit import prompt
+
+    try:
+        return prompt(" Model name: ").strip() or None
+    except (EOFError, KeyboardInterrupt):
+        return None
+
+
+def _setup_ollama(session, env: dict[str, str], remembered: str) -> str | None:
     console = session.console
     base = doctor.ollama_base_url(env)
     while True:
         try:
-            installed = _checking(session, "Looking for Ollama", lambda: doctor.ollama_installed_models(base))
+            _checking(session, "Looking for Ollama", lambda: doctor.ollama_installed_models(base))
             break
         except Exception:
             _fail(session, "Ollama isn't running.", "Open the Ollama app (llama icon). Not installed? Get it at ollama.com/download")
-            again = select("What next?", [("Try again", "after starting Ollama"), ("Stop setup", "")])
-            if again != 0:
-                console.print(Text(" Setup stopped. Run /init when Ollama is ready.", style=MUTED))
+            if select("What next?", [("Try again", "after starting Ollama"), ("Stop", "")]) != 0:
+                console.print(Text(" Nothing changed. Run /models when Ollama is ready.", style=MUTED))
                 return None
     _ok(session, "Ollama is running")
 
     vision = _checking(session, "Finding image-capable models", lambda: models.fetch_ollama_vision_models(base))
     names = [n for n, _ in vision]
     suggested = doctor.DEFAULT_OLLAMA_MODEL
-    options = [(n, "installed") for n in names]
-    if not names or suggested not in names:
+    options = [(n, "last used" if n == remembered else "installed") for n in names]
+    if suggested not in names:
         options.append((f"Download {suggested}", "about 3 GB, a one-time download"))
-    pick = select("Which model should read your images?", options)
+    start = next((i for i, n in enumerate(names) if n == remembered), 0)
+    pick = select("Which model should read your images?", options, start)
     if pick is None:
-        console.print(Text(" Setup cancelled.", style=MUTED))
+        console.print(Text(" Nothing changed.", style=MUTED))
         return None
     label = options[pick][0]
-    if label.startswith("Download "):
-        model = suggested
-        if not shutil.which("ollama"):
-            _fail(session, "Can't find the ollama command.", f"Open a new Terminal and run: ollama pull {model}")
-            return None
-        console.print(Text(f" Downloading {model}. Ollama shows its own progress below.\n", style=MUTED))
-        if subprocess.run(["ollama", "pull", model]).returncode != 0:
-            _fail(session, "The download didn't finish.", f"Check your internet, then run /init again (or: ollama pull {model})")
-            return None
-        _ok(session, f"{model} is ready")
-    else:
-        model = label
-        _ok(session, f"Model: {model}")
-    return model
-
-
-# ---------------------------------------------------------------- /models
-def cmd_models(session, args: str) -> None:
-    env = _env()
-    provider = doctor.pick_provider(env)
-    current = env.get("MODEL") or None
-    session.console.print()
-    try:
-        if provider == "ollama":
-            found = _checking(session, "Asking Ollama which models are installed",
-                              lambda: models.fetch_ollama_vision_models(doctor.ollama_base_url(env)))
-        elif provider == "openrouter":
-            found = _checking(session, "Fetching free models from OpenRouter", models.fetch_free_vision_models)
-        else:
-            from prompt_toolkit import prompt
-            default = {"openai": "gpt-4o-mini", "anthropic": "claude-haiku-5-5"}[provider]
-            value = prompt(f" Model name (Enter keeps {current or default}): ").strip()
-            if value:
-                envfile.set_values({"MODEL": value})
-                _ok(session, f"Model set to {value}")
-            return
-    except Exception as exc:
-        _fail(session, f"Couldn't list models ({exc.__class__.__name__}).",
-              "Start Ollama and try again." if provider == "ollama" else "Check your internet connection.")
-        return
-    if not found:
-        _fail(session, "No image-capable models found.", "Try: ollama pull gemma3:4b" if provider == "ollama" else "")
-        return
-    options = [(mid, "current" if mid == current else name) for mid, name in found]
-    start = next((i for i, (mid, _) in enumerate(found) if mid == current), 0)
-    pick = select("Pick a model", options, start)
-    if pick is None:
-        return
-    envfile.set_values({"MODEL": found[pick][0]})
-    _ok(session, f"Model set to {found[pick][0]}")
-    session.refresh()
+    if not label.startswith("Download "):
+        return label
+    if not shutil.which("ollama"):
+        _fail(session, "Can't find the ollama command.", f"Open a new Terminal and run: ollama pull {suggested}")
+        return None
+    console.print(Text(f" Downloading {suggested}. Ollama shows its own progress below.\n", style=MUTED))
+    if subprocess.run(["ollama", "pull", suggested]).returncode != 0:
+        _fail(session, "The download didn't finish.", f"Check your internet, then run /models again (or: ollama pull {suggested})")
+        return None
+    _ok(session, f"{suggested} is ready")
+    return suggested
 
 
 # ---------------------------------------------------------------- /run
@@ -407,8 +415,7 @@ def build_commands() -> list[Command]:
     return [
         Command("run", "Describe everything in input/ (add --resume to continue unfinished files)", cmd_run, ("start",)),
         Command("files", "Show the files waiting in input/ and their progress", cmd_files, ("ls",)),
-        Command("init", "Set up or change the AI service", cmd_init, ("setup",)),
-        Command("models", "Pick a different model", cmd_models),
+        Command("models", "Switch the AI service or model", cmd_models, ("init", "setup", "provider")),
         Command("doctor", "Check that everything is working", cmd_doctor),
         Command("status", "Show the current settings", cmd_status),
         Command("open", "Open the output folder", cmd_open),
