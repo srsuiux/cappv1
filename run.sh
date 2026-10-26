@@ -10,6 +10,7 @@ if [ ! -d .venv ]; then
     pip install -q -r requirements.txt
 else
     source .venv/bin/activate
+    python -c "import rich, prompt_toolkit" 2>/dev/null || pip install -q -r requirements.txt
 fi
 
 python -m src.main "$@"

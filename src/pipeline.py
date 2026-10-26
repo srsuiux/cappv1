@@ -7,6 +7,7 @@ from pathlib import Path
 
 import httpx
 
+from src import events
 from src.config import Config
 from src.image_filter import is_too_small, perceptual_hash
 from src.llm_client import (
@@ -74,7 +75,7 @@ def progress_bar(done: int, total: int, width: int = 18) -> str:
     return "[" + "█" * filled + "-" * (width - filled) + "]"
 
 
-def setup_logging(logs_dir: Path) -> None:
+def setup_logging(logs_dir: Path, console: bool = True) -> None:
     logs_dir.mkdir(parents=True, exist_ok=True)
     log_path = logs_dir / f"run-{time.strftime('%Y%m%d-%H%M%S')}.log"
     logger.setLevel(logging.INFO)
@@ -85,9 +86,10 @@ def setup_logging(logs_dir: Path) -> None:
 
     # stdout is colored only when it's a real terminal - stays plain when
     # captured by nohup so the fallback launcher log has no escape codes.
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(_ColorFormatter(fmt, datefmt, use_color=sys.stdout.isatty()))
-    logger.addHandler(stream_handler)
+    if console:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(_ColorFormatter(fmt, datefmt, use_color=sys.stdout.isatty()))
+        logger.addHandler(stream_handler)
 
     # the persisted per-run log is always colored - it's meant to be tailed
     # live in a terminal, not opened in a plain-text editor.
@@ -153,7 +155,18 @@ async def _process_slide(
         + len(smartart_shapes) + len(invisible_shapes)
     )
 
+    events.emit(
+        "slide_start", filename=filename, slide=slide_index, total=total_slides,
+        counts={
+            "picture": len(pictures), "table": len(tables), "chart": len(charts),
+            "object": len(ole_objects), "diagram": len(smartart_shapes),
+            "invisible": len(invisible_shapes),
+        },
+    )
+
     if total_elements == 0:
+        events.emit("slide_end", filename=filename, slide=slide_index, total=total_slides,
+                    captioned=0, decorative=0, cached=0, failed=0, empty=True)
         logger.info(
             "[file: %s] %s %d/%d [section: %s] no images, tables, or charts",
             filename, bar, slide_index + 1, total_slides, section or "-",
@@ -187,7 +200,7 @@ async def _process_slide(
             set_alt_text(shape, state.caption_cache[img_hash])
             return
 
-        async with semaphore:
+        async with semaphore, events.working("picture", slide_index):
             caption = await generate_caption(client, config, image_bytes, ext, context)
 
         if caption is None:
@@ -213,7 +226,7 @@ async def _process_slide(
             set_alt_text(shape, state.caption_cache[content_hash])
             return
 
-        async with semaphore:
+        async with semaphore, events.working("table", slide_index):
             caption = await generate_table_alt_text(client, config, text_repr, context)
 
         if caption is None:
@@ -234,7 +247,7 @@ async def _process_slide(
             set_alt_text(shape, state.caption_cache[content_hash])
             return
 
-        async with semaphore:
+        async with semaphore, events.working("chart", slide_index):
             caption = await generate_chart_alt_text(client, config, text_repr, context)
 
         if caption is None:
@@ -261,7 +274,7 @@ async def _process_slide(
 
         caption = None
         if text_repr:
-            async with semaphore:
+            async with semaphore, events.working("object", slide_index):
                 caption = await generate_ole_alt_text(client, config, text_repr, context)
 
         if caption is None:
@@ -289,7 +302,7 @@ async def _process_slide(
             set_alt_text(shape, state.caption_cache[content_hash])
             return
 
-        async with semaphore:
+        async with semaphore, events.working("diagram", slide_index):
             caption = await generate_smartart_alt_text(client, config, text_repr, context)
 
         if caption is None:
@@ -317,6 +330,8 @@ async def _process_slide(
         total_elements, len(pictures), len(tables), len(charts), len(ole_objects),
         len(smartart_shapes), len(invisible_shapes),
     )
+    events.emit("slide_end", filename=filename, slide=slide_index, total=total_slides,
+                captioned=captioned, decorative=decorative, cached=cached, failed=failed, empty=False)
     if failed == 0:
         state.mark_slide_done(slide_index)
     return failed
@@ -330,6 +345,8 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     section_map = get_section_map(prs)
     total_slides = len(prs.slides)
     state = load_state(config.state_dir, filename)
+    events.emit("file_open", filename=filename, total_slides=total_slides,
+                resumed=len(state.completed_slide_indices))
 
     any_failed = False
     for index, slide in enumerate(prs.slides):
@@ -357,15 +374,18 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
     out_path = config.output_dir / filename
+    events.emit("file_saving", filename=filename)
     prs.save(str(out_path))
+    events.emit("file_saved", filename=filename, path=str(out_path), incomplete=any_failed)
     logger.info("[file: %s] saved to %s", filename, out_path)
 
 
-async def run(config: Config, resume_only: bool = False) -> None:
+async def run(config: Config, resume_only: bool = False) -> list[str]:
     files = discover_files(config, resume_only)
     if not files:
         logger.info("nothing to process")
-        return
+        events.emit("run_empty")
+        return []
 
     semaphore = asyncio.Semaphore(config.concurrency)
     total = len(files)
@@ -376,12 +396,16 @@ async def run(config: Config, resume_only: bool = False) -> None:
     async with httpx.AsyncClient() as client:
         for n, path in enumerate(files, start=1):
             logger.info("=== file %d/%d: %s ===", n, total, path.name)
+            events.emit("file_start", filename=path.name, index=n, total=total)
             try:
                 await run_file(config, client, semaphore, path)
             except Exception as exc:
                 logger.error("[file: %s] failed: %s", path.name, exc)
+                events.emit("file_failed", filename=path.name, error=str(exc))
                 failed_files.append(path.name)
 
     logger.info("finished %d/%d file(s) without errors", total - len(failed_files), total)
     if failed_files:
         logger.error("failed: %s", ", ".join(failed_files))
+    events.emit("run_done", total=total, failed=failed_files)
+    return failed_files

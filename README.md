@@ -67,29 +67,48 @@ cappv1 doctor
 
 You should see a list of green checkmarks. A red ✗ means something needs fixing, and the line next to it says what.
 
-The first time you run `cappv1 doctor` or `cappv1 start`, it pauses for a few extra seconds to install what it needs. That's normal and only happens once.
+The first time you run `cappv1 doctor` or `cappv1`, it pauses for a few extra seconds to install what it needs. That's normal and only happens once.
 
 ## Using it
 
-1. **Add your files.** Drag your `.pptx` files into the `input` folder inside the project. Add as many as you like, with any filenames.
-2. **Run it.** In Terminal, type:
+1. **Open cappv1.** In Terminal, type:
    ```
-   cappv1 start
+   cappv1
    ```
-3. **Wait.** It processes the files one after another, in alphabetical order, and prints progress for each file and slide (for example `file 2/5`). Each file can take from a few seconds to a few minutes.
-4. **Collect your files.** Each finished file appears in the `output` folder under its original name, and the log shows a `saved to output/...` line.
+   A session opens with a `❯` prompt, like a chat. The first time, it offers to walk you through choosing an AI service.
+2. **Add your files.** Drag your `.pptx` files (or a whole folder of them) into the Terminal window, and press Enter. They are copied into the `input` folder for you. You can also copy them there yourself.
+3. **Run it.** Type `/run` and press Enter. A live display shows which file and slide it's on and what it's doing right now (looking at a picture, reading a chart, saving the deck). Press `Ctrl+C` to stop; finished slides are remembered.
+4. **Collect your files.** Each finished file appears in the `output` folder under its original name. Type `/open` to open that folder.
 5. **Check the result.** Open a file from `output` in PowerPoint, right-click a picture, table, or chart, and choose **Edit Alt Text**. The descriptions are usually good, but give them a quick read before sharing anything important.
 
-If one file fails, the others still run, and the failed file names are listed at the end. If the run is interrupted (laptop closes, network drops), run `cappv1 start` again. It skips finished files and picks up where it left off.
+If one file fails, the others still run, and the failed file names are listed at the end. If the run is interrupted (laptop closes, network drops), open cappv1 and type `/run` again. It skips finished files and picks up where it left off.
+
+Type `/` at any time to see the available commands. Animations can be turned off by setting `CAPPV1_NO_ANIMATION=1` (they are also off when `NO_COLOR` is set).
 
 ## Commands
 
+Inside the session (type `/` to see them as you type):
+
 | Type this | What it does |
 |---|---|
-| `cappv1 start` | Processes every `.pptx` in `input`, one by one. Add `--resume` to only continue unfinished files. |
-| `cappv1 doctor` | Checks your setup. Safe to run any time; it changes nothing. |
-| `cappv1 models` | Lets you pick a different free OpenRouter model, or, in Private mode, one of your installed Ollama models. (For OpenAI or Anthropic, set `MODEL=` in `.env` instead.) |
-| `cappv1 clean` | **Permanently deletes** everything in `input` and `output`, plus saved progress. There's no undo, so save anything you need first. |
+| `/run` | Processes every `.pptx` in `input`, one by one. Add `--resume` to only continue unfinished files. |
+| `/files` | Shows the files waiting in `input` and how far along each is. |
+| `/init` | Walks you through choosing an AI service and saving your key (or setting up Ollama). Safe to run again. |
+| `/models` | Lets you pick a different model (free OpenRouter models, or the Ollama models you have installed). |
+| `/doctor` | Checks your setup. Safe to run any time; it changes nothing. |
+| `/status` | Shows the service, model, and whether your slides stay on your computer. |
+| `/open` | Opens the `output` folder. |
+| `/clean` | **Permanently deletes** everything in `input` and `output`, plus saved progress. It asks first, but there's no undo. |
+| `/clear`, `/help`, `/exit` | Clear the screen, list commands, leave (or press `Ctrl+D`). |
+
+From your normal Terminal prompt:
+
+| Type this | What it does |
+|---|---|
+| `cappv1` or `cappv1 start` | Opens the session. |
+| `cappv1 init` | Opens the session straight into setup. |
+| `cappv1 start --batch` | No prompt: processes `input` in the background and shows the log. For scripts. Add `--resume` to continue unfinished files. |
+| `cappv1 doctor`, `cappv1 models`, `cappv1 clean` | The same as the commands above, without opening the session. |
 
 ## Private mode: run everything on your own computer
 
@@ -117,10 +136,10 @@ If you downloaded a different model in step 2, also set `MODEL=` to its name, fo
 
 ```
 cappv1 doctor
-cappv1 start
+cappv1
 ```
 
-`cappv1 doctor` should show green checks for "Ollama address is this computer", "Ollama is running", and "model is downloaded". `cappv1 models` lists the vision models you have installed and lets you pick one.
+Then type `/run` in the session. `cappv1 doctor` (or `/doctor`) should show green checks for "Ollama address is this computer", "Ollama is running", and "model is downloaded". `cappv1 models` lists the vision models you have installed and lets you pick one.
 
 **What to expect.** Local models are slower than the online services: roughly several seconds to a minute per image, depending on your computer. They process one image at a time. Small models also write plainer descriptions and are weaker on embedded Word/Excel objects, so read the results before sharing. If quality matters more than privacy, use a bigger local model or an online service.
 
@@ -144,7 +163,7 @@ Open `.env` and change `PROVIDER=` to another service (make sure that service's 
 | `command not found: cappv1` | Run step 3 of Install again from the project folder. If it still fails, run `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc`, then try again. |
 | A red ✗ in `cappv1 doctor` | Read the message beside it. It says what to fix. |
 | `API key is not set` or `rejected this key (401)` | Re-check the key in `.env`: no spaces or quotes, and it's on the line that matches your `PROVIDER`. |
-| Some images, tables, or charts have no description | The AI service had a temporary hiccup. Run `cappv1 start` again; it retries only what's missing. |
+| Some images, tables, or charts have no description | The AI service had a temporary hiccup. Type `/run` again; it retries only what's missing. |
 | `Ollama is running` shows a red ✗ | Open the Ollama app (or run `ollama serve` in Terminal), then run `cappv1 doctor` again. |
 | `model ... is downloaded` shows a red ✗ | Run the `ollama pull ...` command shown next to it. |
 | Private mode is very slow, or a request times out | Use a smaller model (`gemma3:4b`), close other heavy apps, or raise `REQUEST_TIMEOUT=` in `.env`. |

@@ -64,7 +64,7 @@ def check_venv_deps() -> tuple[bool | None, str]:
         return None, "will be created automatically the first time you run cappv1 start"
     try:
         subprocess.run(
-            [str(venv_python), "-c", "import pptx, httpx, PIL, imagehash, dotenv"],
+            [str(venv_python), "-c", "import pptx, httpx, PIL, imagehash, dotenv, rich, prompt_toolkit"],
             check=True, capture_output=True, timeout=15,
         )
         return True, "installed"

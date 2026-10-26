@@ -11,7 +11,10 @@ import urllib.request
 import json
 from pathlib import Path
 
-from doctor import ollama_base_url, ollama_installed_models, pick_provider, read_env_file
+try:  # run as `python3 src/models.py` (script) or imported as src.models
+    from doctor import ollama_base_url, ollama_installed_models, pick_provider, read_env_file
+except ImportError:
+    from src.doctor import ollama_base_url, ollama_installed_models, pick_provider, read_env_file
 
 ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = ROOT / ".env"
