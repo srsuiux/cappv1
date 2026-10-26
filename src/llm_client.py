@@ -16,7 +16,7 @@ _CHAT_URLS = {
     "openai": "https://api.openai.com/v1/chat/completions",
     "anthropic": "https://api.anthropic.com/v1/messages",
 }
-_PROVIDER_LABELS = {"openrouter": "OpenRouter", "openai": "OpenAI", "anthropic": "Anthropic"}
+_PROVIDER_LABELS = {"openrouter": "OpenRouter", "openai": "OpenAI", "anthropic": "Anthropic", "ollama": "Ollama"}
 _ANTHROPIC_VERSION = "2023-06-01"
 _ANTHROPIC_IMAGE_MIMES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
@@ -182,7 +182,10 @@ def _to_anthropic_image(url: str) -> dict:
 def _build_request(config: Config, model: str, messages: list[dict]) -> tuple[str, dict, dict]:
     """Returns (url, headers, payload) for the configured provider. Messages are
     built once in OpenAI chat format and translated here for Anthropic."""
-    url = _CHAT_URLS[config.provider]
+    if config.provider == "ollama":
+        url = f"{config.base_url}/v1/chat/completions"
+    else:
+        url = _CHAT_URLS[config.provider]
 
     if config.provider == "anthropic":
         headers = {
@@ -205,7 +208,9 @@ def _build_request(config: Config, model: str, messages: list[dict]) -> tuple[st
         payload = {"model": model, "system": system, "messages": converted, "max_tokens": 200}
         return url, headers, payload
 
-    headers = {"Authorization": f"Bearer {config.api_key}", "Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json"}
+    if config.api_key:
+        headers["Authorization"] = f"Bearer {config.api_key}"
     payload = {"model": model, "messages": messages}
     # OpenAI's newer models reject max_tokens in favor of max_completion_tokens
     payload["max_completion_tokens" if config.provider == "openai" else "max_tokens"] = 200
@@ -235,7 +240,7 @@ async def _request_completion(
 
     for attempt in range(1, max_retries + 1):
         try:
-            resp = await client.post(url, json=payload, headers=headers, timeout=60)
+            resp = await client.post(url, json=payload, headers=headers, timeout=config.request_timeout)
         except httpx.RequestError as exc:
             if attempt == max_retries:
                 raise _ModelUnavailable(str(exc)) from exc
@@ -291,12 +296,16 @@ async def _complete_with_fallback(
 
     Returns the raw completion text, or None on permanent failure.
     """
+    has_fallback = bool(config.fallback_model) and config.fallback_model != config.model
     try:
-        return await _request_completion(client, config, config.model, messages, primary_max_retries)
+        # with nothing to fail over to, the primary gets the full retry budget
+        return await _request_completion(
+            client, config, config.model, messages, primary_max_retries if has_fallback else max_retries
+        )
     except _ModelUnavailable as exc:
         logger.warning("'%s' unavailable (%s)", config.model, exc)
 
-    if not config.fallback_model or config.fallback_model == config.model:
+    if not has_fallback:
         logger.error("caption generation failed permanently: no usable fallback model configured")
         return None
 

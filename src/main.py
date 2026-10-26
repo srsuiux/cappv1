@@ -6,7 +6,7 @@ from src.pipeline import run, setup_logging
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate PPTX alt-text using a vision LLM via OpenRouter")
+    parser = argparse.ArgumentParser(description="Generate PPTX alt-text using a vision LLM (OpenRouter, OpenAI, Anthropic, or local Ollama)")
     parser.add_argument("--resume", action="store_true", help="only resume in_progress files")
     args = parser.parse_args()
 

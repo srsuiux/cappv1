@@ -2,13 +2,16 @@
 
 Stdlib-only, like doctor.py. Lists vision-capable free models currently
 available on OpenRouter, lets you pick one, and writes it into .env as
-MODEL=... - the fix when a paid model 402s for lack of credits.
+MODEL=... - the fix when a paid model 402s for lack of credits. With
+PROVIDER=ollama it lists the vision models installed on this computer instead.
 """
 import sys
 import urllib.error
 import urllib.request
 import json
 from pathlib import Path
+
+from doctor import ollama_base_url, ollama_installed_models, pick_provider, read_env_file
 
 ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = ROOT / ".env"
@@ -62,20 +65,42 @@ def fetch_free_vision_models() -> list[tuple[str, str]]:
     return sorted(models)
 
 
+def fetch_ollama_vision_models(base_url: str) -> list[tuple[str, str]]:
+    models = []
+    for name in ollama_installed_models(base_url):
+        req = urllib.request.Request(
+            f"{base_url}/api/show", data=json.dumps({"model": name}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if "vision" in json.loads(resp.read()).get("capabilities", []):
+                models.append((name, "installed"))
+    return sorted(models)
+
+
 def main() -> int:
     current = read_current_model()
-    print(f"{_BOLD}cappv1 models{_RESET} - free vision-capable models on OpenRouter\n")
+    env = read_env_file()
+    use_ollama = pick_provider(env) == "ollama"
+    heading = "vision-capable models installed in Ollama" if use_ollama else "free vision-capable models on OpenRouter"
+    print(f"{_BOLD}cappv1 models{_RESET} - {heading}\n")
     if current:
         print(f"  Current: {_CYAN}{current}{_RESET}\n")
 
+    source = "Ollama" if use_ollama else "OpenRouter"
     try:
-        models = fetch_free_vision_models()
+        models = fetch_ollama_vision_models(ollama_base_url(env)) if use_ollama else fetch_free_vision_models()
     except Exception as exc:
-        print(f"{_RED}Couldn't reach OpenRouter to list models ({exc.__class__.__name__}).{_RESET}")
+        print(f"{_RED}Couldn't reach {source} to list models ({exc.__class__.__name__}).{_RESET}")
+        if use_ollama:
+            print("Start the Ollama app (or run: ollama serve), then try again.")
         return 1
 
     if not models:
-        print(f"{_RED}No free vision-capable models found right now.{_RESET}")
+        if use_ollama:
+            print(f"{_RED}No vision-capable models installed yet.{_RESET} Try: ollama pull gemma3:4b")
+        else:
+            print(f"{_RED}No free vision-capable models found right now.{_RESET}")
         return 1
 
     for i, (model_id, name) in enumerate(models, start=1):

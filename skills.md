@@ -31,7 +31,7 @@ Two sharp edges this tag-matching approach creates, both already handled in `_is
 
 `extract_pictures()` also independently recounts real `<p:pic>` elements straight from the slide's raw XML (bypassing `_walk_shapes` entirely) and raises loudly if the candidate list doesn't match. Keep this guard if you refactor extraction — it's what would have caught the placeholder bug immediately instead of after a full support investigation, and it already caught a second class of false positive (OLE fallback pics) during that same investigation.
 
-## The captioning model (called via OpenRouter)
+## The captioning model (OpenRouter, OpenAI, Anthropic, or local Ollama)
 
 It never sees or touches the `.pptx` file itself. For images it receives one base64-encoded image plus slide-context text (title/body/notes); for tables and charts it receives a text rendering of their content/data instead (no image exists to send) — see `table_to_text()`/`chart_to_text()` in `src/pptx_reader.py`. Either way it returns a caption string — nothing more. See the system prompts in `src/llm_client.py`, which explicitly ask for alt-text only, no formatting, no extra commentary. It has no mechanism to alter the file; this section documents the constraint rather than guarding against a real risk.
 
