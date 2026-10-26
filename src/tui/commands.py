@@ -245,14 +245,49 @@ def _ensure_key(session, provider: str, name: str, existing: str) -> str | None:
     return None
 
 
+def _price(per_million: float) -> str:
+    return "free" if per_million == 0 else (f"${per_million:.2f} per 1M tokens" if per_million >= 0.01 else "under $0.01 per 1M tokens")
+
+
+def _openrouter_options(session) -> list[tuple[str, str]] | None:
+    """Narrows OpenRouter's few hundred image models down to a short list."""
+    try:
+        found = _checking(session, "Fetching models from OpenRouter", models.fetch_openrouter_vision_models)
+    except Exception as exc:
+        _fail(session, f"Couldn't reach OpenRouter ({exc.__class__.__name__}).", "Check your internet connection.")
+        return None
+    free = sorted((m for m in found if m["free"]), key=lambda m: m["id"])
+    paid = sorted((m for m in found if not m["free"]), key=lambda m: (m["price"], m["id"]))
+    makers = sorted({m["id"].split("/")[0] for m in paid})
+
+    pick = select("Which OpenRouter models?", [
+        ("Free", f"{len(free)} models, shared servers (may log your slides)"),
+        ("Cheapest paid", "the ten lowest prices"),
+        ("Browse paid by maker", f"{len(makers)} makers, e.g. OpenAI, Google, DeepSeek"),
+    ])
+    if pick is None:
+        session.console.print(Text(" Nothing changed.", style=MUTED))
+        return None
+    if pick == 0:
+        chosen = free
+    elif pick == 1:
+        chosen = paid[:10]
+    else:
+        maker = select("Which maker?", [(m, f"{sum(x['id'].startswith(m + '/') for x in paid)} models") for m in makers])
+        if maker is None:
+            session.console.print(Text(" Nothing changed.", style=MUTED))
+            return None
+        chosen = [m for m in paid if m["id"].startswith(makers[maker] + "/")]
+    if pick != 0:
+        session.console.print(Text("   Prices are per million input tokens. A picture is roughly a thousand, so most cost a fraction of a cent.", style=MUTED))
+    return [(m["id"], _price(m["price"])) for m in chosen]
+
+
 def _pick_model(session, provider: str, name: str, remembered: str) -> str | None:
     if provider == "openrouter":
-        try:
-            found = _checking(session, "Fetching models from OpenRouter", models.fetch_free_vision_models)
-        except Exception as exc:
-            _fail(session, f"Couldn't reach OpenRouter ({exc.__class__.__name__}).", "Check your internet connection.")
+        options = _openrouter_options(session)
+        if options is None:
             return None
-        options = [(mid, label) for mid, label in found]
     else:
         options = list(_CURATED[provider]) + [("Other...", "type a model name")]
     if not options:

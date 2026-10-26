@@ -93,7 +93,7 @@ Inside the session (type `/` to see them as you type):
 |---|---|
 | `/run` | Processes every `.pptx` in `input`, one by one. Add `--resume` to only continue unfinished files. |
 | `/files` | Shows the files waiting in `input` and how far along each is. |
-| `/models` (also `/init`) | Switch the AI service or model. Pick a service (it shows which keep your slides on your computer), paste a key only if it's new, then pick a model. Each service remembers the model you used last. |
+| `/models` (also `/init`) | Switch the AI service or model. Pick a service (it shows which keep your slides on your computer), paste a key only if it's new, then pick a model. For OpenRouter you can choose free models, the cheapest paid ones, or browse by maker (OpenAI, Google, DeepSeek and more) with prices shown. Each service remembers the model you used last. |
 | `/doctor` | Checks your setup. Safe to run any time; it changes nothing. |
 | `/status` | Shows the service, model, and whether your slides stay on your computer. |
 | `/open` | Opens the `output` folder. |
