@@ -48,7 +48,7 @@ def test_the_current_page_is_marked_in_the_menu():
 
 
 def test_footer_and_about_show_the_version():
-    assert f"Version {VERSION}" in render_page("dashboard").decode()
+    assert f"Version {VERSION}" in render_page("index").decode()
     assert f"This is cappv1 {VERSION}." in render_page("about").decode()
 
 
@@ -71,15 +71,16 @@ def test_pages_and_assets_are_served(configured):
     server.start()
     try:
         web = Client(server)
-        for path in ["/", "/dashboard", "/files", "/services", "/health", "/data", "/how-it-works", "/privacy", "/faq", "/about"]:
+        for path in ["/", "/files", "/services", "/health", "/data", "/how-it-works", "/privacy", "/faq", "/about"]:
             status, body, resp = web.call("GET", path, token=False)
             assert status == 200 and "text/html" in resp.getheader("Content-Type"), path
-        for path, ctype in [("/app.css", "text/css"), ("/files.js", "javascript"), ("/fonts/ah-400.woff2", "font/woff2")]:
+        for path, ctype in [("/app.css", "text/css"), ("/files.js", "javascript"), ("/fonts/ah-400.woff2", "font/woff2"), ("/favicon.svg", "image/svg+xml")]:
             status, _, resp = web.call("GET", path, token=False)
             assert status == 200 and ctype in resp.getheader("Content-Type"), path
         status, body, resp = web.call("GET", "/no-such-page", token=False)
         assert status == 404 and b"doesn't exist" in body and "text/html" in resp.getheader("Content-Type")
-        assert web.call("GET", "/setup.html", token=False)[0] == 404  # the old address is gone
+        assert web.call("GET", "/setup.html", token=False)[0] == 404  # the old addresses are gone
+        assert web.call("GET", "/dashboard", token=False)[0] == 404
     finally:
         server.stop()
 

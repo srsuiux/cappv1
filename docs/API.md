@@ -14,7 +14,7 @@ Without the right token every `/api/` call returns `401`. A request whose `Host`
 
 ## Pages
 
-The same server serves the web pages: `/` (landing), `/dashboard`, `/files`, `/services`, `/health`, `/data`, `/how-it-works`, `/privacy`, `/faq`, `/about`. Pages need no token; only `/api/` does.
+The same server serves the web pages: `/` (front page: introduction and overview), `/files`, `/services`, `/health`, `/data`, `/how-it-works`, `/privacy`, `/faq`, `/about`. Pages need no token; only `/api/` does.
 
 ## Errors
 
