@@ -2,6 +2,18 @@
 <h1>Files</h1>
 <p class="muted">Add your PowerPoint files. cappv1 describes the pictures, charts and tables, and saves a finished copy. Your original files are never changed.</p>
 <div id="problem"></div>
+<section class="stage" id="stage" aria-labelledby="ptitle" tabindex="-1" data-phase="working" hidden>
+  <h2 id="ptitle">Working…</h2>
+  <p class="muted" id="pcopy"></p>
+  <div class="deck" id="deck" aria-hidden="true"></div>
+  <div class="bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Progress"><i id="fill"></i></div>
+  <p class="muted" id="pdetail"></p>
+  <p class="nowline" id="now" aria-hidden="true"></p>
+  <div id="done" hidden></div>
+  <details id="log" open><summary>What cappv1 wrote</summary>
+    <ul class="feed" id="feed" tabindex="0" aria-label="What cappv1 wrote, newest first"></ul></details>
+  <div class="actions"><button class="quiet" id="stop" type="button">Stop after this slide</button><button class="quiet" id="dismiss" type="button" hidden>Close</button></div>
+</section>
 <label class="drop" id="drop"><input type="file" id="pick" accept=".pptx" multiple>
   <strong>Choose .pptx files</strong><span class="muted">or drop them here. Up to 200 MB each.</span></label>
 <h2>Your files</h2>
@@ -11,14 +23,8 @@
   <label class="check"><input type="checkbox" id="force"><span>Replace alt text that people already wrote<br><span class="muted">When this is off, cappv1 keeps or improves what the author wrote.</span></span></label>
 </details>
 <div class="actions"><button id="run" type="button" disabled>Write alt text</button><span class="muted" id="runhelp">Slides already described are reused, not paid for twice.</span></div>
-<section class="progress" id="progress" aria-labelledby="ptitle" hidden>
-  <b id="ptitle">Starting…</b>
-  <div class="bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Progress"><i id="fill"></i></div>
-  <span class="muted" id="pdetail"></span>
-  <h2>What cappv1 wrote</h2>
-  <ul class="feed" id="feed" tabindex="0" aria-label="What cappv1 wrote, newest first"></ul>
-  <div class="actions"><button class="quiet" id="stop" type="button">Stop after this slide</button></div>
-</section>
+<p class="note">cappv1 makes a copy of each document, adds the alt text to the copy, and shows the finished copy here to download. Your original is never changed.</p>
+
 <section class="progress" id="audit" aria-labelledby="atitle" tabindex="-1" hidden>
   <h2 id="atitle">Accessibility check</h2>
   <p class="muted" id="ascope"></p>

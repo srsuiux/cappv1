@@ -6,6 +6,7 @@ const STATE = {
 };
 let files = [];
 let busy = false;
+const fresh = new Set(); // finished in the latest run
 
 function showProblem(err) { $("problem").replaceChildren(err ? problem(err) : ""); }
 const mb = (n) => (n / 1048576 >= 0.1 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
@@ -53,10 +54,11 @@ function render() {
   $("empty").hidden = files.length > 0;
   $("files").replaceChildren(...files.map((f) => {
     const [label, tone] = STATE[f.state] || [f.state, ""];
-    return h("li", {},
+    const ready = fresh.has(f.name);
+    return h("li", { class: ready ? "fresh" : "" },
       h("span", {}, h("span", { class: "name" }, f.name), h("br"), h("span", { class: "muted" }, mb(f.size))),
       h("span", { class: "state" },
-        h("span", { class: tone }, label), " ",
+        h("span", { class: ready ? "ok" : tone }, ready ? "✔ Finished copy ready" : label), " ",
         h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)), " ",
         f.has_output ? h("button", { class: "quiet small", type: "button", onclick: () => download(f.name) }, "Download", h("span", { class: "sr" }, " " + f.name)) : null, " ",
         h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => remove(f.name) }, "Remove", h("span", { class: "sr" }, " " + f.name))));
@@ -122,18 +124,40 @@ async function stream(id, onEvent) {
 }
 
 const clip = (t) => (t.length > 280 ? t.slice(0, 277) + "…" : t);
+const VERB = { picture: "Looking at a picture", table: "Reading a table", chart: "Reading a chart", object: "Reading an embedded object", diagram: "Reading a diagram" };
+let tiles = [];
+
+function buildDeck(total) {
+  tiles = Array.from({ length: total }, (_, i) => h("span", { class: "tile" }, String(i + 1)));
+  $("deck").replaceChildren(...tiles);
+}
+function mark(i, state) {
+  const t = tiles[i];
+  if (t) t.className = "tile " + state;
+}
 
 function watch(id) {
   busy = true;
+  fresh.clear();
   render();
-  $("progress").hidden = false;
+  const stage = $("stage");
+  stage.dataset.phase = "working";
+  stage.hidden = false;
+  $("done").hidden = true;
+  $("dismiss").hidden = true;
   $("stop").hidden = false;
   $("stop").disabled = false;
+  $("deck").hidden = false;
   $("feed").replaceChildren();
   $("ptitle").textContent = "Starting…";
+  $("pcopy").textContent = "cappv1 is adding alt text to a copy of your document. Your original isn't changed, and the finished copy appears right here.";
   $("pdetail").textContent = "";
+  $("now").textContent = "";
   setBar(0);
+  stage.scrollIntoView({ block: "start" });
+  stage.focus({ preventScroll: true });
   let fileNo = 1, fileCount = 1, name = "";
+  const saved = [], tally = { written: 0, kept: 0 };
   $("stop").onclick = async () => {
     $("stop").disabled = true;
     announce("Stopping after this slide");
@@ -149,26 +173,48 @@ function watch(id) {
     switch (ev.event) {
       case "file_start":
         fileNo = ev.index; fileCount = ev.total; name = ev.filename;
-        $("ptitle").textContent = name;
+        $("ptitle").textContent = fileCount > 1 ? `Working on ${name} (file ${fileNo} of ${fileCount})` : `Working on ${name}`;
         announce(`Starting ${name}, file ${fileNo} of ${fileCount}`);
         break;
+      case "file_open":
+        buildDeck(ev.total_slides);
+        for (let i = 0; i < ev.resumed; i++) mark(i, "done");
+        break;
+      case "slide_start": {
+        mark(ev.slide, "now");
+        const c = ev.counts || {}, bits = [["picture", "picture"], ["table", "table"], ["chart", "chart"], ["object", "object"], ["diagram", "diagram"]]
+          .filter(([k]) => c[k]).map(([k, w]) => plural(c[k], w, w + "s"));
+        $("now").textContent = bits.length ? `Slide ${ev.slide + 1}: ${bits.join(", ")}` : `Slide ${ev.slide + 1}: nothing to describe`;
+        break;
+      }
+      case "element_start":
+        $("now").textContent = `Slide ${ev.slide + 1}: ${VERB[ev.kind] || "Working on an item"}…`;
+        break;
       case "slide_end":
-        $("ptitle").textContent = `${ev.filename} · slide ${ev.slide + 1} of ${ev.total}`;
+        mark(ev.slide, "done");
+        $("ptitle").textContent = fileCount > 1 ? `Working on ${ev.filename} (file ${fileNo} of ${fileCount})` : `Working on ${ev.filename}`;
+        $("pdetail").textContent = `Slide ${ev.slide + 1} of ${ev.total}`;
         setBar(((fileNo - 1) + (ev.slide + 1) / ev.total) / fileCount * 100);
         break;
       case "alt_written": {
         const say = { captioned: [""], enhanced: ["Improved the text the author wrote"], kept: [""], cached: ["Reused from an earlier run"] }[ev.outcome];
+        ev.outcome === "kept" ? tally.kept++ : tally.written++;
         feed(where(ev), ev.outcome === "kept" ? "Kept the alt text you wrote." : clip(ev.text), say && say[0]);
         break;
       }
+      case "file_saving":
+        $("now").textContent = "Saving the finished copy…";
+        break;
       case "file_saved":
+        saved.push({ name: ev.filename, path: ev.path, incomplete: ev.incomplete });
+        fresh.add(ev.filename);
         announce(ev.incomplete ? `${ev.filename} saved, some items could not be described` : `${ev.filename} finished`);
         break;
       case "file_failed":
         feed(ev.filename, ev.error, "Could not finish this file");
         announce(`${ev.filename} could not be finished`);
         break;
-      case "run_finished": finish(ev.state); break;
+      case "run_finished": finish(ev.state, saved, tally); break;
     }
   });
 }
@@ -177,22 +223,54 @@ function setBar(pct) {
   const p = Math.round(pct);
   $("fill").style.width = p + "%"; // allowed by the content policy: a CSSOM write, not inline markup
   document.querySelector("[role=progressbar]").setAttribute("aria-valuenow", p);
-  $("pdetail").textContent = p + "%";
 }
 
-async function finish(state) {
+function doneList(saved, tally) {
+  const one = saved.length === 1;
+  return [
+    h("p", {}, one
+      ? `This is the same document as the one you added, with alt text now written into it. Your original, ${saved[0].name}, is unchanged.`
+      : "These are the same documents you added, with alt text now written into them. Your originals are unchanged."),
+    h("ul", { class: "ready" }, ...saved.map((f) => h("li", {},
+      h("span", {}, h("b", {}, f.name), h("small", {}, f.incomplete ? "Finished copy ready. Some items couldn't be described, so run again to finish them." : "Finished copy ready"), h("small", { class: "path" }, "Saved on this computer: " + f.path)),
+      h("span", { class: "row-actions" },
+        h("button", { type: "button", onclick: () => download(f.name) }, "Download finished copy", h("span", { class: "sr" }, " " + f.name)),
+        h("button", { class: "quiet", type: "button", onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)))))),
+    h("p", { class: "muted" }, `${plural(tally.written, "description", "descriptions")} written` + (tally.kept ? `, ${tally.kept} kept as the author wrote them.` : ".") + " It's also in your list below, marked as ready."),
+  ];
+}
+
+async function finish(state, saved, tally) {
   busy = false;
+  const stage = $("stage");
   $("stop").hidden = true;
+  $("dismiss").hidden = false;
+  $("now").textContent = "";
   const failed = (await getJson("/runs/current")).failed_files || [];
-  const text = {
-    done: failed.length ? `Finished, but ${plural(failed.length, "file", "files")} could not be completed: ${failed.join(", ")}` : "Finished. Your files are ready to download.",
-    cancelled: "Stopped. Finished slides are saved, and the next run continues from here.",
-    failed: "The run stopped because of a problem. Open Doctor to see what to fix.",
-  }[state] || "Finished.";
-  $("ptitle").textContent = text;
-  if (state === "done" && !failed.length) setBar(100);
-  announce(text);
+  const ok = saved.length > 0;
+  stage.dataset.phase = state === "done" && !failed.length ? "done" : state === "failed" ? "failed" : "stopped";
+  const one = saved.length === 1;
+  const title = {
+    done: failed.length ? `${plural(saved.length, "document", "documents")} finished, ${failed.length} could not be completed` : one ? "Your finished document is ready" : "Your finished documents are ready",
+    cancelled: ok ? "Stopped. Finished documents are ready below" : "Stopped. Finished slides are saved",
+    failed: "The run stopped because of a problem",
+  }[state] || "Finished";
+  $("ptitle").textContent = title;
+  $("pcopy").textContent = {
+    done: failed.length ? `Could not complete: ${failed.join(", ")}. Open Health to see what to fix.` : "",
+    cancelled: "The next run continues from where this one stopped.",
+    failed: "Open Health to see what to fix. Your files and progress are safe.",
+  }[state] || "";
+  $("pdetail").textContent = "";
+  if (state === "done" && !failed.length) { setBar(100); tiles.forEach((_, i) => mark(i, "done")); }
+  $("deck").hidden = !tiles.length || !ok && state === "failed";
+  $("done").replaceChildren(...(ok ? doneList(saved, tally) : []));
+  $("done").hidden = !ok;
+  $("log").open = !ok;
+  announce(title);
   await loadFiles();
+  stage.scrollIntoView({ block: "start" });
+  stage.focus({ preventScroll: true });
 }
 
 async function start() {
@@ -212,6 +290,7 @@ for (const t of ["dragleave", "drop"]) drop.addEventListener(t, (e) => { e.preve
 drop.addEventListener("drop", (e) => upload(e.dataTransfer.files));
 $("force").addEventListener("change", render);
 $("run").addEventListener("click", start);
+$("dismiss").addEventListener("click", () => { $("stage").hidden = true; fresh.clear(); render(); $("pick").focus(); });
 $("aclose").addEventListener("click", () => { $("audit").hidden = true; $("pick").focus(); });
 
 await loadFiles();
