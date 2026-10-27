@@ -245,6 +245,7 @@ def serve_cli(argv: list[str]) -> int:
             print("--port needs a number, for example: cappv1 --web --port 8800")
             return 2
     server = WebServer(default_workspace(), port=port)
+    logging.basicConfig(level=logging.WARNING, format="%(asctime)s %(levelname)s %(message)s")  # unexpected errors reach this terminal
     try:
         url = server.start()
     except ServiceError as err:

@@ -24,7 +24,7 @@ p{margin:0 0 12px;max-width:62ch}.muted{color:var(--muted)}
 .drop input{position:absolute;opacity:0;width:1px;height:1px}
 button{font:inherit;font-weight:700;background:var(--blue);color:var(--blue-ink);border:0;border-radius:var(--r);padding:11px 20px;min-height:44px;cursor:pointer}
 button.quiet{background:transparent;color:var(--blue);border:1px solid var(--line)}
-button.small{min-height:36px;padding:4px 12px}
+button.small{min-height:44px;padding:4px 14px}
 button:disabled{opacity:.55;cursor:not-allowed}
 ul.files{list-style:none;margin:16px 0;padding:0;border-top:1px solid var(--line)}
 ul.files li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
