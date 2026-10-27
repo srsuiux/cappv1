@@ -24,7 +24,7 @@ from src.tui.commands import build_commands
 from src.tui.menu import select
 from src.tui.theme import ACCENT, ANIMATE, ARROW, MUTED, OK, PROVIDER_LABELS, TICK, WARN
 
-VERSION = "1.1.0-dev"
+VERSION = "1.1.0"
 
 _PROMPT_STYLE = Style.from_dict({
     "rule": "#555555",

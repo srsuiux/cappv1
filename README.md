@@ -189,3 +189,7 @@ The run summary counts these separately ("improved", "kept as written"), so you 
 ## For developers
 
 Settings live in `.env`; see `.env.example` for the full list (provider, model, fallback model, concurrency, Ollama address and timeout, minimum image size, maximum alt-text length). Source code is in `src/`. `skills.md` documents the one rule any change must follow: this tool only ever writes to a shape's alt-text field, nothing else in the file.
+
+## License and contributing
+
+cappv1 is free and open source under the [MIT License](LICENSE): use it, change it, and share it. Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Release notes are in [CHANGELOG.md](CHANGELOG.md).
