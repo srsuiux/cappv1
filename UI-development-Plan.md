@@ -1,8 +1,8 @@
 # cappv1 Web UI: Development Plan
 
-Status: **REVISED DRAFT (v2) for review.** Nothing here is built. Edit freely, then approve phase by phase.
+Status: **v3, scope trimmed.** Phase 1 in progress. Edit freely, then approve phase by phase.
 
-What changed from v1: no web framework (plain HTML/CSS/JS and a standard-library server); the engine stays a library behind a shared **service layer** that both the terminal and the browser use; `/init` ends by asking where to continue; security, testing and CI sections added; phases reordered so the service layer comes first.
+What changed in v3: the web UI is deliberately small. It is **not a data manager**: no file manager, no history, no database, no report archive. It does what the engine does: set up a service, upload decks, run, watch, download. What changed from v1: no web framework (plain HTML/CSS/JS and a standard-library server); the engine stays a library behind a shared **service layer** that both the terminal and the browser use; `/init` ends by asking where to continue; security, testing and CI sections added; phases reordered so the service layer comes first.
 
 ## 1. Goal
 
@@ -81,23 +81,23 @@ Errors always use `{ "error": { "code", "message", "fix" } }`. The contract is w
 - Remote Ollama keeps its existing guard (`OLLAMA_ALLOW_REMOTE`) and the UI shows a clear warning.
 - The page makes no network requests except to its own server.
 
-## 5. Scope
+## 5. Scope (kept small on purpose)
 
-### In scope (v1 of the web UI)
-- **Setup**: choose service, key or Ollama check, pick model (same flow as `/models`), "Test connection", plain-language privacy note per service.
-- **Upload** one or many files (drag and drop plus a normal file picker).
-- **File health check** before processing (see section 7).
-- **Run with live progress** per file and slide; cancel; resume; plain-language errors.
-- **Results**: slide-by-slide list of every shape with before/after alt text, marking items we **kept as written** and items we **improved**.
-- **Fix notes** per file (see section 8).
-- **File manager** for inputs, outputs and reports, inside the workspace only.
-- **Advanced settings**: model, concurrency, timeout, minimum existing alt-text length, Ollama address.
+The web UI does only what the engine already does. Anything that smells like managing data is out.
 
-### Out of scope (for now)
-- Editing alt text by hand in the browser (candidate for the next release).
-- Accounts, multi-user login, hosting for a campus (section 12).
-- Packaged desktop app; Windows support (matches the CLI).
-- Auto-fixing anything other than alt text.
+### In scope
+- **Setup**: choose a service, key or Ollama check, pick a model (same flow as `/init` and `/models`), "Test connection", a plain privacy note per service.
+- **Upload** one or many `.pptx` files (drag and drop plus a file picker).
+- **Run** with live progress per file and slide; cancel; resume. A file already captioned and unchanged says so.
+- **Results**: when a file finishes, download it, with the counts (described, improved, kept as written, failed).
+- **Doctor**: the same checks as `/doctor`, shown as a simple list.
+- **File health check** (phase 4): damaged files are explained and skipped instead of failing mid-run.
+
+### Out of scope
+- A file manager, deleting from the browser, run history, search, accounts, a database, report archives.
+- Editing alt text by hand; auto-fixing anything other than alt text.
+- Hosting for many users (section 13); packaged desktop app; Windows (matches the CLI).
+- Fix notes are **optional and last** (phase 5): a plain summary of what changed per file, only if it stays small.
 
 ## 6. Users and key tasks
 
@@ -138,15 +138,11 @@ Facts come from code and are reliable. Only the explanatory wording may use the 
 
 ## 9. Screens
 
-1. **Setup**: service cards with cost and privacy, key entry or Ollama check, model picker, test connection.
-2. **Home**: drop zone, file list with health and status badges ("already captioned, unchanged", "edited since last run"), Run button.
-3. **Run**: per-file and per-slide progress, current activity, cancel.
-4. **Results**: summary counts, slide-by-slide before and after, integrity line, downloads.
-5. **Notes**: the fix notes for a file.
-6. **Files**: manage inputs, outputs, reports; confirm before deleting.
-7. **Settings**: advanced options.
+Three plain pages that share `app.css` and `app.js`, each with a real URL:
 
-Plain multi-page site (one HTML file per screen, shared `app.css` and `app.js`), so every screen has a real URL and the back button works.
+1. **Home** (`/`): status line (service and model, with a privacy badge), the drop zone, the file list with each file's state, the Run button, live progress, and results with download links.
+2. **Setup** (`/setup.html`): service cards, key entry or Ollama check, model picker, test connection.
+3. **Doctor** (`/doctor.html`): the checks and what to do about each failure.
 
 ## 10. Accessibility requirements (acceptance criteria)
 
@@ -168,25 +164,24 @@ Plain multi-page site (one HTML file per screen, shared `app.css` and `app.js`),
 
 ## 12. Phases
 
-Branching follows `CONTRIBUTING.md`: each phase is a `feature/...` branch off `main`, merged when approved. Releases are tagged `vX.Y.Z`.
+Branching follows `CONTRIBUTING.md`: each phase is a `feature/...` branch off `main`, merged when approved. Releases are tagged `vX.Y.Z`. Layers depend only downward: web or terminal, then services, then engine.
 
 | Phase | Branch | Deliverable | Done when |
 |---|---|---|---|
-| 0 | `docs/webui-plan` | This plan approved | You approve |
-| 1 | `feature/service-layer` | Extract logic from `src/tui/commands.py` into `src/services/`; terminal now calls it; pytest suite begins; CI added | Terminal behaves identically; service tests pass |
-| 2 | `feature/web-server` | `src/web/` server, `/api/v1`, token and Host checks, SSE, `cappv1 web`, `/web`, and the `/init` browser-or-terminal choice | API tests pass; browser shows a blank shell with live status |
-| 3 | `feature/web-ui` | Static pages: Setup, Home and upload, Run, Results (low-fi mockup reviewed first) | A new user goes from install to a captioned file without editing `.env` |
-| 4 | `feature/file-health` | `health` service and the integrity check, shown in both UIs | Good, damaged and partial fixtures classified correctly |
-| 5 | `feature/fix-notes` | `reports` service, Notes page, HTML and Markdown export | Reports correct on sample files |
-| 6 | `feature/a11y-polish` | Keyboard, VoiceOver and axe pass; contrast; zoom; docs and screenshots; release **v1.2.0** | Section 10 criteria met; README works for a first-time user |
+| 0 | `docs/webui-scope` | This trimmed plan | Merged |
+| 1 | `feature/service-layer` | `src/services/` (settings, models, workspace, health, runs) extracted from the terminal code; the terminal now calls it; pytest suite and CI | Terminal behaves identically; service tests pass in CI |
+| 2 | `feature/web-server` | `src/web/`: stdlib server, `/api/v1`, token and Host checks, SSE, `cappv1 web`, `/web`, and the `/init` browser-or-terminal choice | API tests pass |
+| 3 | `feature/web-ui` | Home, Setup, Doctor pages (a reviewed low-fi mockup comes first) | Install to a captioned, downloadable file without touching `.env` |
+| 4 | `feature/file-health` | File health check and the "only alt text changed" verification, in both UIs | Good, damaged and partial fixtures classified correctly |
+| 5 | `feature/a11y-polish` | Keyboard, VoiceOver, axe, contrast, zoom; docs; release **v1.2.0** | Section 10 met |
 
-Each phase ends with a local commit, a short demo or summary, and your approval before the next starts.
+Each phase ends with a local commit, a short summary, and your go-ahead before the next starts.
 
 ## 13. Later options (not planned)
 
 - **Shared campus server**: the same app on one machine for many people needs real login, TLS, per-user workspaces, queueing and IT approval. Treat it as its own project after the local UI ships.
 - Manual alt-text editing in the browser; packaged Mac app; folder watching.
-- SQLite instead of JSON files, if history or search screens appear (not needed today).
+- Fix notes / per-file summaries; SQLite only if a history feature is ever wanted (not planned).
 
 ## 14. Risks
 
