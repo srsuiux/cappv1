@@ -97,3 +97,65 @@ def test_privacy_page_states_what_the_code_actually_sends():
     sent = llm_client._context_text(ctx)
     for part in ("Title", "Sec", "Body", "Notes"):
         assert part in sent
+
+
+# ---- look and feel ------------------------------------------------------------------
+CSS = (STATIC / "app.css").read_text()
+
+
+def test_no_stroke_down_one_side_of_anything():
+    """The design uses whole, subtle borders. A coloured bar down one edge isn't allowed."""
+    assert not re.search(r"border-(left|right|inline-start|inline-end)\s*:", CSS)
+    assert not re.search(r"border-(left|right)-(color|width|style)", CSS)
+
+
+def _tokens(block: str) -> dict[str, str]:
+    out = {}
+    for name, value in re.findall(r"--([a-z-]+):(#[0-9a-fA-F]{3,6})\b", block):
+        out[name] = "#" + "".join(c * 2 for c in value[1:]) if len(value) == 4 else value
+    return out
+
+
+def _luminance(hex_color: str) -> float:
+    r, g, b = (int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in (r, g, b)]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def _contrast(a: str, b: str) -> float:
+    hi, lo = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def _themes():
+    light = _tokens(re.search(r"^:root\{color-scheme:light;(.*?)\}", CSS, re.M).group(1))
+    explicit_dark = _tokens(re.search(r"^:root\[data-theme=dark\]\{(.*?)\}", CSS, re.M).group(1))
+    system_dark = _tokens(re.search(r"@media \(prefers-color-scheme:dark\)\{:root:not\(\[data-theme=light\]\)\{(.*?)\}\}", CSS).group(1))
+    return light, explicit_dark, system_dark
+
+
+def test_dark_mode_works_by_device_setting_and_by_choice_and_they_agree():
+    light, explicit_dark, system_dark = _themes()
+    assert explicit_dark == system_dark and set(explicit_dark) == set(light)
+
+
+@pytest.mark.parametrize("which", [0, 1])
+def test_text_and_controls_have_enough_contrast_in_both_themes(which):
+    t = _themes()[which]
+    pairs = [("ink", "paper"), ("ink", "tint"), ("muted", "paper"), ("muted", "tint"), ("blue", "paper"), ("blue", "tint"),
+             ("blue-ink", "blue"), ("ok", "paper"), ("ok", "tint"), ("warn", "paper"), ("bad", "paper"), ("bad", "tint")]
+    for fg, bg in pairs:
+        assert _contrast(t[fg], t[bg]) >= 4.5, f"{fg} on {bg} is {_contrast(t[fg], t[bg]):.1f}:1"
+
+
+@pytest.mark.parametrize("slug", [s for s in SLUGS])
+def test_every_page_has_the_theme_switch_and_applies_it_before_painting(slug):
+    html = render_page(slug).decode()
+    assert html.index('src="/theme.js"') < html.index('href="/app.css"'), "the theme must be set before styles load"
+    for choice in ("system", "light", "dark"):
+        assert f'data-theme-set="{choice}"' in html
+
+
+def test_the_front_page_is_wide_and_other_pages_are_not():
+    assert 'class="main-col w-wide"' in render_page("index").decode()
+    assert 'class="main-col w-narrow"' in render_page("files").decode()

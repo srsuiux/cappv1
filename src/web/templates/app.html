@@ -6,6 +6,7 @@
 <title>{{title}} · cappv1</title>
 <meta name="description" content="{{description}}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script src="/theme.js"></script>
 <link rel="stylesheet" href="/app.css">
 </head>
 <body class="app">
@@ -33,11 +34,19 @@
             <li><a href="/about" data-nav="about">About</a></li>
           </ul>
         </nav>
+        <div class="theme" role="group" aria-labelledby="g-theme">
+          <p class="group" id="g-theme">Theme</p>
+          <div class="seg">
+            <button type="button" data-theme-set="system" aria-pressed="true">System</button>
+            <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+            <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+          </div>
+        </div>
       </details>
     </div>
     <p class="side-foot muted">Version {{version}}<br>MIT licensed</p>
   </aside>
-  <div class="main-col">
+  <div class="main-col w-{{width}}">
     <div class="status" id="status" role="status">Loading…</div>
     <div class="sr" id="live" role="status" aria-live="polite"></div>
     <main id="main">
