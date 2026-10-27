@@ -141,7 +141,7 @@ class Session:
         if not self.config:
             pick = select("Set up now?", [("Yes, choose an AI service", "takes about a minute"), ("Not now", "")])
             if pick == 0:
-                self.dispatch("models", "")
+                self.dispatch("init", "")
 
     # ---- input handling --------------------------------------------------
     def find(self, name: str):

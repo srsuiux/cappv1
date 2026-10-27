@@ -152,8 +152,10 @@ def cmd_doctor(session, args: str) -> None:
     session.console.print()
 
 
-# ---------------------------------------------------------------- /models, /init
-# Both commands open the same flow: pick a service, then a model for it.
+# ---------------------------------------------------------------- /init, /models
+# /init is the guided setup: if cappv1 is already configured it shows the current
+# choice first and lets you keep it. /models goes straight to the pickers.
+# Both then share one flow: pick a service, then a model for it.
 _SERVICES = [("ollama", "Ollama"), ("openrouter", "OpenRouter"), ("openai", "OpenAI"), ("anthropic", "Anthropic")]
 _KEY_HELP = {
     "openrouter": "openrouter.ai -> account settings -> API Keys (starts with sk-or-v1-)",
@@ -179,7 +181,15 @@ def _service_rows(env: dict[str, str], active: str | None) -> list[tuple[str, st
     return rows
 
 
+def cmd_init(session, args: str) -> None:
+    _configure(session, show_current_first=True)
+
+
 def cmd_models(session, args: str) -> None:
+    _configure(session, show_current_first=False)
+
+
+def _configure(session, show_current_first: bool) -> None:
     console = session.console
     console.print()
     env = _env()
@@ -188,7 +198,7 @@ def cmd_models(session, args: str) -> None:
     # Already set up: show what is in use and don't walk through setup again.
     config, _ = session.load()
     change_model_only = False
-    if config and active:
+    if show_current_first and config and active:
         label = f"{PROVIDER_LABELS[active]} · {config.model}"
         pick = select(f"Currently using {label}", [
             ("Keep this", "no changes"),
@@ -485,7 +495,8 @@ def build_commands() -> list[Command]:
     return [
         Command("run", "Describe everything in input/ (--resume continues unfinished files; --force redoes all and replaces authors' text)", cmd_run, ("start",)),
         Command("files", "Show the files waiting in input/ and their progress", cmd_files, ("ls",)),
-        Command("models", "Switch the AI service or model", cmd_models, ("init", "setup", "provider")),
+        Command("init", "Set up cappv1, or check what it's set up with", cmd_init, ("setup",)),
+        Command("models", "Pick a different AI service or model", cmd_models, ("provider",)),
         Command("doctor", "Check that everything is working", cmd_doctor),
         Command("status", "Show the current settings", cmd_status),
         Command("open", "Open the output folder", cmd_open),

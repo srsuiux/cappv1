@@ -95,7 +95,8 @@ Inside the session (type `/` to see them as you type):
 |---|---|
 | `/run` | Processes every `.pptx` in `input`, one by one. Add `--resume` to only continue unfinished files, or `--force` to redo everything and replace alt text that authors wrote themselves (it asks first). |
 | `/files` | Shows the files waiting in `input` and how far along each is. |
-| `/models` (also `/init`) | Shows what you're using now and lets you keep it, change just the model, or switch service. To switch, pick a service (it shows which keep your slides on your computer), paste a key only if it's new, then pick a model. For OpenRouter you can choose free models, the cheapest paid ones, or browse by maker (OpenAI, Google, DeepSeek and more) with prices shown. Each service remembers the model you used last. |
+| `/init` | Sets up cappv1 (service, key, model). If it's already set up, it shows what you're using and lets you keep it, change just the model, or switch service. Safe to run again. |
+| `/models` | Goes straight to picking an AI service and model. For OpenRouter you can choose free models, the cheapest paid ones, or browse by maker (OpenAI, Google, DeepSeek and more) with prices shown. Each service remembers the model you used last. |
 | `/doctor` | Checks your setup. Safe to run any time; it changes nothing. |
 | `/status` | Shows the service, model, and whether your slides stay on your computer. |
 | `/open` | Opens the `output` folder. |
