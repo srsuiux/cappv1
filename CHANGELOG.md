@@ -2,22 +2,20 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
-## Unreleased
+## 1.2.0
 
 ### Added
-- Light, dark and system themes with a switch in the side panel, remembered in the browser and applied before the page paints. A test checks the contrast of every color pair in both themes.
-- The front page uses the full width. New visitors see the introduction first; once cappv1 is set up and has files, the Overview (next step, file counts, service, health, data) comes first and the introduction moves below it.
-- A favicon.
-- A full web site served locally: a front page (introduction with the overview beneath it) and Files, Services, Health and Your data pages, with a sidebar, plus How it works, Privacy, FAQ and About pages. The Privacy page states exactly what is sent to an AI service and what is stored, and a test keeps it in step with the code.
-- Your data page lists what cappv1 keeps and where, and can erase decks, finished copies, saved progress and logs. Saved API keys can be removed from Services.
-- Each service now says what it does with your slides and links to its privacy policy.
-- Project files: `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and pull request templates, `.editorconfig`, `pyproject.toml`, and `docs/ARCHITECTURE.md`.
-- Web pages: Home (add decks, run, live feed of the alt text being written, download), Setup (service, model, key) and Doctor. Plain HTML, CSS and JavaScript with a bundled accessible typeface (Atkinson Hyperlegible, SIL OFL); works with a keyboard and screen reader, in light and dark.
+- **Local web interface** (`cappv1 --web`, or `/web` inside cappv1; `/init` now ends by offering the browser or the terminal). It is a small site served on this computer only:
+  - A front page that introduces cappv1 to new visitors and, once you're set up, leads with an Overview (next step, file counts, service, health, data) and moves the introduction below it.
+  - Files (add decks, run, live feed of the alt text being written, stop, download), Services (choose service, model and key), Health, and Your data (what is kept and where, with an erase button).
+  - How it works, Privacy, FAQ and About pages. The Privacy page states exactly what is sent to an AI service and what is stored, and a test keeps it in step with the code.
+  - Light, dark and system themes with a switch in the side panel, applied before the page paints; a test checks the contrast of every color pair in both themes. Keyboard, screen-reader and small-screen friendly; a favicon.
+- **Web server and API** (`src/web`, standard library only, documented in `docs/API.md`): bound to this computer, per-launch token, Host check, strict content policy, size-limited validated uploads, live progress over Server-Sent Events that resumes after a dropped connection.
+- Each service says what it does with your slides and links to its privacy policy; saved API keys can be removed from Services.
 - A new `alt_written` progress event carrying each piece of alt text as it is settled.
-- Local web server (`src/web`, standard library only) with a documented JSON API (`docs/API.md`): token and Host checks, size-limited uploads, live progress over Server-Sent Events.
-- `cappv1 --web [--port N] [--no-open]` and `/web` / `/web stop` inside cappv1; `/init` now ends by offering the browser or the terminal.
 - `src/services/`, a service layer between the engine and the screens, with a pytest suite and GitHub Actions CI.
 - `CAPPV1_HOME` to keep settings, decks and progress in a folder of your choice.
+- Project files: `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and pull request templates, `.editorconfig`, `pyproject.toml`, and `docs/ARCHITECTURE.md`.
 
 ### Fixed
 - Pictures are matched by their exact bytes. Before, flat or near-identical images (for example two solid-color pictures) could share one caption.
