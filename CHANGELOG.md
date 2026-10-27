@@ -2,6 +2,10 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
+## 1.4.3
+
+- On the Files page, a finished run shows every slide tile instead of clipping long decks.
+
 ## 1.4.2
 
 - The contrast audit now also checks text in table cells and in grouped shapes.

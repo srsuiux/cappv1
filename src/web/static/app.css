@@ -57,6 +57,7 @@ details{margin:16px 0}summary{cursor:pointer;min-height:44px;padding:8px 0}
 .stage[data-phase=done]{border-color:var(--ok)}.stage[data-phase=failed]{border-color:var(--bad)}.stage[data-phase=stopped]{border-color:var(--warn)}
 .stage h2{margin:0 0 6px;font-size:1.35rem}
 .deck{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 8px;max-height:11rem;overflow:auto;padding:2px}
+.stage:not([data-phase=working]) .deck{max-height:none}
 .tile{position:relative;overflow:hidden;width:2.9rem;height:2.05rem;display:grid;place-items:center;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--muted);font-size:.75rem}
 .tile.now{border:2px solid var(--blue);color:var(--ink);background:var(--tint)}
 .tile.done{border-color:var(--ok);background:var(--tint);color:var(--ink)}
