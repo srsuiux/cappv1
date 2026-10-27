@@ -66,3 +66,42 @@ def test_different_images_never_share_a_caption(configured, fake_ollama, tmp_pat
     assert runs.wait(30)
     pictures = sum(1 for e in runs.events_since(0) if e["event"] == "element_start" and e["kind"] == "picture")
     assert pictures == 2  # both pictures hit the model; neither reused the other's caption
+
+
+# ---- table header row ---------------------------------------------------------
+def _table(rows, style=True, merge=False, blank=False):
+    from pptx import Presentation
+    from pptx.util import Inches
+    from pptx.oxml.ns import qn
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[5])
+    shape = slide.shapes.add_table(rows, 2, Inches(1), Inches(2), Inches(4), Inches(1))
+    pr = shape.table._tbl.tblPr
+    for a in ("firstRow", "bandRow"):
+        pr.attrib.pop(a, None)
+    if not style:
+        for child in pr.findall(qn("a:tableStyleId")):
+            pr.remove(child)
+    for i, c in enumerate(shape.table.rows[0].cells):
+        c.text = "" if blank and i == 1 else f"h{i}"
+    if merge:
+        shape.table.cell(0, 0).merge(shape.table.cell(0, 1))
+    return shape
+
+
+def test_header_row_is_flagged_when_it_changes_nothing_visually():
+    from src.pptx_reader import mark_table_header
+
+    shape = _table(3, style=False)
+    assert mark_table_header(shape) == "set"
+    assert shape.table._tbl.tblPr.get("firstRow") == "1"
+    assert mark_table_header(shape) == "already"
+
+
+def test_header_row_is_left_alone_when_unsafe():
+    from src.pptx_reader import mark_table_header
+
+    for shape in (_table(3, style=True), _table(1, style=False), _table(3, style=False, merge=True), _table(3, style=False, blank=True)):
+        assert mark_table_header(shape).startswith("skipped")
+        assert shape.table._tbl.tblPr.get("firstRow") is None

@@ -32,6 +32,7 @@ from src.pptx_reader import (
     get_section_map,
     get_slide_context,
     mark_decorative,
+    mark_table_header,
     ole_object_to_text,
     open_presentation,
     set_alt_text,
@@ -280,6 +281,9 @@ async def _process_slide(
         state.caption_cache[key] = settle(shape, caption, author)
 
     async def handle_table(shape):
+        header = mark_table_header(shape)
+        if header != "already":
+            logger.info("[file: %s] [slide %d] table header row: %s", filename, slide_index, header)
         author = author_text(shape)
         text_repr = table_to_text(shape.table)
         key = key_for("table:" + hashlib.sha256(text_repr.encode()).hexdigest(), author)

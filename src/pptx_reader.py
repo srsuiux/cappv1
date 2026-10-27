@@ -346,6 +346,33 @@ def mark_decorative(shape) -> None:
     set_alt_text(shape, "")
 
 
+def mark_table_header(shape) -> str:
+    """Flags a table's first row as its header (`firstRow="1"`), which is what
+    screen readers and checkers such as Blackboard Ally read to announce column
+    names. Returns "set", "already", or "skipped: <reason>".
+
+    The flag only changes how a table *style* paints row 1, so it is applied
+    only when it is visually inert: no table style is attached, and row 1 is
+    plainly a header (two or more rows, every cell has text, nothing merged).
+    Anything else is left alone and reported."""
+    tbl = shape.table._tbl
+    pr = tbl.tblPr
+    if pr.get("firstRow") in ("1", "true"):
+        return "already"
+    if pr.find(qn("a:tableStyleId")) is not None:
+        return "skipped: a table style would restyle row 1"
+    rows = tbl.findall(qn("a:tr"))
+    if len(rows) < 2:
+        return "skipped: only one row"
+    cells = rows[0].findall(qn("a:tc"))
+    if any(c.get(a) for c in cells for a in ("gridSpan", "rowSpan", "hMerge", "vMerge")):
+        return "skipped: first row has merged cells"
+    if not all("".join(c.itertext()).strip() for c in cells):
+        return "skipped: first row has empty cells"
+    pr.set("firstRow", "1")
+    return "set"
+
+
 _MAX_TABLE_ROWS_IN_TEXT = 20
 
 
