@@ -2,6 +2,10 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
+## 1.4.0
+
+- New `/audit` command and `GET /api/v1/files/<name>/audit`: reports low-contrast text (WCAG AA, judged against the real backdrop including template shapes, patterns and gradients) and slides whose reading order doesn't follow the layout. Findings with the same cause are grouped across slides. It only reports; colors and layout are never changed.
+
 ## 1.3.0
 
 - A table's first row is now flagged as its header when that changes nothing visually (no table style, two or more rows, every first-row cell filled, nothing merged). This fixes Blackboard Ally's "tables are missing headers". Tables where it would change the look are left alone and the reason is logged.
