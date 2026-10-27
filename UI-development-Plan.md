@@ -1,6 +1,6 @@
 # cappv1 Web UI: Development Plan
 
-Status: **v3, scope trimmed.** Phase 1 in progress. Edit freely, then approve phase by phase.
+Status: **v3, scope trimmed.** Phases 1 and 2 done. Edit freely, then approve phase by phase.
 
 What changed in v3: the web UI is deliberately small. It is **not a data manager**: no file manager, no history, no database, no report archive. It does what the engine does: set up a service, upload decks, run, watch, download. What changed from v1: no web framework (plain HTML/CSS/JS and a standard-library server); the engine stays a library behind a shared **service layer** that both the terminal and the browser use; `/init` ends by asking where to continue; security, testing and CI sections added; phases reordered so the service layer comes first.
 
@@ -54,7 +54,7 @@ Beyond doing the work, the app should **leave clear notes** so users learn what 
 | `cappv1` / `cappv1 start` | Terminal session (as today). |
 | `/init` (or `/models`) | After a successful setup it asks: **Continue in the browser** or **Stay in the terminal**. |
 | `/web` in the session | Starts the web server in the background, opens the browser, and the terminal stays usable. `/web stop` stops it. |
-| `cappv1 web [--port N] [--no-open]` | Starts only the web UI. |
+| `cappv1 --web [--port N] [--no-open]` | Starts only the web UI. |
 
 Both UIs see the same files, settings and run. Starting a run in one shows live progress in the other.
 
@@ -170,7 +170,7 @@ Branching follows `CONTRIBUTING.md`: each phase is a `feature/...` branch off `m
 |---|---|---|---|
 | 0 | `docs/webui-scope` | This trimmed plan | Merged |
 | 1 | `feature/service-layer` | `src/services/` (settings, models, workspace, health, runs) extracted from the terminal code; the terminal now calls it; pytest suite and CI | Terminal behaves identically; service tests pass in CI |
-| 2 | `feature/web-server` | `src/web/`: stdlib server, `/api/v1`, token and Host checks, SSE, `cappv1 web`, `/web`, and the `/init` browser-or-terminal choice | API tests pass |
+| 2 | `feature/web-server` | `src/web/`: stdlib server, `/api/v1`, token and Host checks, SSE, `cappv1 --web`, `/web`, and the `/init` browser-or-terminal choice | API tests pass |
 | 3 | `feature/web-ui` | Home, Setup, Doctor pages (a reviewed low-fi mockup comes first) | Install to a captioned, downloadable file without touching `.env` |
 | 4 | `feature/file-health` | File health check and the "only alt text changed" verification, in both UIs | Good, damaged and partial fixtures classified correctly |
 | 5 | `feature/a11y-polish` | Keyboard, VoiceOver, axe, contrast, zoom; docs; release **v1.2.0** | Section 10 met |
