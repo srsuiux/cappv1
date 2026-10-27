@@ -3,7 +3,7 @@ import json
 import time
 from urllib.parse import quote
 
-from src.services import files, health, models, settings
+from src.services import files, health, models, settings, storage
 from src.services.errors import ServiceError
 
 PREFIX = "/api/v1"
@@ -52,12 +52,29 @@ def test_settings(req):
     req.h.send_json(200, {"ok": ok, "detail": detail})
 
 
+def forget_key(req):
+    req.h.send_json(200, settings.remove_key(req.ws, req.groups[0]).as_dict())
+
+
+# ---- your data ----------------------------------------------------------------------
+def get_storage(req):
+    req.h.send_json(200, {"places": [p.as_dict() for p in storage.describe(req.ws)], "workspace": str(req.ws.root)})
+
+
+def clear_storage(req):
+    if not _flag(req.json(), "confirm"):
+        raise ServiceError("bad_request", "Erasing needs confirmation.", "Send “confirm”: true.")
+    if req.runs.running:
+        raise ServiceError("busy", "Wait for the run to finish first.")
+    req.h.send_json(200, {"erased": storage.erase(req.ws)})
+
+
 # ---- services and models ----------------------------------------------------------
 def get_services(req):
     current = settings.read(req.ws)
     req.h.send_json(200, {"services": [
         {"id": s.id, "label": s.label, "private": s.private, "needs_key": bool(s.key_var), "key_help": s.key_help,
-         "note": s.note, "key_saved": bool(current.keys_saved.get(s.id)), "model": current.remembered.get(s.id, "")}
+         "note": s.note, "handling": s.handling, "policy_url": s.policy_url, "key_saved": bool(current.keys_saved.get(s.id)), "model": current.remembered.get(s.id, "")}
         for s in settings.SERVICES]})
 
 
@@ -173,6 +190,9 @@ ROUTES = [
     ("GET", f"{PREFIX}/settings", get_settings),
     ("PUT", f"{PREFIX}/settings", put_settings),
     ("POST", f"{PREFIX}/settings/test", test_settings),
+    ("DELETE", f"{PREFIX}/settings/keys/{_NAME}", forget_key),
+    ("GET", f"{PREFIX}/storage", get_storage),
+    ("POST", f"{PREFIX}/storage/clear", clear_storage),
     ("GET", f"{PREFIX}/services", get_services),
     ("GET", f"{PREFIX}/services/{_NAME}/models", get_models),
     ("GET", f"{PREFIX}/files", list_files),

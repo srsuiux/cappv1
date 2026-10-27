@@ -24,6 +24,7 @@ function token() {
   try { return sessionStorage.getItem(KEY) || memory; } catch { return memory; }
 }
 let memory = "";
+token(); // pick the token out of the address as soon as any page loads
 
 export class ApiError extends Error {
   constructor(e) { super(e.message); this.code = e.code; this.fix = e.fix || ""; }
@@ -58,7 +59,7 @@ export async function statusLine() {
     box.replaceChildren(...(s.configured
       ? [h("span", {}, h("b", {}, s.provider_label), " · " + s.model),
          h("span", { class: s.private ? "pill" : "pill shared" }, s.private ? "✔ Private: stays on this computer" : "Slides are sent to " + s.provider_label)]
-      : [h("span", {}, "Not set up yet. "), h("a", { href: "setup.html" }, "Choose an AI service")]));
+      : [h("span", {}, "Not set up yet. "), h("a", { href: "/services" }, "Choose an AI service")]));
   } catch (err) {
     box.replaceChildren(problem(err));
   }

@@ -15,6 +15,8 @@ class Service:
     private: bool  # True when slides never leave this computer
     key_var: str
     key_help: str
+    handling: str = ""  # what happens to slides sent through this service, in plain words
+    policy_url: str = ""  # the service's own privacy policy
 
     @property
     def note(self) -> str:
@@ -22,10 +24,15 @@ class Service:
 
 
 SERVICES = (
-    Service("ollama", "Ollama", True, "", ""),
-    Service("openrouter", "OpenRouter", False, "OPENROUTER_API_KEY", "openrouter.ai -> account settings -> API Keys (starts with sk-or-v1-)"),
-    Service("openai", "OpenAI", False, "OPENAI_API_KEY", "platform.openai.com/api-keys"),
-    Service("anthropic", "Anthropic", False, "ANTHROPIC_API_KEY", "console.anthropic.com -> API Keys"),
+    Service("ollama", "Ollama", True, "", "",
+            "Runs on this computer. Pictures and slide text never leave it. Needs Ollama installed and a vision model downloaded."),
+    Service("openrouter", "OpenRouter", False, "OPENROUTER_API_KEY", "openrouter.ai -> account settings -> API Keys (starts with sk-or-v1-)",
+            "Pictures and slide text go to OpenRouter, which passes them to the company that runs the model you pick. "
+            "Free models may log requests, so avoid them for private slides.", "https://openrouter.ai/privacy"),
+    Service("openai", "OpenAI", False, "OPENAI_API_KEY", "platform.openai.com/api-keys",
+            "Pictures and slide text go to OpenAI's API.", "https://openai.com/policies/privacy-policy"),
+    Service("anthropic", "Anthropic", False, "ANTHROPIC_API_KEY", "console.anthropic.com -> API Keys",
+            "Pictures and slide text go to Anthropic's API.", "https://www.anthropic.com/legal/privacy"),
 )
 
 
@@ -96,4 +103,13 @@ def save(ws: Workspace, provider: str, model: str, api_key: str | None = None) -
     if api_key:
         values[svc.key_var] = api_key.strip()
     envfile.set_values(ws, values)
+    return read(ws)
+
+
+def remove_key(ws: Workspace, provider: str) -> Settings:
+    """Forgets a saved key. The service stays chosen but can't be used until a new key is added."""
+    svc = service(provider)
+    if not svc.key_var:
+        raise ServiceError("bad_request", f"{svc.label} doesn't use a key.")
+    envfile.set_values(ws, {svc.key_var: ""})
     return read(ws)

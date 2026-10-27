@@ -1,25 +1,5 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Home · cappv1</title>
-<link rel="icon" href="data:,">
-<link rel="stylesheet" href="app.css">
-</head>
-<body>
-<a class="skip" href="#main">Skip to content</a>
-<div class="wrap">
-<header>
-  <div class="brand">cappv1</div>
-  <nav aria-label="Main">
-    <a href="index.html" aria-current="page">Home</a><a href="setup.html">Setup</a><a href="doctor.html">Doctor</a>
-  </nav>
-</header>
-<div class="status" id="status" role="status">Loading…</div>
-<div class="sr" id="live" role="status" aria-live="polite"></div>
-<main id="main">
-<h1>Add alt text to your slides</h1>
+<!-- title="Files" nav="files" layout="app" script="files.js" description="Add decks, write alt text, and download the finished files." -->
+<h1>Files</h1>
 <p class="muted">Add your PowerPoint files. cappv1 describes the pictures, charts and tables, and saves a finished copy. Your original files are never changed.</p>
 <div id="problem"></div>
 <label class="drop" id="drop"><input type="file" id="pick" accept=".pptx" multiple>
@@ -39,8 +19,3 @@
   <ul class="feed" id="feed" tabindex="0" aria-label="What cappv1 wrote, newest first"></ul>
   <div class="actions"><button class="quiet" id="stop" type="button">Stop after this slide</button></div>
 </section>
-</main>
-</div>
-<script type="module" src="home.js"></script>
-</body>
-</html>

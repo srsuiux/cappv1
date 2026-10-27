@@ -1,0 +1,51 @@
+<!-- title="FAQ" nav="faq" layout="app" description="Answers to common questions about cappv1." -->
+<h1>FAQ</h1>
+<div class="faq prose">
+<details><summary>Does it change my original files?</summary>
+<p>No. It works from a copy and saves a separate finished file. In that file the only thing that changes is the alt text.</p></details>
+
+<details><summary>What kinds of files does it work with?</summary>
+<p>PowerPoint <code>.pptx</code> files up to 200 MB each. Older <code>.ppt</code> files need to be saved as <code>.pptx</code> in PowerPoint first. Google Slides and Keynote decks can be exported as <code>.pptx</code>.</p></details>
+
+<details><summary>What does it describe?</summary>
+<p>Pictures, tables, charts, diagrams (SmartArt) and embedded objects. Pictures too small to matter and invisible, empty shapes are marked decorative.</p></details>
+
+<details><summary>Are the descriptions accurate?</summary>
+<p>Usually a good start, but AI can miss context or get details wrong. Review the alt text in PowerPoint before you share a deck, especially charts with exact figures and anything public or required by law.</p></details>
+
+<details><summary>What if a slide already has alt text?</summary>
+<p>cappv1 keeps good alt text and improves short or unfinished text, building on the author's wording. A bare file name counts as empty. To replace everything, tick <i>Replace alt text that people already wrote</i> under <i>More options</i> on <a href="/files">Files</a>. <a href="/how-it-works">More detail</a></p></details>
+
+<details><summary>Do my slides leave my computer?</summary>
+<p>Not with Ollama. With OpenRouter, OpenAI or Anthropic, the picture or text being described, plus that slide's title, text and notes, goes to the service. The whole file is never uploaded. <a href="/privacy">Exactly what is sent</a></p></details>
+
+<details><summary>Which service should I choose?</summary>
+<p>Choose <b>Ollama</b> for private or sensitive decks, or when you want no cost and no account. It needs a computer that can run a vision model. Choose a cloud service for speed and often better descriptions, and use a paid one for anything you'd rather not have logged. OpenRouter's free models may log requests.</p></details>
+
+<details><summary>What does it cost?</summary>
+<p>cappv1 is free. Ollama is free to run. OpenRouter has free models. Paid services charge you directly by use, usually a fraction of a cent per picture, but check the service's current prices. Slides already described are reused, so repeat runs cost nothing.</p></details>
+
+<details><summary>Where is my API key kept?</summary>
+<p>In the <code>.env</code> file in cappv1's folder, readable only by your account. It is sent only to the service it belongs to. Remove it any time from <a href="/services">Services</a>.</p></details>
+
+<details><summary>What if the run stops or my computer crashes?</summary>
+<p>Finished slides are saved. Run again and cappv1 continues from there. The finished copy is written in a way that never leaves a half-written file.</p></details>
+
+<details><summary>Why does it say a file is already finished?</summary>
+<p>Because it hasn't changed since the last run, so there is nothing new to describe. Edit the deck and add it again and only the changed items are redone.</p></details>
+
+<details><summary>Can other people on my network use it?</summary>
+<p>No. The web page only answers to this computer. A shared campus server is a possible future option but isn't part of cappv1 today.</p></details>
+
+<details><summary>Does it work offline?</summary>
+<p>With Ollama, yes, once a model is downloaded. Cloud services need the internet.</p></details>
+
+<details><summary>How do I delete everything?</summary>
+<p>Use <a href="/data">Your data</a> to erase decks, finished copies, saved progress and logs, and <a href="/services">Services</a> to remove keys. Deleting cappv1's folder removes everything else.</p></details>
+
+<details><summary>Is it accessible?</summary>
+<p>It is built for keyboard and screen reader use, with visible focus, labelled controls, sufficient contrast and layouts that adapt to small screens and zoom. See the <a href="/about">accessibility statement</a>. If something doesn't work for you, please report it.</p></details>
+
+<details><summary>Something went wrong. What now?</summary>
+<p>Open <a href="/health">Health</a>. It checks your settings, your AI service and the folders cappv1 uses, and says how to fix each problem. If that doesn't help, <a href="https://github.com/srsuiux/cappv1/issues" target="_blank" rel="noopener noreferrer">open an issue on GitHub<span class="sr"> (opens in a new tab)</span></a>.</p></details>
+</div>

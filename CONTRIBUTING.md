@@ -18,7 +18,11 @@ The tool only ever writes to a shape's alt-text field and never changes anything
 
 ## Layers
 
-Engine (`src/pipeline.py` and friends), then the service layer (`src/services/`), then the front ends (`src/tui/`, later `src/web/`). Put logic in a service, not in a front end, so the terminal and the browser never disagree.
+Engine (`src/pipeline.py` and friends), then the service layer (`src/services/`), then the front ends (`src/tui/` and `src/web/`). Put logic in a service, not in a front end, so the terminal and the browser never disagree. See `docs/ARCHITECTURE.md`.
+
+## Web pages and privacy
+
+Pages live in `src/web/pages/` (see `docs/ARCHITECTURE.md`). Don't add inline script or style, or anything loaded from outside the local server; the tests fail if you do. If a change affects what is sent to an AI service or what is stored on disk, update the in-app Privacy page (`src/web/pages/privacy.html`), the Your data descriptions (`src/services/storage.py`) and the service notes (`src/services/settings.py`) in the same change.
 
 ## Commits
 
