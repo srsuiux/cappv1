@@ -1,10 +1,10 @@
-<!-- title="cappv1: alt text for your PowerPoint slides" layout="site" description="cappv1 writes alt text for the pictures, charts and tables in your PowerPoint files. It runs on your computer and never changes your originals." -->
+<!-- title="Alt text for your PowerPoint slides" nav="overview" layout="app" script="dashboard.js" description="cappv1 writes alt text for the pictures, charts and tables in your PowerPoint files. It runs on your computer and never changes your originals." -->
 <section class="hero" aria-labelledby="h-hero">
   <div>
     <h1 id="h-hero">Alt text for every slide, written for you</h1>
     <p class="lede">cappv1 describes the pictures, charts and tables in your PowerPoint files, so people who use screen readers aren't left with silence. Your original files are never changed.</p>
     <div class="actions">
-      <a class="btn" href="/dashboard">Open dashboard</a>
+      <a class="btn" href="#overview">See where things stand</a>
       <a class="btn quiet" href="/how-it-works">See how it works</a>
     </div>
   </div>
@@ -59,5 +59,36 @@
 <section class="band" aria-labelledby="h-go">
   <h2 id="h-go">Ready to try it?</h2>
   <p>It takes about a minute to choose a service. Then add a deck.</p>
-  <div class="actions"><a class="btn" href="/dashboard">Open dashboard</a><a class="btn quiet" href="/faq">Read the FAQ</a></div>
+  <div class="actions"><a class="btn" href="#overview">Go to the overview</a><a class="btn quiet" href="/faq">Read the FAQ</a></div>
+</section>
+
+<section class="band" aria-labelledby="overview">
+<h2 id="overview">Overview</h2>
+<div id="problem"></div>
+<div class="callout" id="next" role="region" aria-label="Next step"><p>Checking…</p></div>
+
+<section class="panel" aria-labelledby="h-service">
+  <h3 id="h-service">AI service</h3>
+  <dl class="facts" id="service-facts"></dl>
+  <a href="/services">Change service or model</a>
+</section>
+
+<div class="split">
+  <section class="panel" aria-labelledby="h-files">
+    <h3 id="h-files">Files</h3>
+    <dl class="facts" id="file-facts"></dl>
+    <a href="/files">Go to Files</a>
+  </section>
+  <section class="panel" aria-labelledby="h-health">
+    <h3 id="h-health">Health</h3>
+    <p id="health-line" class="muted">Checking…</p>
+    <a href="/health">See all checks</a>
+  </section>
+</div>
+
+<section class="panel" aria-labelledby="h-data">
+  <h3 id="h-data">Your data</h3>
+  <p id="data-line" class="muted">Checking…</p>
+  <p><a href="/data">See what is kept and where</a> · <a href="/privacy">Read the privacy page</a></p>
+</section>
 </section>

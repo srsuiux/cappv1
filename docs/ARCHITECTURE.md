@@ -20,7 +20,7 @@ cappv1 is three layers. Each depends only on the one below it.
 src/web/
   server.py      standard-library HTTP server, security checks, page rendering
   api.py         /api/v1 routes, each a few lines over a service  (docs/API.md)
-  templates/     the two page layouts: app (dashboard) and site (landing)
+  templates/     the page layout: sidebar, status line, footer
   pages/         one fragment per page; the first line holds its title, menu entry and script
   static/        app.css, scripts (one per page, plus shell.js and app.js), fonts
 ```
