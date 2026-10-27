@@ -4,6 +4,15 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
+### Added
+- `src/services/`, a service layer between the engine and the screens, with a pytest suite and GitHub Actions CI.
+- `CAPPV1_HOME` to keep settings, decks and progress in a folder of your choice.
+
+### Fixed
+- Pictures are matched by their exact bytes. Before, flat or near-identical images (for example two solid-color pictures) could share one caption.
+- A picture whose "alt text" is only its file name (`image1.png`, filled in by some tools) is no longer treated as text the author wrote.
+- The terminal toolbar no longer re-reads every deck on each keystroke.
+
 ### Changed
 - `cappv1` is now the only command in the shell. `cappv1 doctor`, `models`, `clean`, `init` and `start` are refused; use `/doctor`, `/models`, `/clean` and the others inside the session. `cappv1 --batch` remains for scripts, plus `--version` and `--help`.
 - `/init` shows the current service and model first and lets you keep it, change only the model, or switch service, instead of asking everything again. `/models` goes straight to the service and model pickers. Both are listed in `/help` and in the `/` menu.
