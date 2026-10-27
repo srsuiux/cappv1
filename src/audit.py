@@ -322,10 +322,11 @@ def check_contrast(prs) -> tuple[list, int, int]:
                     ratio = min(contrast_ratio(fg, b) for b in backdrop)
                     size = _size_pt(run)
                     need = LARGE_MIN if size >= 18 or (size >= 14 and _bold(run)) else NORMAL_MIN
+                    shown = ", ".join("#" + b for b in backdrop)
                     if ratio < need and (fg, tuple(backdrop), text[:30]) not in seen:
                         seen.add((fg, tuple(backdrop), text[:30]))
                         findings.append(Finding(number, "contrast", f"“{text[:50]}” is hard to read.",
-                                                f"Contrast {ratio:.1f}:1, needs {need}:1 (text #{fg} on {", ".join("#" + b for b in backdrop)})."))
+                                                f"Contrast {ratio:.1f}:1, needs {need}:1 (text #{fg} on {shown})."))
     return findings, measured, unmeasured
 
 

@@ -2,6 +2,10 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
+## 1.4.1
+
+- Fixes a syntax error that stopped cappv1 from installing on Python 3.11 (1.4.0 only works on 3.12 and newer, so use 1.4.1).
+
 ## 1.4.0
 
 - The Files page now puts a run front and center: a card at the top shows each slide lighting up and ticking off, what cappv1 is reading, and, when done, a clear "Your finished document is ready" card with Download, the saved location, and a note that the original is unchanged. The finished file is marked in the list too. Animations respect reduced-motion settings.
