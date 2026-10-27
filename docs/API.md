@@ -54,6 +54,6 @@ One run at a time. The terminal and the web page share it, so a run started in o
 
 ## Progress events
 
-`GET /runs/<id>/events` streams `text/event-stream`. Each message has an `id`, an `event` name, and JSON `data`. Names: `file_start`, `slide_start`, `element_start`, `element_end`, `slide_end`, `file_saved`, `file_failed`, `run_done`, and a final `run_finished` with the end state, after which the stream closes.
+`GET /runs/<id>/events` streams `text/event-stream`. Each message has an `id`, an `event` name, and JSON `data`. Names: `file_start`, `slide_start`, `element_start`, `element_end`, `slide_end`, `alt_written` (the text just written, with `outcome`: `captioned`, `enhanced`, `kept` or `cached`), `file_saved`, `file_failed`, `run_done`, and a final `run_finished` with the end state, after which the stream closes.
 
 If the connection drops, the browser reconnects with `Last-Event-ID` and receives only what it missed.
