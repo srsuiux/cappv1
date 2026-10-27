@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -10,7 +11,7 @@ import httpx
 
 from src import events
 from src.config import Config
-from src.image_filter import is_too_small, perceptual_hash
+from src.image_filter import is_too_small
 from src.llm_client import (
     generate_caption,
     generate_chart_alt_text,
@@ -40,6 +41,8 @@ from src.pptx_reader import (
 from src.state import FileState, file_sha256, load_state, save_state
 
 logger = logging.getLogger("pptx_alt_text")
+
+_FILE_NAME = re.compile(r"[\w\- .()]+\.(png|jpe?g|gif|bmp|tiff?|emf|wmf|svg|webp)", re.IGNORECASE)
 
 _RESET, _BOLD, _DIM = "\033[0m", "\033[1m", "\033[2m"
 _RED, _GREEN, _YELLOW, _CYAN, _GRAY = (
@@ -198,8 +201,10 @@ async def _process_slide(
 
     def author_text(shape) -> str:
         """Alt-text the slide's author already wrote. We build on it, never
-        replace it, unless the run was started with --force."""
-        return "" if config.overwrite_existing else get_alt_text(shape).strip()
+        replace it, unless the run was started with --force. A bare file name
+        ("image1.png"), which some tools fill in automatically, isn't alt text."""
+        text = "" if config.overwrite_existing else get_alt_text(shape).strip()
+        return "" if _FILE_NAME.fullmatch(text) else text
 
     def key_for(base: str, author: str) -> str:
         # the author's text changes what a good result is, so it is part of the cache key
@@ -249,9 +254,11 @@ async def _process_slide(
                 mark_decorative(shape)
             return
 
-        img_hash = perceptual_hash(image_bytes)
-        key = key_for(img_hash, author) if img_hash else None
-        if key and from_cache(shape, key):
+        # exact bytes, not a 'looks similar' fingerprint: flat or near-identical
+        # images must never share a caption
+        img_hash = "img:" + hashlib.sha256(image_bytes).hexdigest()
+        key = key_for(img_hash, author)
+        if from_cache(shape, key):
             return
 
         async with semaphore, events.working("picture", slide_index):
@@ -263,13 +270,10 @@ async def _process_slide(
         if caption == "" and not author:
             n["decorative"] += 1
             mark_decorative(shape)
-            if key:
-                state.caption_cache[key] = ""
+            state.caption_cache[key] = ""
             return
 
-        final = settle(shape, caption, author)
-        if key:
-            state.caption_cache[key] = final
+        state.caption_cache[key] = settle(shape, caption, author)
 
     async def handle_table(shape):
         author = author_text(shape)
