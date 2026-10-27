@@ -2,6 +2,10 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
+## 1.4.2
+
+- The contrast audit now also checks text in table cells and in grouped shapes.
+
 ## 1.4.1
 
 - Fixes a syntax error that stopped cappv1 from installing on Python 3.11 (1.4.0 only works on 3.12 and newer, so use 1.4.1).

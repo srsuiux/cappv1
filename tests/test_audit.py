@@ -98,3 +98,39 @@ def test_service_prefers_the_finished_copy_and_errors_plainly(ws, tmp_path):
     with pytest.raises(ServiceError) as err:
         audit_service.report(ws, "missing.pptx")
     assert err.value.code == "not_found"
+
+
+def test_table_cells_are_checked(tmp_path):
+    from pptx.oxml.ns import qn
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    table = slide.shapes.add_table(2, 2, Inches(1), Inches(1), Inches(4), Inches(1)).table
+    tbl = table._tbl
+    for style in tbl.tblPr.findall(qn("a:tableStyleId")):
+        tbl.tblPr.remove(style)  # an unstyled table: colors are only what the cells say
+    cell = table.cell(0, 0)
+    cell.fill.solid()
+    cell.fill.fore_color.rgb = RGBColor.from_string("CA9910")
+    run = cell.text_frame.paragraphs[0].add_run()
+    run.text = "Header"
+    run.font.size = Pt(12)
+    run.font.color.rgb = RGBColor.from_string("FFFFFF")
+    prs.save(tmp_path / "a.pptx")
+    report = audit_deck(tmp_path / "a.pptx")
+    assert [f.kind for f in report.findings] == ["contrast"] and "Header" in report.findings[0].message
+
+
+def test_text_in_a_group_uses_the_group_s_coordinates(tmp_path):
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    band = slide.shapes.add_shape(1, Inches(5), Inches(5), Inches(3), Inches(1))  # dark band, far from the group's raw coords
+    band.fill.solid()
+    band.fill.fore_color.rgb = RGBColor.from_string("101010")
+    group = slide.shapes.add_group_shape()
+    box = group.shapes.add_textbox(Inches(5.2), Inches(5.2), Inches(2), Inches(0.5))
+    run = box.text_frame.paragraphs[0].add_run()
+    run.text = "White on dark"
+    run.font.color.rgb = RGBColor.from_string("FFFFFF")
+    prs.save(tmp_path / "a.pptx")
+    assert audit_deck(tmp_path / "a.pptx").findings == []

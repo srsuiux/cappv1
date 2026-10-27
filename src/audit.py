@@ -252,13 +252,31 @@ def _bold(run) -> bool:
     return rpr is not None and rpr.get("b") in ("1", "true")
 
 
+def _through_groups(el, box):
+    """Maps a box from a group's own coordinate space out to the slide, group by group."""
+    x, y, w, h = box
+    parent = el.getparent()
+    while parent is not None and parent.tag == qn("p:grpSp"):
+        xf = parent.find(f"{qn('p:grpSpPr')}/{{{_A}}}xfrm")
+        if xf is not None and all(xf.find(f"{{{_A}}}{t}") is not None for t in ("off", "ext", "chOff", "chExt")):
+            g = {t: xf.find(f"{{{_A}}}{t}") for t in ("off", "ext", "chOff", "chExt")}
+            cw, ch = int(g["chExt"].get("cx")) or 1, int(g["chExt"].get("cy")) or 1
+            sx, sy = int(g["ext"].get("cx")) / cw, int(g["ext"].get("cy")) / ch
+            x = int(g["off"].get("x")) + (x - int(g["chOff"].get("x"))) * sx
+            y = int(g["off"].get("y")) + (y - int(g["chOff"].get("y"))) * sy
+            w, h = w * sx, h * sy
+        parent = parent.getparent()
+    return x, y, w, h
+
+
 def _box(chain):
-    """(x, y, w, h) of a shape, taken from the first of its placeholder chain that sets one."""
+    """(x, y, w, h) of a shape on the slide, taken from the first of its placeholder chain that sets one."""
     for el in chain:
         xfrm = el.find(f"{qn('p:spPr')}/{{{_A}}}xfrm")
         if xfrm is not None and xfrm.find(f"{{{_A}}}off") is not None and xfrm.find(f"{{{_A}}}ext") is not None:
             off, ext = xfrm.find(f"{{{_A}}}off"), xfrm.find(f"{{{_A}}}ext")
-            return int(off.get("x")), int(off.get("y")), int(ext.get("cx")), int(ext.get("cy"))
+            raw = (int(off.get("x")), int(off.get("y")), int(ext.get("cx")), int(ext.get("cy")))
+            return _through_groups(el, raw) if el is chain[0] else raw
     return None
 
 
@@ -281,7 +299,12 @@ def _behind(theme: _Theme, slide, sp, fallback):
     box = _box(chain)
     if box is None:
         return fallback
-    point = (box[0] + box[2] / 2, box[1] + box[3] / 2)
+    return _behind_point(theme, slide, sp, (box[0] + box[2] / 2, box[1] + box[3] / 2), fallback)
+
+
+def _behind_point(theme: _Theme, slide, sp, point, fallback):
+    if point is None:
+        return fallback
     found = fallback
     layers = [slide.slide_layout.slide_master._element, slide.slide_layout._element]
     for root in layers:
@@ -327,6 +350,45 @@ def check_contrast(prs) -> tuple[list, int, int]:
                         seen.add((fg, tuple(backdrop), text[:30]))
                         findings.append(Finding(number, "contrast", f"“{text[:50]}” is hard to read.",
                                                 f"Contrast {ratio:.1f}:1, needs {need}:1 (text #{fg} on {shown})."))
+        # table cells: each cell's own fill, else the table frame's backdrop
+        for frame in slide._element.iter(qn("p:graphicFrame")):
+            tbl = frame.find(f".//{{{_A}}}tbl")
+            if tbl is None:
+                continue
+            styled = tbl.find(f"{{{_A}}}tblPr/{{{_A}}}tableStyleId") is not None
+            xf = frame.find(qn("p:xfrm"))
+            where = None
+            if xf is not None:
+                off, ext = xf.find(f"{{{_A}}}off"), xf.find(f"{{{_A}}}ext")
+                where = (int(off.get("x")) + int(ext.get("cx")) // 2, int(off.get("y")) + int(ext.get("cy")) // 2)
+            frame_bg = _behind_point(theme, slide, frame, where, bg)
+            for cell in tbl.iter(f"{{{_A}}}tc"):
+                pr = cell.find(f"{{{_A}}}tcPr")
+                own = pr is not None and any(pr.find(f"{{{_A}}}{t}") is not None for t in ("solidFill", "gradFill", "blipFill", "pattFill"))
+                if pr is not None and pr.find(f"{{{_A}}}noFill") is not None:
+                    own = False
+                backdrop = _fill_colors(theme, pr) if own else (None if styled else frame_bg)
+                for para in cell.iter(f"{{{_A}}}p"):
+                    for run in para.findall(qn("a:r")):
+                        text = (run.findtext(qn("a:t")) or "").strip()
+                        if not text:
+                            continue
+                        rpr = run.find(qn("a:rPr"))
+                        fg = theme.solid(rpr) if rpr is not None else None
+                        if not fg and not styled:
+                            fg = theme.resolve(_synthetic("tx1"))
+                        if not fg or not backdrop:
+                            unmeasured += 1
+                            continue
+                        measured += 1
+                        ratio = min(contrast_ratio(fg, b) for b in backdrop)
+                        size = _size_pt(run)
+                        need = LARGE_MIN if size >= 18 or (size >= 14 and _bold(run)) else NORMAL_MIN
+                        shown = ", ".join("#" + b for b in backdrop)
+                        if ratio < need and (fg, tuple(backdrop), text[:30]) not in seen:
+                            seen.add((fg, tuple(backdrop), text[:30]))
+                            findings.append(Finding(number, "contrast", f"“{text[:50]}” is hard to read.",
+                                                    f"Contrast {ratio:.1f}:1, needs {need}:1 (text #{fg} on {shown})."))
     return findings, measured, unmeasured
 
 
