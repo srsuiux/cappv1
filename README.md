@@ -2,7 +2,7 @@
 
 cappv1 looks at the pictures, tables, charts, and other embedded content (like a pasted-in Word document or diagram) in your PowerPoint files and writes a short description for each one. These descriptions are called "alt text," and screen readers read them aloud to people who can't see the slide.
 
-You drop in `.pptx` files and get the same files back with the descriptions added. Nothing else changes: no layout, text, fonts, or colors. Your originals are never modified.
+You drop in `.pptx` files and get the same files back with the descriptions added. Nothing you can see changes: no layout, text, fonts, or colors. (It also marks a table's top row as its header when that is visually inert, which screen readers and checkers like Blackboard Ally need.) Your originals are never modified.
 
 **Example:** an instructor preparing lecture slides for a blind or low-vision student can use this to make sure every chart, photo, and diagram has a description before sharing the deck.
 
@@ -194,7 +194,7 @@ The run summary counts these separately ("improved", "kept as written"), so you 
 
 cappv1 is built in three layers that only depend downward:
 
-- `src/pipeline.py`, `pptx_reader.py`, `llm_client.py` and friends are the **engine**. They know nothing about screens. `skills.md` documents the one rule any change must follow: this tool only ever writes to a shape's alt-text field, nothing else in the file.
+- `src/pipeline.py`, `pptx_reader.py`, `llm_client.py` and friends are the **engine**. They know nothing about screens. `skills.md` documents the one rule any change must follow: this tool writes alt text, plus only the few visually inert fixes it lists (today: marking a table's header row).
 - `src/services/` is the **service layer**: settings, models, files, health checks and runs, as plain functions that return data and raise `ServiceError` with a plain-language message.
 - `src/tui/` is the terminal session. It only asks and draws. A web UI will be a second front end over the same services.
 

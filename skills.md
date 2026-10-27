@@ -6,7 +6,7 @@ This file is guidance for any LLM or coding agent (Claude, or otherwise) working
 
 This tool has exactly one job: read accessibility-relevant elements (images, tables, charts) out of a `.pptx`, generate alt-text for them, and write that alt-text back. Every other byte of the file — layout, positions, formatting, images, text, slide order — must come out of `output/` identical to what went into `input/`.
 
-This explicitly rules out things that sound like accessibility fixes but aren't alt-text: e.g. setting a table's "header row" style flag changes visual formatting (bolds/shades row 1) and is out of scope here, even though PowerPoint's own Accessibility Checker flags it. If it's not a write to `descr`, it doesn't belong in this tool.
+Accessibility fixes beyond alt text are allowed only from a short, named list, and each must be **visually inert**: opened in PowerPoint, the slide looks identical. Today the list has one entry: flagging a table's first row as its header (`firstRow="1"` on `a:tblPr`, see `mark_table_header()` in `src/pptx_reader.py`). It is applied only when no table style is attached (so nothing is restyled), the table has two or more rows, every first-row cell has text, and nothing in that row is merged; otherwise the table is left alone and the reason is logged. Anything that changes how a slide looks (colors, fonts, sizes, bolding, table styles, layout) is out of scope. Low contrast, for example, can be reported but never changed. To add an entry, it must meet the same bar and get a test.
 
 A correct run, diffed against its input (ignoring the one XML attribute described below), should show **zero visual differences** when both are opened in PowerPoint.
 
@@ -17,7 +17,7 @@ A correct run, diffed against its input (ignoring the one XML attribute describe
 - **Slide layout, slide master, theme, fonts, colors** — unchanged.
 - **Text content** (titles, body, speaker notes) — read-only. It's used *as context* for writing better captions, never rewritten or "improved."
 - **Slide order, slide count, sections** — unchanged.
-- The **only** field this tool ever modifies is the `descr` attribute on a shape's `<p:cNvPr>` element — i.e. exactly the field PowerPoint's own "Edit Alt Text" panel edits. This applies to picture, table, chart, and embedded-OLE-object shapes, plus a narrow, provably-safe decorative-marking pass on zero-pixel AutoShapes (see below) — never anything else on the shape. See `set_alt_text()` in `src/pptx_reader.py`; it's the single write path into the presentation XML.
+- The field this tool writes is the `descr` attribute on a shape's `<p:cNvPr>` element — i.e. exactly the field PowerPoint's own "Edit Alt Text" panel edits. This applies to picture, table, chart, and embedded-OLE-object shapes, plus a narrow, provably-safe decorative-marking pass on zero-pixel AutoShapes (see below) — never anything else on the shape, apart from the listed visually inert fixes above. See `set_alt_text()` in `src/pptx_reader.py`; it's the single write path for alt text.
 
 ## Shape extraction — match on the XML element tag, never `shape.shape_type`
 

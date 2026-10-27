@@ -2,6 +2,11 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
+## 1.3.0
+
+- A table's first row is now flagged as its header when that changes nothing visually (no table style, two or more rows, every first-row cell filled, nothing merged). This fixes Blackboard Ally's "tables are missing headers". Tables where it would change the look are left alone and the reason is logged.
+- `skills.md` now allows a short list of visually inert accessibility fixes beyond alt text. Colors, including low contrast, are never changed.
+
 ## 1.2.0
 
 ### Added

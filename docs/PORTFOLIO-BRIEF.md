@@ -51,7 +51,7 @@ links:
   license: https://github.com/srsuiux/cappv1/blob/main/LICENSE
 card_image: needs a screenshot (see section 12); the favicon is a placeholder only
 card_highlights:
-  - Never changes anything in a deck except alt text
+  - Never changes how a slide looks: writes alt text, plus table header-row flags that are visually inert
   - Runs fully offline and private with Ollama
   - Crash-safe: resumes where it stopped, never pays twice for the same slide
   - Terminal and browser interfaces over one shared core
@@ -163,7 +163,7 @@ cappv1 reads a `.pptx`, sends each picture, table, chart, diagram and embedded o
 1. You add `.pptx` decks. cappv1 stores a copy; your originals stay where they are.
 2. For each slide it finds pictures, tables, charts, diagrams, embedded objects.
 3. For each item it checks the cache (same bytes already described? reuse). If not, it asks the chosen AI model, passing the item plus slide context. If the author already wrote text, the model decides to keep it or improve it.
-4. The answer is written into that shape's alt-text (`descr` attribute on `cNvPr`), the only write path into the file.
+4. The answer is written into that shape's alt-text (`descr` attribute on `cNvPr`), the write path for alt text (the only other write is a visually inert table header flag).
 5. The deck is saved atomically as a finished copy in `output/`. Progress is saved after each slide.
 6. You review the alt text in PowerPoint (right-click, Edit Alt Text) and download or open the output.
 
@@ -304,7 +304,7 @@ Copy bank (all true as of v1.2.0):
 - Three steps: **Add your decks** (Drop in .pptx files. Your originals stay where they are.) · **Choose who describes them** (A model on your own computer, or a cloud service you have a key for.) · **Download the finished copies** (Same slides, now with alt text. Review them before you share.)
 - Private: **Stay private.** Use Ollama and everything happens on your computer. Pictures and slide text never leave it, and it works offline once a model is downloaded.
 - Cloud: **Use a cloud service.** OpenRouter, OpenAI and Anthropic are faster and often better, but the pictures and text they describe are sent to them. cappv1 always says which one is active.
-- Care: It only writes the alt text field. · If someone already wrote alt text, it keeps or improves it. · If a run stops, nothing is lost. · AI can get things wrong, so read the results.
+- Care: It never changes how a slide looks. · If someone already wrote alt text, it keeps or improves it. · If a run stops, nothing is lost. · AI can get things wrong, so read the results.
 - Meta description (under 160 chars): "Open-source tool that writes alt text for PowerPoint pictures, charts and tables. Runs on your computer; your originals are never changed."
 - Open Graph title: "cappv1: alt text for every slide, written for you".
 
