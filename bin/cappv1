@@ -2,7 +2,8 @@
 # Global launcher for the PPTX alt-text automation. Symlinked onto PATH
 # (~/.local/bin/cappv1) so it can be typed from any directory.
 #
-#   cappv1 start [--resume]   process every file in input/, one by one (background, live progress shown)
+#   cappv1 / start / init     open the interactive session (slash commands, drag-and-drop)
+#   cappv1 start --batch      process every file in input/ in the background (scripts, no prompt)
 #   cappv1 doctor                                    check that the environment is set up correctly
 #   cappv1 models                                      pick a model (free OpenRouter, or installed in Ollama)
 #   cappv1 clean                                         wipe input/, output/, and tracked run state
@@ -32,13 +33,15 @@ usage() {
 ${BOLD}cappv1${RESET} - PPTX alt-text automation
 
 ${BOLD}Usage${RESET}
-  cappv1 start [--resume]                  process every file in input/, one by one
+  cappv1                                   open the interactive session (also: cappv1 start)
+  cappv1 init                              open the session straight into setup
+  cappv1 start --batch [--resume]          no prompt: process input/ in the background
   cappv1 doctor                            check your setup
   cappv1 models                             pick a model (free OpenRouter, or local Ollama)
   cappv1 clean                               wipe input/, output/, and run state
 
 ${BOLD}Examples${RESET}
-  cappv1 start
+  cappv1
   cappv1 doctor
   cappv1 models
   cappv1 clean
@@ -130,11 +133,27 @@ models() {
     python3 src/models.py
 }
 
+session() {
+    exec ./run.sh --session "$@"
+}
+
 cmd="${1:-}"
 case "$cmd" in
+    "")
+        [ -t 0 ] && [ -t 1 ] && session || usage
+        ;;
+    init)
+        session init
+        ;;
     start)
         shift
-        start "$@"
+        # the interactive session needs a real terminal; scripts and --batch get the old behavior
+        if [ -t 0 ] && [ -t 1 ] && [[ " $* " != *" --batch "* ]]; then
+            session
+        else
+            args=(); for a in "$@"; do [ "$a" = "--batch" ] || args+=("$a"); done
+            start ${args[@]+"${args[@]}"}
+        fi
         ;;
     doctor)
         doctor
@@ -145,7 +164,7 @@ case "$cmd" in
     clean)
         clean
         ;;
-    ""|-h|--help|help)
+    -h|--help|help)
         usage
         ;;
     *)

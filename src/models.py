@@ -11,7 +11,10 @@ import urllib.request
 import json
 from pathlib import Path
 
-from doctor import ollama_base_url, ollama_installed_models, pick_provider, read_env_file
+try:  # run as `python3 src/models.py` (script) or imported as src.models
+    from doctor import ollama_base_url, ollama_installed_models, pick_provider, read_env_file
+except ImportError:
+    from src.doctor import ollama_base_url, ollama_installed_models, pick_provider, read_env_file
 
 ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = ROOT / ".env"
@@ -48,21 +51,35 @@ def write_model(model_id: str) -> None:
     ENV_PATH.write_text("\n".join(lines) + "\n")
 
 
-def fetch_free_vision_models() -> list[tuple[str, str]]:
+def fetch_openrouter_vision_models() -> list[dict]:
+    """Every image-capable OpenRouter model as {id, name, free, price}, where
+    price is US dollars per million input tokens. Routers, aliases, batch
+    variants, models that don't answer in text, and variable pricing are left out."""
     req = urllib.request.Request("https://openrouter.ai/api/v1/models")
     with urllib.request.urlopen(req, timeout=15) as resp:
         data = json.loads(resp.read())["data"]
 
-    models = []
+    found = []
     for m in data:
         model_id = m.get("id", "")
-        if not model_id.endswith(":free"):
+        arch = m.get("architecture", {})
+        if "image" not in arch.get("input_modalities", []) or "text" not in arch.get("output_modalities", ["text"]):
             continue
-        modalities = m.get("architecture", {}).get("input_modalities", [])
-        if "image" not in modalities:
+        if model_id.startswith(("~", "openrouter/")) or model_id.endswith(":batch"):
             continue
-        models.append((model_id, m.get("name", model_id)))
-    return sorted(models)
+        try:
+            price = float(m.get("pricing", {}).get("prompt", "")) * 1_000_000
+        except ValueError:
+            continue
+        free = model_id.endswith(":free")
+        if price < 0 or (price == 0 and not free):
+            continue
+        found.append({"id": model_id, "name": m.get("name", model_id), "free": free, "price": price})
+    return found
+
+
+def fetch_free_vision_models() -> list[tuple[str, str]]:
+    return sorted((m["id"], m["name"]) for m in fetch_openrouter_vision_models() if m["free"])
 
 
 def fetch_ollama_vision_models(base_url: str) -> list[tuple[str, str]]:
