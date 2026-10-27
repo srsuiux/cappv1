@@ -31,6 +31,8 @@ ${BOLD}cappv1${RESET} - PPTX alt-text automation
 
 ${BOLD}Usage${RESET}
   cappv1                    open cappv1 (everything else happens inside it)
+  cappv1 --web [--port N] [--no-open]
+                            the same thing in your browser, until Ctrl+C
   cappv1 --batch [--resume] [--force]
                             no prompt, for scripts: process input/ in the background
   cappv1 --version
@@ -111,6 +113,10 @@ case "$cmd" in
     --batch)
         shift
         start "$@"
+        ;;
+    --web)
+        shift
+        exec ./run.sh --web "$@"
         ;;
     --version|-V)
         python3 src/version.py

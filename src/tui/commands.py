@@ -127,14 +127,55 @@ def cmd_doctor(session, args: str) -> None:
 # choice first and lets you keep it. /models goes straight to the pickers.
 # Both then share one flow: pick a service, then a model for it.
 def cmd_init(session, args: str) -> None:
-    _configure(session, show_current_first=True)
+    if _configure(session, show_current_first=True):
+        _where_next(session)
+
+
+def _where_next(session) -> None:
+    pick = select("Where would you like to go on?", [
+        ("Continue in the browser", "same settings, easier for first-time users"),
+        ("Stay in the terminal", "type /run when you're ready"),
+    ])
+    if pick == 0:
+        cmd_web(session, "")
+
+
+# ---------------------------------------------------------------- /web
+def cmd_web(session, args: str) -> None:
+    import webbrowser
+
+    from src.web.server import WebServer
+
+    console = session.console
+    if args.strip() == "stop":
+        if session.web:
+            session.web.stop()
+            session.web = None
+            _ok(session, "Web page stopped")
+        else:
+            console.print(Text(" The web page isn't running.", style=MUTED))
+        return
+    if not session.web:
+        session.web = WebServer(session.ws, runs=session.runs)
+        try:
+            session.web.start()
+        except ServiceError as err:
+            session.web = None
+            _service_error(session, err)
+            return
+    url = session.web.url
+    _ok(session, "Web page is running on this computer only")
+    console.print(Text(f"   {url}", style=ACCENT))
+    console.print(Text("   Opened in your browser. Type /web stop to turn it off. Runs started there show up here too.", style=MUTED))
+    webbrowser.open(url)
 
 
 def cmd_models(session, args: str) -> None:
     _configure(session, show_current_first=False)
 
 
-def _configure(session, show_current_first: bool) -> None:
+def _configure(session, show_current_first: bool) -> bool:
+    """True when a service and model are now saved (changed or kept)."""
     console = session.console
     console.print()
     current = settings.read(session.ws)
@@ -153,7 +194,7 @@ def _configure(session, show_current_first: bool) -> None:
             _ok(session, f"Keeping {label}")
             console.print(Text("   ", style=MUTED), session.privacy_text(active), sep="")
             console.print()
-            return
+            return True
         change_model_only = pick == 1
 
     if change_model_only:
@@ -165,7 +206,7 @@ def _configure(session, show_current_first: bool) -> None:
         choice = select("Which AI service?", rows, start)
         if choice is None:
             _nothing_changed(session)
-            return
+            return False
         svc = settings.SERVICES[choice]
         console.print(Text(f" {TICK} Service: {svc.label}", style=OK))
 
@@ -177,20 +218,21 @@ def _configure(session, show_current_first: bool) -> None:
     else:
         new_key = _ensure_key(session, svc, current.keys_saved.get(svc.id, False))
         if new_key is None:
-            return
+            return False
         model = _pick_model(session, svc, remembered)
     if not model:
-        return
+        return False
 
     try:
         saved = settings.save(session.ws, svc.id, model, api_key=new_key or None)
     except ServiceError as err:
         _service_error(session, err)
-        return
+        return False
     session.refresh()
     _ok(session, f"Now using {saved.provider_label} · {saved.model}")
     console.print(Text("   ", style=MUTED), session.privacy_text(saved.provider), sep="")
     console.print()
+    return True
 
 
 def _ensure_key(session, svc, key_saved: bool) -> str | None:
@@ -421,6 +463,7 @@ def build_commands() -> list[Command]:
         Command("init", "Set up cappv1, or check what it's set up with", cmd_init, ("setup",)),
         Command("models", "Pick a different AI service or model", cmd_models, ("provider",)),
         Command("doctor", "Check that everything is working", cmd_doctor),
+        Command("web", "Open cappv1 in your browser (/web stop turns it off)", cmd_web),
         Command("status", "Show the current settings", cmd_status),
         Command("open", "Open the output folder", cmd_open),
         Command("clean", "Delete input, output and saved progress", cmd_clean),

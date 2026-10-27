@@ -64,6 +64,7 @@ class Session:
         self.ws = default_workspace()
         self.ws.ensure()
         self.runs = RunManager(self.ws)
+        self.web = None  # the WebServer, while /web is on
         self.settings = settings.read(self.ws)
         self._pending: int | None = None
         try:

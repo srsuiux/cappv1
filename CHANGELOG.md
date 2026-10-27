@@ -5,6 +5,8 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 ## Unreleased
 
 ### Added
+- Local web server (`src/web`, standard library only) with a documented JSON API (`docs/API.md`): token and Host checks, size-limited uploads, live progress over Server-Sent Events.
+- `cappv1 --web [--port N] [--no-open]` and `/web` / `/web stop` inside cappv1; `/init` now ends by offering the browser or the terminal. The web pages themselves come in the next step.
 - `src/services/`, a service layer between the engine and the screens, with a pytest suite and GitHub Actions CI.
 - `CAPPV1_HOME` to keep settings, decks and progress in a folder of your choice.
 

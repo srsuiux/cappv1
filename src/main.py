@@ -13,6 +13,11 @@ def main() -> None:
 
         sys.exit(session_main(sys.argv[2:]))
 
+    if sys.argv[1:2] == ["--web"]:
+        from src.web.server import serve_cli
+
+        sys.exit(serve_cli(sys.argv[2:]))
+
     parser = argparse.ArgumentParser(description="Generate PPTX alt-text using a vision LLM (OpenRouter, OpenAI, Anthropic, or local Ollama)")
     parser.add_argument("--resume", action="store_true", help="only resume in_progress files")
     parser.add_argument("--force", action="store_true", help="redo everything and replace alt text the author already wrote")

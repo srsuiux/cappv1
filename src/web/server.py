@@ -250,7 +250,7 @@ def serve_cli(argv: list[str]) -> int:
     except ServiceError as err:
         print(f"{err.message} {err.fix}")
         return 1
-    print(f"cappv1 web UI: {url}\nPress Ctrl+C to stop.")
+    print(f"cappv1 web UI: {url}\nPress Ctrl+C to stop.", flush=True)
     if open_browser:
         webbrowser.open(url)
     try:
