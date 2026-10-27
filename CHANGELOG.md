@@ -5,6 +5,8 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 ## Unreleased
 
 ### Added
+- Light, dark and system themes with a switch in the side panel, remembered in the browser and applied before the page paints. A test checks the contrast of every color pair in both themes.
+- The front page uses the full width. New visitors see the introduction first; once cappv1 is set up and has files, the Overview (next step, file counts, service, health, data) comes first and the introduction moves below it.
 - A favicon.
 - A full web site served locally: a front page (introduction with the overview beneath it) and Files, Services, Health and Your data pages, with a sidebar, plus How it works, Privacy, FAQ and About pages. The Privacy page states exactly what is sent to an AI service and what is stored, and a test keeps it in step with the code.
 - Your data page lists what cappv1 keeps and where, and can erase decks, finished copies, saved progress and logs. Saved API keys can be removed from Services.
@@ -23,6 +25,7 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 - The terminal toolbar no longer re-reads every deck on each keystroke.
 
 ### Changed
+- No more colored bars down one side of panels, menu items or messages; they use whole, subtle borders instead. The three steps and other boxes follow the same paper-like style.
 - `cappv1` is now the only command in the shell. `cappv1 doctor`, `models`, `clean`, `init` and `start` are refused; use `/doctor`, `/models`, `/clean` and the others inside the session. `cappv1 --batch` remains for scripts, plus `--version` and `--help`.
 - `/init` shows the current service and model first and lets you keep it, change only the model, or switch service, instead of asking everything again. `/models` goes straight to the service and model pickers. Both are listed in `/help` and in the `/` menu.
 

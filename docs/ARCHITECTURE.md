@@ -22,7 +22,7 @@ src/web/
   api.py         /api/v1 routes, each a few lines over a service  (docs/API.md)
   templates/     the page layout: sidebar, status line, footer
   pages/         one fragment per page; the first line holds its title, menu entry and script
-  static/        app.css, scripts (one per page, plus shell.js and app.js), fonts
+  static/        app.css, scripts (one per page, plus shell.js, app.js and theme.js), fonts
 ```
 
 A page is a fragment in `pages/` wrapped in a layout from `templates/` when requested, so the menu, footer and version live in one place and there is no build step. Scripts are plain ES modules served from `static/`. The content policy forbids inline script and style; `tests/test_web_pages.py` enforces it.

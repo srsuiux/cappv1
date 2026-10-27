@@ -64,7 +64,7 @@ def render_page(slug: str) -> bytes | None:
     script = f'<script type="module" src="/{meta["script"]}"></script>' if meta.get("script") else ""
     page = page.replace("{{content}}", text[m.end():] if m else text)
     for key, value in (("title", html.escape(meta.get("title", "cappv1"))), ("description", html.escape(meta.get("description", ""))),
-                       ("version", VERSION), ("script", script)):
+                       ("version", VERSION), ("script", script), ("width", meta.get("width", "narrow"))):
         page = page.replace("{{" + key + "}}", value)
     if meta.get("nav"):
         page = page.replace(f'data-nav="{meta["nav"]}"', f'data-nav="{meta["nav"]}" aria-current="page"')
