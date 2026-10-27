@@ -191,7 +191,15 @@ The run summary counts these separately ("improved", "kept as written"), so you 
 
 ## For developers
 
-Settings live in `.env`; see `.env.example` for the full list (provider, model, fallback model, concurrency, Ollama address and timeout, minimum image size, maximum alt-text length). Source code is in `src/`. `skills.md` documents the one rule any change must follow: this tool only ever writes to a shape's alt-text field, nothing else in the file.
+cappv1 is built in three layers that only depend downward:
+
+- `src/pipeline.py`, `pptx_reader.py`, `llm_client.py` and friends are the **engine**. They know nothing about screens. `skills.md` documents the one rule any change must follow: this tool only ever writes to a shape's alt-text field, nothing else in the file.
+- `src/services/` is the **service layer**: settings, models, files, health checks and runs, as plain functions that return data and raise `ServiceError` with a plain-language message.
+- `src/tui/` is the terminal session. It only asks and draws. A web UI will be a second front end over the same services.
+
+Settings live in `.env`; see `.env.example` for the full list. Set `CAPPV1_HOME` to keep `.env`, `input/`, `output/` and saved progress in another folder instead of the project folder.
+
+Run the tests with `pip install -r requirements-dev.txt` and then `python -m pytest`. They use a temporary workspace and a fake local model, never your real settings or keys.
 
 ## License and contributing
 

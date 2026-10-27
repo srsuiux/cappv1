@@ -34,4 +34,6 @@ class Workspace:
 
 
 def default_workspace() -> Workspace:
-    return Workspace(Path(__file__).resolve().parent.parent.parent)
+    from src.config import ROOT
+
+    return Workspace(ROOT)

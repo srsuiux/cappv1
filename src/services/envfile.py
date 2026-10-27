@@ -1,6 +1,7 @@
 """Reads and edits a workspace's .env in place, keeping comments and order."""
 import os
 import shutil
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -16,6 +17,8 @@ def set_values(ws: Workspace, values: dict[str, str]) -> None:
     """Sets KEY=value lines (adding missing ones), then loads them into this
     process so a running session sees the change straight away."""
     example = ws.root / ".env.example"
+    if not example.exists():
+        example = Path(__file__).resolve().parent.parent.parent / ".env.example"
     if not ws.env_path.exists() and example.exists():
         shutil.copy(example, ws.env_path)
     lines = ws.env_path.read_text().splitlines() if ws.env_path.exists() else []

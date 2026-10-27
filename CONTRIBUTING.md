@@ -12,6 +12,14 @@ The tool only ever writes to a shape's alt-text field and never changes anything
 - Do work on a short-lived branch off `main`, named by purpose: `feature/<name>`, `fix/<name>`, or `docs/<name>`.
 - Merge into `main` with a pull request (or `git merge --no-ff` for solo work) once it works and the docs are updated. Delete the branch afterwards.
 
+## Tests
+
+`pip install -r requirements-dev.txt`, then `python -m pytest`. CI runs the same on Python 3.11 to 3.13 for every pull request. Tests use a temporary workspace and a fake local model, so they never touch your settings or keys. New behavior comes with a test.
+
+## Layers
+
+Engine (`src/pipeline.py` and friends), then the service layer (`src/services/`), then the front ends (`src/tui/`, later `src/web/`). Put logic in a service, not in a front end, so the terminal and the browser never disagree.
+
 ## Commits
 
 Short imperative subject ("Add Ollama provider"), then a few lines on why. One logical change per commit.

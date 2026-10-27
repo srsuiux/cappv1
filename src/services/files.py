@@ -100,12 +100,14 @@ def output_file(ws: Workspace, name: str) -> Path:
     return path
 
 
-def clean(ws: Workspace) -> dict[str, int]:
-    """Deletes decks in input/ and output/ and all saved progress. No undo."""
+def clean(ws: Workspace, dry_run: bool = False) -> dict[str, int]:
+    """Deletes decks in input/ and output/ and all saved progress. No undo.
+    With dry_run it only counts what would go."""
     counts = {"input": 0, "output": 0, "progress": 0}
     for key, folder, pattern in (("input", ws.input_dir, "*.pptx"), ("output", ws.output_dir, "*.pptx"),
                                  ("progress", ws.state_dir, "*.json*")):
         for f in folder.glob(pattern):
-            f.unlink(missing_ok=True)
+            if not dry_run:
+                f.unlink(missing_ok=True)
             counts[key] += 1
     return counts

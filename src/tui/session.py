@@ -5,7 +5,6 @@ import shutil
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.formatted_text import FormattedText
@@ -16,14 +15,15 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.text import Text
 
-from src import doctor
-from src.config import Config, load_config
-from src.pipeline import inspect_file
-from src.tui import anim, envfile
+from src.services import files, settings
+from src.services.errors import ServiceError
+from src.services.runs import RunManager
+from src.services.workspace import default_workspace
+from src.tui import anim
 from src.version import VERSION
 from src.tui.commands import build_commands
 from src.tui.menu import select
-from src.tui.theme import ACCENT, ANIMATE, ARROW, MUTED, OK, PROVIDER_LABELS, TICK, WARN
+from src.tui.theme import ACCENT, ARROW, BAD, CROSS, MUTED, OK, TICK, WARN
 
 
 _PROMPT_STYLE = Style.from_dict({
@@ -61,12 +61,13 @@ class Session:
     def __init__(self) -> None:
         self.console = Console()
         self.commands = build_commands()
-        self.config: Config | None = None
-        self.config_error = ""
-        self._installed: list[str] = []
-        (envfile.ROOT / ".state").mkdir(exist_ok=True)
+        self.ws = default_workspace()
+        self.ws.ensure()
+        self.runs = RunManager(self.ws)
+        self.settings = settings.read(self.ws)
+        self._pending: int | None = None
         try:
-            history = FileHistory(str(envfile.ROOT / ".state" / "history"))
+            history = FileHistory(str(self.ws.state_dir / "history"))
         except OSError:
             history = InMemoryHistory()
         self.prompt = PromptSession(
@@ -75,53 +76,49 @@ class Session:
         )
 
     # ---- config ----------------------------------------------------------
-    def load(self, quiet: bool = False) -> tuple[Config | None, str]:
-        try:
-            self.config, self.config_error = load_config(), ""
-        except Exception as exc:
-            self.config, self.config_error = None, str(exc)
-        return self.config, self.config_error
-
-    def refresh(self) -> None:
-        load_dotenv(envfile.ENV_PATH, override=True)
-        self.load()
+    def refresh(self) -> settings.Settings:
+        self.settings = settings.read(self.ws)
+        self._pending = None
+        return self.settings
 
     def pending_count(self) -> int:
-        """Files in input/ that still need work."""
-        if not self.config:
-            return len(list((envfile.ROOT / "input").glob("*.pptx")))
-        return sum(inspect_file(self.config, f)[0] != "done" for f in self.config.input_dir.glob("*.pptx"))
+        """Files in input/ that still need work. Cached: counting hashes every
+        deck, and the toolbar asks on every redraw. Reset after each command."""
+        if self._pending is None:
+            self._pending = sum(f.state != "done" for f in files.list_files(self.ws))
+        return self._pending
 
     # ---- pieces of the screen -------------------------------------------
     def privacy_text(self, provider: str) -> Text:
-        if provider == "ollama":
+        svc = settings.service(provider)
+        if svc.private:
             return Text("● private: runs on this computer", style=OK)
-        return Text(f"☁ slide content is sent to {PROVIDER_LABELS.get(provider, provider)}", style=WARN)
+        return Text(f"☁ slide content is sent to {svc.label}", style=WARN)
 
     def banner(self) -> None:
-        provider = doctor.pick_provider(doctor.read_env_file()) if envfile.ENV_PATH.exists() else None
+        s = self.settings
         body = Text()
         body.append("✻ ", style=ACCENT)
         body.append("Welcome to cappv1", style="bold")
         body.append(f"  v{VERSION}\n", style=MUTED)
         body.append("  Alt-text for PowerPoint, with a screen-reader user in mind\n\n", style=MUTED)
-        if self.config:
-            body.append(f"  {PROVIDER_LABELS.get(self.config.provider)} · {self.config.model}\n")
+        if s.configured:
+            body.append(f"  {s.provider_label} · {s.model}\n")
             body.append("  ")
-            body.append_text(self.privacy_text(self.config.provider))
+            body.append_text(self.privacy_text(s.provider))
         else:
             body.append("  Not set up yet. ", style=WARN)
             body.append("Type /init to choose an AI service.", style="bold")
-        body.append(f"\n  {envfile.ROOT}", style=MUTED)
+        body.append(f"\n  {self.ws.root}", style=MUTED)
         self.console.print(Panel(body, box=box.ROUNDED, border_style=ACCENT, padding=(1, 2), expand=False))
         n = self.pending_count()
-        hint = f"{n} file(s) in input/. Type /run to start." if n and self.config else \
+        hint = f"{n} file(s) in input/. Type /run to start." if n and s.configured else \
             "Drag a .pptx into this window to add it · / for commands · /help"
         self.console.print(Text(f" {hint}\n", style=MUTED))
 
     def _toolbar(self):
         width = shutil.get_terminal_size((80, 20)).columns
-        left = f" {self.config.model}" if self.config else " not set up (type /init)"
+        left = f" {self.settings.model}" if self.settings.configured else " not set up (type /init)"
         n = self.pending_count()
         mid = f" · {n} file{'s' if n != 1 else ''} in input/" if n else ""
         right = "/ commands · Ctrl+D exit "
@@ -135,10 +132,10 @@ class Session:
     # ---- startup ---------------------------------------------------------
     def start(self) -> None:
         with self.console.status(anim.shimmer("Checking your setup", None), spinner="dots", spinner_style=ACCENT):
-            self.load()
+            self.refresh()
         self.console.print()
         self.banner()
-        if not self.config:
+        if not self.settings.configured:
             pick = select("Set up now?", [("Yes, choose an AI service", "takes about a minute"), ("Not now", "")])
             if pick == 0:
                 self.dispatch("init", "")
@@ -160,25 +157,29 @@ class Session:
         cmd.handler(self, args)
 
     def add_files(self, paths: list[Path]) -> None:
-        dest = envfile.ROOT / "input"
-        dest.mkdir(exist_ok=True)
         added = 0
         for src in paths:
-            sources = sorted(src.glob("*.pptx")) if src.is_dir() else [src]
-            for f in sources:
-                target = dest / f.name
-                if target.exists() and target.resolve() != f.resolve():
-                    pick = select(f"{f.name} is already in input/. Replace it?", [("Keep the one already there", ""), ("Replace it", "")])
-                    if pick != 1:
-                        continue
-                if target.resolve() != f.resolve():
-                    shutil.copy2(f, target)
+            for f in (sorted(src.glob("*.pptx")) if src.is_dir() else [src]):
+                try:
+                    target = self.ws.input_dir / files.safe_name(f.name)
+                    if target.exists() and target.resolve() != f.resolve():
+                        pick = select(f"{f.name} is already in input/. Replace it?", [("Keep the one already there", ""), ("Replace it", "")])
+                        if pick != 1:
+                            continue
+                    if target.resolve() != f.resolve():
+                        files.store_path(self.ws, f)
+                except ServiceError as err:
+                    self.console.print(Text(f" {CROSS} {err.message}", style=BAD))
+                    if err.fix:
+                        self.console.print(Text(f"   {err.fix}", style=MUTED))
+                    continue
                 added += 1
                 self.console.print(Text(f" {TICK} Added {f.name}", style=OK))
+        self._pending = None
         if added:
             self.console.print(Text(f" Type /run to describe {'it' if added == 1 else 'them'}.\n", style=MUTED))
         else:
-            self.console.print(Text(" No .pptx files found there.\n", style=WARN))
+            self.console.print(Text(" No .pptx files were added.\n", style=WARN))
 
     def as_paths(self, line: str) -> list[Path] | None:
         """Terminal drag-and-drop pastes a (quoted or escaped) path."""
@@ -198,6 +199,7 @@ class Session:
         if line.startswith("/"):
             name, _, args = line[1:].partition(" ")
             self.dispatch(name.lower(), args.strip())
+            self._pending = None
             return
         paths = self.as_paths(line)
         if paths:

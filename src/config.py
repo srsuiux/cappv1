@@ -5,7 +5,9 @@ from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parent.parent
+PROJECT = Path(__file__).resolve().parent.parent
+# Where .env, input/, output/ and saved progress live. CAPPV1_HOME moves them out of the project folder.
+ROOT = Path(os.environ.get("CAPPV1_HOME") or PROJECT).expanduser()
 load_dotenv(ROOT / ".env")
 
 
