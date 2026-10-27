@@ -1,4 +1,4 @@
-import { api, getJson, h, problem, statusLine, announce, plural, ApiError } from "./app.js";
+import { api, getJson, h, problem, announce, plural, ApiError } from "/app.js";
 
 const $ = (id) => document.getElementById(id);
 const STATE = {
@@ -192,7 +192,6 @@ drop.addEventListener("drop", (e) => upload(e.dataTransfer.files));
 $("force").addEventListener("change", render);
 $("run").addEventListener("click", start);
 
-statusLine();
 await loadFiles();
 try {
   const run = await getJson("/runs/current");

@@ -1,4 +1,4 @@
-import { api, getJson, h, problem, statusLine, announce } from "./app.js";
+import { api, getJson, h, problem, statusLine, announce } from "/app.js";
 
 const $ = (id) => document.getElementById(id);
 const OTHER = "__other";
@@ -52,10 +52,28 @@ function syncKey() {
 }
 
 function renderServices() {
-  $("services").replaceChildren(...services.map((s) => h("label", { class: "opt" },
-    h("input", { type: "radio", name: "service", value: s.id, checked: s.id === (current.provider || services[0].id) }),
-    h("span", {}, h("b", {}, s.label), h("small", {}, s.note + (s.key_saved ? ", key saved" : ""))))));
+  $("services").replaceChildren(...services.map((s) => h("div", { class: "opt-row" },
+    h("label", { class: "opt" },
+      h("input", { type: "radio", name: "service", value: s.id, checked: s.id === (current.provider || services[0].id) }),
+      h("span", {}, h("b", {}, s.label), h("small", {}, s.note + (s.needs_key ? (s.key_saved ? ", key saved" : ", no key yet") : "")), h("small", {}, s.handling))),
+    h("div", { class: "side-actions" },
+      s.policy_url ? h("a", { href: s.policy_url, target: "_blank", rel: "noopener noreferrer" }, "Their privacy policy", h("span", { class: "sr" }, " (opens in a new tab)")) : null,
+      s.key_saved ? h("button", { type: "button", class: "quiet small", onclick: () => forget(s) }, "Remove saved key", h("span", { class: "sr" }, " for " + s.label)) : null))));
   for (const r of document.querySelectorAll("input[name=service]")) r.addEventListener("change", () => { syncKey(); loadModels(r.value); });
+}
+
+async function forget(svc) {
+  $("result").replaceChildren();
+  try {
+    await api("DELETE", `/settings/keys/${svc.id}`);
+    services = (await getJson("/services")).services;
+    current = await getJson("/settings");
+    renderServices();
+    syncKey();
+    announce(`${svc.label} key removed`);
+    $("result").replaceChildren(h("div", { class: "note good", role: "status" }, h("b", {}, `${svc.label} key removed from this computer.`)));
+    statusLine();
+  } catch (err) { $("result").replaceChildren(problem(err)); }
 }
 
 async function save(anyway = false) {
@@ -82,7 +100,7 @@ async function save(anyway = false) {
     services = (await getJson("/services")).services;
     syncKey();
     const msg = `Now using ${saved.provider_label} · ${saved.model}`;
-    result.replaceChildren(h("div", { class: "note good", role: "status" }, h("b", {}, msg + ". "), h("a", { href: "index.html" }, "Go to Home")));
+    result.replaceChildren(h("div", { class: "note good", role: "status" }, h("b", {}, msg + ". "), h("a", { href: "/files" }, "Go to Files")));
     announce(msg);
     statusLine();
   } catch (err) {
@@ -92,7 +110,6 @@ async function save(anyway = false) {
   }
 }
 
-statusLine();
 try {
   [services, current] = [(await getJson("/services")).services, await getJson("/settings")];
   renderServices();

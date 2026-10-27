@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}} · cappv1</title>
+<meta name="description" content="{{description}}">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body class="app">
+<a class="skip" href="#main">Skip to content</a>
+<div class="shell">
+  <aside class="side">
+    <div class="side-top">
+      <a class="brand" href="/">cappv1</a>
+      <details class="menu" id="menu" open>
+        <summary>Menu</summary>
+        <nav aria-label="Main">
+          <p class="group" id="g-manage">Manage</p>
+          <ul aria-labelledby="g-manage">
+            <li><a href="/dashboard" data-nav="dashboard">Overview</a></li>
+            <li><a href="/files" data-nav="files">Files</a></li>
+            <li><a href="/services" data-nav="services">Services</a></li>
+            <li><a href="/health" data-nav="health">Health</a></li>
+            <li><a href="/data" data-nav="data">Your data</a></li>
+          </ul>
+          <p class="group" id="g-learn">Learn</p>
+          <ul aria-labelledby="g-learn">
+            <li><a href="/how-it-works" data-nav="how-it-works">How it works</a></li>
+            <li><a href="/privacy" data-nav="privacy">Privacy</a></li>
+            <li><a href="/faq" data-nav="faq">FAQ</a></li>
+            <li><a href="/about" data-nav="about">About</a></li>
+          </ul>
+        </nav>
+      </details>
+    </div>
+    <p class="side-foot muted">Version {{version}}<br>MIT licensed</p>
+  </aside>
+  <div class="main-col">
+    <div class="status" id="status" role="status">Loading…</div>
+    <div class="sr" id="live" role="status" aria-live="polite"></div>
+    <main id="main">
+{{content}}
+    </main>
+  </div>
+</div>
+<script type="module" src="/shell.js"></script>
+{{script}}
+</body>
+</html>

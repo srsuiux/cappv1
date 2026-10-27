@@ -1,12 +1,13 @@
 """A small local web server: HTTP in, services out.
 
-Security (see UI-development-Plan.md, section 4): bound to 127.0.0.1 only; a
+Security (see docs/web-ui-plan.md, section 4): bound to 127.0.0.1 only; a
 Host-header allowlist (blocks DNS rebinding); a random per-launch token that
 every API call must send in a header (which also rules out cross-site calls,
 since there are no CORS headers); a strict content policy; streamed, size-
 limited uploads that are validated before they are kept.
 """
 import hmac
+import html
 import json
 import logging
 import mimetypes
@@ -20,6 +21,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from src.services import files
+from src.version import VERSION
 from src.services.errors import ServiceError
 from src.services.runs import RunManager
 from src.services.workspace import Workspace
@@ -27,7 +29,12 @@ from src.web import api
 
 logger = logging.getLogger("pptx_alt_text")
 
-STATIC = Path(__file__).parent / "static"
+HERE = Path(__file__).parent
+STATIC = HERE / "static"
+PAGES = HERE / "pages"
+TEMPLATES = HERE / "templates"
+_META = re.compile(r"\A<!--\s*(.*?)\s*-->\n", re.S)
+_SLUG = re.compile(r"[a-z0-9-]+")
 MAX_JSON_BYTES = 64 * 1024
 DEFAULT_PORT = 8765
 TOKEN_HEADER = "X-Cappv1-Token"
@@ -42,6 +49,26 @@ _STATUS_FOR_CODE = {
     "length_required": 411, "too_big": 413,
     "network": 502, "ollama_down": 503,
 }
+
+
+def render_page(slug: str) -> bytes | None:
+    """A page fragment wrapped in its layout (templates/), with the version and the
+    current nav entry filled in. None when there is no such page."""
+    path = PAGES / f"{slug}.html"
+    if not _SLUG.fullmatch(slug) or not path.is_file():
+        return None
+    text = path.read_text(encoding="utf-8")
+    m = _META.match(text)
+    meta = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1))) if m else {}
+    page = (TEMPLATES / f"{meta.get('layout', 'app')}.html").read_text(encoding="utf-8")
+    script = f'<script type="module" src="/{meta["script"]}"></script>' if meta.get("script") else ""
+    page = page.replace("{{content}}", text[m.end():] if m else text)
+    for key, value in (("title", html.escape(meta.get("title", "cappv1"))), ("description", html.escape(meta.get("description", ""))),
+                       ("version", VERSION), ("script", script)):
+        page = page.replace("{{" + key + "}}", value)
+    if meta.get("nav"):
+        page = page.replace(f'data-nav="{meta["nav"]}"', f'data-nav="{meta["nav"]}" aria-current="page"')
+    return page.encode("utf-8")
 
 
 class Request:
@@ -170,10 +197,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(405 if known else 404, {"error": {"code": "not_found", "message": "There is no such request.", "fix": ""}})
 
     def _static(self, path: str) -> None:
-        name = "index.html" if path in ("", "/") else unquote(path).lstrip("/")
-        target = (STATIC / name).resolve()
+        slug = "index" if path in ("", "/") else unquote(path).strip("/")
+        page = render_page(slug)
+        if page is not None:
+            return self.send_bytes(200, "text/html; charset=utf-8", page)
+        target = (STATIC / unquote(path).lstrip("/")).resolve()
         if STATIC.resolve() not in target.parents or not target.is_file():
-            return self.send_bytes(404, "text/plain; charset=utf-8", b"Not found")
+            return self.send_bytes(404, "text/html; charset=utf-8", render_page("404") or b"Not found")
         ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
         if ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
             ctype += "; charset=utf-8"

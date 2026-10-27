@@ -1,4 +1,4 @@
-import { getJson, h, problem, statusLine, announce, plural } from "./app.js";
+import { getJson, h, problem, announce, plural } from "/app.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -27,6 +27,5 @@ async function check() {
   }
 }
 
-statusLine();
 $("again").addEventListener("click", check);
 await check();
