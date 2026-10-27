@@ -14,7 +14,7 @@ from rich.table import Table
 from rich.text import Text
 
 from src import doctor
-from src.services import files, health, settings
+from src.services import audit, files, health, settings
 from src.services import models as model_service
 from src.services.errors import ServiceError
 from src.tui.menu import select
@@ -103,6 +103,35 @@ def cmd_files(session, args: str) -> None:
         table.add_row(f.name, Text(text, style=style))
     session.console.print()
     session.console.print(table)
+    session.console.print()
+
+
+# ---------------------------------------------------------------- /audit
+def _slide_list(slides: list) -> str:
+    return ", ".join(str(n) for n in slides[:12]) + (f" and {len(slides) - 12} more" if len(slides) > 12 else "")
+
+
+def cmd_audit(session, args: str) -> None:
+    """Reports what cappv1 noticed but will not change. Read-only."""
+    names = [args.strip()] if args.strip() else [f.name for f in files.list_files(session.ws)]
+    if not names:
+        session.console.print(Text("\n No files yet. Drag a .pptx into this window first.\n", style=MUTED))
+        return
+    for name in names:
+        try:
+            result = audit.report(session.ws, name)
+        except ServiceError as err:
+            _fail(session, name, f"{err.message} {err.fix}".strip())
+            continue
+        session.console.print()
+        session.console.print(Text(f" {result['file']}", style="bold"), Text(f"  (checked the {result['checked']})", style=MUTED), sep="")
+        if not result["groups"]:
+            session.console.print(Text(f" {TICK} No contrast or reading-order problems found.", style=OK))
+        for g in result["groups"]:
+            session.console.print(Text(f" ! {g['message']}", style=WARN))
+            session.console.print(Text(f"   {g['detail']}", style=MUTED))
+            session.console.print(Text(f"   Slides: {_slide_list(g['slides'])}", style=MUTED))
+        session.console.print(Text(" cappv1 only reports these. Colors and layout are yours to change.", style=MUTED))
     session.console.print()
 
 
@@ -463,6 +492,7 @@ def build_commands() -> list[Command]:
         Command("init", "Set up cappv1, or check what it's set up with", cmd_init, ("setup",)),
         Command("models", "Pick a different AI service or model", cmd_models, ("provider",)),
         Command("doctor", "Check that everything is working", cmd_doctor),
+        Command("audit", "Report low contrast and reading-order problems (changes nothing)", cmd_audit),
         Command("web", "Open cappv1 in your browser (/web stop turns it off)", cmd_web),
         Command("status", "Show the current settings", cmd_status),
         Command("open", "Open the output folder", cmd_open),

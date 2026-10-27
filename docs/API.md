@@ -55,6 +55,7 @@ All paths start with `/api/v1`. Bodies are JSON unless noted.
 | `GET /runs/current` | The latest run: `id`, `state` (`idle`, `running`, `done`, `cancelled`, `failed`), `failed_files`, `error`. |
 | `POST /runs/<id>/cancel` | Stop after the item in flight; finished slides stay saved. |
 | `GET /runs/<id>/events` | Server-Sent Events (see below). |
+| `GET /files/<name>/audit` | Read-only accessibility report on the finished copy (or the original): `{file, checked, problems, groups: [{kind, message, detail, slides}], checked_text, unmeasured_text}`. `kind` is `contrast` or `reading_order`. |
 | `GET /doctor` | `{ok, checks: [{label, ok, detail}]}`. |
 
 One run at a time. The terminal and the web page share it, so a run started in one shows up in the other.

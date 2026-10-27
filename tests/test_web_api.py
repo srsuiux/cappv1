@@ -197,6 +197,13 @@ def test_doctor(web):
     assert status == 200 and {"checks", "ok"} <= set(body) and body["checks"][0]["label"]
 
 
+def test_audit_endpoint(web, deck):
+    upload(web, "talk.pptx", deck)
+    status, body, _ = web.call("GET", "/api/v1/files/talk.pptx/audit")
+    assert status == 200 and body["file"] == "talk.pptx" and {"groups", "problems", "checked_text"} <= set(body)
+    assert web.call("GET", "/api/v1/files/nope.pptx/audit")[1]["error"]["code"] == "not_found"
+
+
 # ---- your data and keys -----------------------------------------------------------
 def test_services_describe_what_happens_to_slides(web):
     services = {s["id"]: s for s in web.call("GET", "/api/v1/services")[1]["services"]}

@@ -3,7 +3,7 @@ import json
 import time
 from urllib.parse import quote
 
-from src.services import files, health, models, settings, storage
+from src.services import audit, files, health, models, settings, storage
 from src.services.errors import ServiceError
 
 PREFIX = "/api/v1"
@@ -127,6 +127,10 @@ def download_file(req):
             req.h.wfile.write(block)
 
 
+def audit_file(req):
+    req.h.send_json(200, audit.report(req.ws, req.groups[0]))
+
+
 # ---- runs -----------------------------------------------------------------------
 def start_run(req):
     body = req.json()
@@ -199,6 +203,7 @@ ROUTES = [
     ("PUT", f"{PREFIX}/files/{_NAME}", put_file),
     ("DELETE", f"{PREFIX}/files/{_NAME}", delete_file),
     ("GET", f"{PREFIX}/files/{_NAME}/download", download_file),
+    ("GET", f"{PREFIX}/files/{_NAME}/audit", audit_file),
     ("POST", f"{PREFIX}/runs", start_run),
     ("GET", f"{PREFIX}/runs/current", current_run),
     ("POST", f"{PREFIX}/runs/{_NAME}/cancel", cancel_run),
