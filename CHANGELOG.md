@@ -4,6 +4,7 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 
 ## 1.4.0
 
+- The Files page has a Check accessibility button that shows the same report in the browser.
 - New `/audit` command and `GET /api/v1/files/<name>/audit`: reports low-contrast text (WCAG AA, judged against the real backdrop including template shapes, patterns and gradients) and slides whose reading order doesn't follow the layout. Findings with the same cause are grouped across slides. It only reports; colors and layout are never changed.
 
 ## 1.3.0

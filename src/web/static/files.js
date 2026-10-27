@@ -29,6 +29,26 @@ async function remove(name) {
   } catch (err) { showProblem(err); }
 }
 
+const KIND = { contrast: "Hard to read", reading_order: "Reading order" };
+const slideList = (n) => n.slice(0, 15).join(", ") + (n.length > 15 ? ` and ${n.length - 15} more` : "");
+
+async function audit(name) {
+  showProblem(null);
+  announce(`Checking ${name}`);
+  try {
+    const r = await getJson(`/files/${encodeURIComponent(name)}/audit`);
+    $("atitle").textContent = `Accessibility check: ${r.file}`;
+    $("ascope").textContent = `Checked the ${r.checked}. This looks at text contrast and reading order only; Blackboard and PowerPoint may check more.`;
+    const found = r.groups.length
+      ? h("ul", { class: "feed" }, ...r.groups.map((g) => h("li", {}, h("b", {}, KIND[g.kind] || g.kind), h("span", {}, g.message), h("small", {}, g.detail), h("small", {}, "Slides: " + slideList(g.slides)))))
+      : h("p", { class: "note good" }, "✔ No contrast or reading-order problems found.");
+    $("aresult").replaceChildren(found, r.unmeasured_text ? h("p", { class: "muted" }, `${plural(r.unmeasured_text, "piece", "pieces")} of text sat on a picture or an unusual color and could not be judged.`) : "");
+    $("audit").hidden = false;
+    announce(r.groups.length ? `${plural(r.groups.length, "problem", "problems")} found` : "No problems found");
+    $("audit").focus();
+  } catch (err) { showProblem(err); }
+}
+
 function render() {
   $("empty").hidden = files.length > 0;
   $("files").replaceChildren(...files.map((f) => {
@@ -37,6 +57,7 @@ function render() {
       h("span", {}, h("span", { class: "name" }, f.name), h("br"), h("span", { class: "muted" }, mb(f.size))),
       h("span", { class: "state" },
         h("span", { class: tone }, label), " ",
+        h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)), " ",
         f.has_output ? h("button", { class: "quiet small", type: "button", onclick: () => download(f.name) }, "Download", h("span", { class: "sr" }, " " + f.name)) : null, " ",
         h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => remove(f.name) }, "Remove", h("span", { class: "sr" }, " " + f.name))));
   }));
@@ -191,6 +212,7 @@ for (const t of ["dragleave", "drop"]) drop.addEventListener(t, (e) => { e.preve
 drop.addEventListener("drop", (e) => upload(e.dataTransfer.files));
 $("force").addEventListener("change", render);
 $("run").addEventListener("click", start);
+$("aclose").addEventListener("click", () => { $("audit").hidden = true; $("pick").focus(); });
 
 await loadFiles();
 try {
