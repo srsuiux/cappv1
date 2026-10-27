@@ -177,6 +177,10 @@ Branching follows `CONTRIBUTING.md`: each phase is a `feature/...` branch off `m
 
 Each phase ends with a local commit, a short summary, and your go-ahead before the next starts.
 
+## 12a. Scope update: dashboard and information pages
+
+After Phase 3 the scope grew on request: the web UI is now a small complete site served by the same local server. A landing page; a dashboard with a sidebar (Overview, Files, Services, Health, Your data); and information pages (How it works, Privacy, FAQ, About). The "not a data manager" principle still holds: there is no database, history or file manager. "Your data" only shows what cappv1 already keeps and offers one erase action. Pages are fragments wrapped in layouts by the server (no build step, no framework). See `docs/ARCHITECTURE.md`.
+
 ## 13. Later options (not planned)
 
 - **Shared campus server**: the same app on one machine for many people needs real login, TLS, per-user workspaces, queueing and IT approval. Treat it as its own project after the local UI ships.

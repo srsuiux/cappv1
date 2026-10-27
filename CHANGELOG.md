@@ -5,6 +5,10 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 ## Unreleased
 
 ### Added
+- A full web site served locally: a landing page and a dashboard (Overview, Files, Services, Health, Your data) with a sidebar, plus How it works, Privacy, FAQ and About pages. The Privacy page states exactly what is sent to an AI service and what is stored, and a test keeps it in step with the code.
+- Your data page lists what cappv1 keeps and where, and can erase decks, finished copies, saved progress and logs. Saved API keys can be removed from Services.
+- Each service now says what it does with your slides and links to its privacy policy.
+- Project files: `SECURITY.md`, `CODE_OF_CONDUCT.md`, issue and pull request templates, `.editorconfig`, `pyproject.toml`, and `docs/ARCHITECTURE.md`.
 - Web pages: Home (add decks, run, live feed of the alt text being written, download), Setup (service, model, key) and Doctor. Plain HTML, CSS and JavaScript with a bundled accessible typeface (Atkinson Hyperlegible, SIL OFL); works with a keyboard and screen reader, in light and dark.
 - A new `alt_written` progress event carrying each piece of alt text as it is settled.
 - Local web server (`src/web`, standard library only) with a documented JSON API (`docs/API.md`): token and Host checks, size-limited uploads, live progress over Server-Sent Events.

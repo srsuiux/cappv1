@@ -12,6 +12,10 @@ X-Cappv1-Token: <token>
 
 Without the right token every `/api/` call returns `401`. A request whose `Host` header isn't `127.0.0.1:<port>` or `localhost:<port>` gets `403` (this blocks DNS-rebinding). There are no CORS headers, so other websites can't call it.
 
+## Pages
+
+The same server serves the web pages: `/` (landing), `/dashboard`, `/files`, `/services`, `/health`, `/data`, `/how-it-works`, `/privacy`, `/faq`, `/about`. Pages need no token; only `/api/` does.
+
 ## Errors
 
 Every failure has the same shape, with a plain-language message and what to do next:
@@ -38,7 +42,10 @@ All paths start with `/api/v1`. Bodies are JSON unless noted.
 | `GET /settings` | Current service, model, and which services have a saved key. Never returns a key. |
 | `PUT /settings` | `{provider, model, api_key?}`: make this the active choice. |
 | `POST /settings/test` | `{provider, api_key}` → `{ok, detail}`: ask the service whether it accepts the key. |
-| `GET /services` | The four services, whether each is private, needs a key, has one saved, and the model last used. |
+| `GET /services` | The four services: whether each is private, what it does with slides (`handling`), its privacy policy link, whether it needs a key and has one saved, and the model last used. |
+| `DELETE /settings/keys/<id>` | Forget a saved key. |
+| `GET /storage` | What cappv1 keeps and where: `places` with `label`, `path`, `what`, `files`, `bytes` and `has_slides`. |
+| `POST /storage/clear` | `{confirm: true}`: erase decks, finished copies, saved progress and logs. Keeps settings and keys. Refused during a run. |
 | `GET /services/<id>/models` | Models to choose from. OpenAI and Anthropic: a short list. Ollama: installed vision models. OpenRouter: `free`, `cheapest`, and `makers`. |
 | `GET /files` | Files in the input list: `name`, `size`, `state` (`new`, `partial`, `changed`, `done`), `has_output`. |
 | `PUT /files/<name>` | Upload a deck. The body is the raw file (not multipart) and `Content-Length` is required. Up to 200 MB. It is checked to be a real `.pptx` before it is kept. |
