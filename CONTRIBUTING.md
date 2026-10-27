@@ -4,7 +4,7 @@ cappv1 is open source under the [MIT License](LICENSE). Issues and pull requests
 
 ## Ground rule
 
-The tool only ever writes to a shape's alt-text field and never changes anything else in a deck. Any change must keep that true (see `skills.md`).
+The tool never changes how a slide looks: it writes alt text, plus a short list of visually inert accessibility fixes. Any change must keep that true (see `skills.md`). LLM agents also read `git-skills.md`, which `CLAUDE.md` loads automatically.
 
 ## Branches
 
