@@ -18,7 +18,7 @@ from rich.text import Text
 
 from src import doctor
 from src.config import Config, load_config
-from src.state import load_state
+from src.pipeline import inspect_file
 from src.tui import anim, envfile
 from src.tui.commands import build_commands
 from src.tui.menu import select
@@ -88,11 +88,9 @@ class Session:
 
     def pending_count(self) -> int:
         """Files in input/ that still need work."""
-        count = 0
-        for f in (envfile.ROOT / "input").glob("*.pptx"):
-            done = load_state(envfile.ROOT / ".state", f.name).status == "complete"
-            count += 0 if done and (envfile.ROOT / "output" / f.name).exists() else 1
-        return count
+        if not self.config:
+            return len(list((envfile.ROOT / "input").glob("*.pptx")))
+        return sum(inspect_file(self.config, f)[0] != "done" for f in self.config.input_dir.glob("*.pptx"))
 
     # ---- pieces of the screen -------------------------------------------
     def privacy_text(self, provider: str) -> Text:
@@ -230,6 +228,9 @@ class Session:
                 break
             except KeyboardInterrupt:
                 self.console.print(Text("\n Cancelled.\n", style=MUTED))
+            except Exception as exc:  # a bug in one command shouldn't end the session
+                self.console.print(Text(f"\n Something went wrong: {exc.__class__.__name__}: {exc}", style="red"))
+                self.console.print(Text(" Your files and progress are safe. Try again, or run /doctor.\n", style=MUTED))
         self.console.print(Text("\n Bye. Your files are in output/.\n", style=MUTED))
 
 

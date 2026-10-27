@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import logging
+import os
 import sys
 import time
 from pathlib import Path
@@ -36,7 +37,7 @@ from src.pptx_reader import (
     smartart_to_text,
     table_to_text,
 )
-from src.state import FileState, load_state, save_state
+from src.state import FileState, file_sha256, load_state, save_state
 
 logger = logging.getLogger("pptx_alt_text")
 
@@ -98,28 +99,45 @@ def setup_logging(logs_dir: Path, console: bool = True) -> None:
     logger.addHandler(file_handler)
 
 
+def inspect_file(config: Config, path: Path) -> tuple[str, FileState, str]:
+    """Decides what a file in input/ needs. Returns (kind, state, content_hash):
+
+    done     unchanged since it was captioned, and its output still exists
+    changed  edited since the last run: redo it, reusing captions for unchanged items
+    partial  started earlier (stopped or some items failed): finish it
+    new      never processed
+    """
+    digest = file_sha256(path)
+    state = load_state(config.state_dir, path.name)
+    output_exists = (config.output_dir / path.name).exists()
+
+    if state.content_hash and state.content_hash != digest:
+        # the deck was edited: its slides may differ, but captions are keyed by
+        # element content so the ones that still apply are reused
+        state.status, state.completed_slide_indices = "in_progress", []
+        return "changed", state, digest
+    if state.status == "complete" and output_exists:
+        return "done", state, digest
+    if state.status == "complete":
+        # output was deleted or moved: rebuild it from the saved captions, no model calls
+        state.status, state.completed_slide_indices = "in_progress", []
+        return "partial", state, digest
+    if state.completed_slide_indices or state.caption_cache:
+        return "partial", state, digest
+    return "new", state, digest
+
+
 def discover_files(config: Config, resume_only: bool) -> list[Path]:
-    files = sorted(config.input_dir.glob("*.pptx"))
     result = []
-    for f in files:
-        state = load_state(config.state_dir, f.name)
-        if state.status == "complete":
-            if (config.output_dir / f.name).exists():
-                logger.info("[file: %s] already complete, skipping", f.name)
-                continue
-            # state and output/ have drifted apart (output was deleted/moved
-            # without clearing state) - reprocess rather than skip forever.
-            # Cached captions are kept, so this costs no extra API calls for
-            # images already captioned.
-            logger.warning(
-                "[file: %s] marked complete but output/%s is missing - "
-                "reprocessing (cached captions are reused, no extra API cost)",
-                f.name, f.name,
-            )
-            state.status = "in_progress"
-            state.completed_slide_indices = []
-            save_state(config.state_dir, state)
-        if resume_only and state.status != "in_progress":
+    for f in sorted(config.input_dir.glob("*.pptx")):
+        kind, state, _ = inspect_file(config, f)
+        if kind == "done":
+            logger.info("[file: %s] already captioned and unchanged, skipping", f.name)
+            events.emit("file_skipped", filename=f.name)
+            continue
+        if kind == "changed":
+            logger.info("[file: %s] changed since the last run - reprocessing (unchanged items reuse saved captions)", f.name)
+        if resume_only and kind in ("new", "changed"):
             continue
         result.append(f)
     return result
@@ -209,6 +227,8 @@ async def _process_slide(
         if caption == "":
             decorative += 1
             mark_decorative(shape)
+            if img_hash:
+                state.caption_cache[img_hash] = ""
             return
 
         captioned += 1
@@ -344,14 +364,17 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     prs = open_presentation(path)
     section_map = get_section_map(prs)
     total_slides = len(prs.slides)
-    state = load_state(config.state_dir, filename)
+    _, state, digest = inspect_file(config, path)
+    state.content_hash = digest
+    save_state(config.state_dir, state)
     events.emit("file_open", filename=filename, total_slides=total_slides,
                 resumed=len(state.completed_slide_indices))
 
+    # Every slide is walked again on a resume: the output deck is rebuilt from
+    # the untouched input, so slides finished before a crash must have their
+    # saved captions applied again. Cached items cost no model calls.
     any_failed = False
     for index, slide in enumerate(prs.slides):
-        if state.is_slide_done(index):
-            continue
         failed = await _process_slide(
             slide, index, total_slides, filename, section_map.get(index),
             config, client, semaphore, state,
@@ -368,19 +391,26 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
             "to retry them (cached captions won't be re-fetched)",
             filename,
         )
-    else:
-        state.status = "complete"
     save_state(config.state_dir, state)
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
     out_path = config.output_dir / filename
     events.emit("file_saving", filename=filename)
-    prs.save(str(out_path))
+    # save beside the target, then rename: a crash never leaves a half-written deck in output/
+    part_path = out_path.with_name(out_path.name + ".part")
+    prs.save(str(part_path))
+    os.replace(part_path, out_path)
+    if not any_failed:
+        # only now is the file really done
+        state.status = "complete"
+        save_state(config.state_dir, state)
     events.emit("file_saved", filename=filename, path=str(out_path), incomplete=any_failed)
     logger.info("[file: %s] saved to %s", filename, out_path)
 
 
 async def run(config: Config, resume_only: bool = False) -> list[str]:
+    for leftover in config.output_dir.glob("*.part"):
+        leftover.unlink(missing_ok=True)  # from a run that was killed mid-save
     files = discover_files(config, resume_only)
     if not files:
         logger.info("nothing to process")

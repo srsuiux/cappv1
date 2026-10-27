@@ -121,7 +121,7 @@ class RunView:
             self.slide = d["resumed"]
             self.phase, self.phase_since = "slide", now
             if d["resumed"]:
-                self._say(Text(f"  {DOT} resuming at slide {d['resumed'] + 1}", style=MUTED))
+                self._say(Text(f"  {DOT} continuing from an earlier run; saved captions are reused, not redone", style=MUTED))
         elif event == "slide_start":
             self.slide, self.slides = d["slide"], d["total"]
             self.phase, self.phase_since = "slide", now

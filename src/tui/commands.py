@@ -13,7 +13,7 @@ from rich.table import Table
 from rich.text import Text
 
 from src import doctor, models
-from src.state import load_state
+from src.pipeline import discover_files, inspect_file, run, setup_logging
 from src.tui import envfile
 from src.tui.menu import select
 from src.tui.theme import ACCENT, BAD, CROSS, MUTED, OK, PROVIDER_LABELS, TICK, WARN
@@ -81,7 +81,6 @@ def cmd_status(session, args: str) -> None:
 def cmd_files(session, args: str) -> None:
     config, _ = session.load(quiet=True)
     input_dir = envfile.ROOT / "input"
-    output_dir = envfile.ROOT / "output"
     files = sorted(input_dir.glob("*.pptx"))
     if not files:
         session.console.print(Text("\n No files yet. Drag a .pptx into this window, or copy it into the input/ folder.\n", style=MUTED))
@@ -90,14 +89,13 @@ def cmd_files(session, args: str) -> None:
     table.add_column("File", overflow="fold")
     table.add_column("Status")
     for f in files:
-        state = load_state(envfile.ROOT / ".state", f.name)
-        done = state.status == "complete" and (output_dir / f.name).exists()
-        if done:
-            status = Text(f"{TICK} done", style=OK)
-        elif state.completed_slide_indices:
-            status = Text(f"◐ {len(state.completed_slide_indices)} slides finished, will resume", style=WARN)
-        else:
-            status = Text("○ waiting", style=MUTED)
+        kind, _, _ = inspect_file(config, f) if config else ("new", None, "")
+        status = {
+            "done": Text(f"{TICK} already captioned, unchanged", style=OK),
+            "changed": Text("◐ edited since the last run, will redo what changed", style=WARN),
+            "partial": Text("◐ unfinished, will continue where it stopped", style=WARN),
+            "new": Text("○ waiting", style=MUTED),
+        }[kind]
         table.add_row(f.name, status)
     session.console.print()
     session.console.print(table)
@@ -351,7 +349,6 @@ def _setup_ollama(session, env: dict[str, str], remembered: str) -> str | None:
 
 # ---------------------------------------------------------------- /run
 def cmd_run(session, args: str) -> None:
-    from src.pipeline import discover_files, run, setup_logging
     from src.tui.runview import RunView
 
     console = session.console
@@ -379,7 +376,10 @@ def cmd_run(session, args: str) -> None:
     resume = "--resume" in args
     pending = discover_files(config, resume)
     if not pending:
-        console.print(Text("\n Everything in input/ is already done. Add more files, or /open to see the results.\n", style=MUTED))
+        names = [f.name for f in config.input_dir.glob("*.pptx")]
+        shown = ", ".join(names[:3]) + (f" and {len(names) - 3} more" if len(names) > 3 else "")
+        console.print(Text(f"\n {TICK} Already captioned and unchanged: {shown}.", style=OK))
+        console.print(Text(" Their finished copies are in output/ (type /open). Add new files, or edit a deck and drop it in again.\n", style=MUTED))
         return
 
     console.print()
