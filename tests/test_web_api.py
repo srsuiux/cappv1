@@ -70,7 +70,7 @@ def test_pages_load_without_a_token_and_carry_safety_headers(web):
 
 
 def test_static_files_cannot_escape_their_folder(web):
-    for path in ("/../server.py", "/%2e%2e/server.py", "/..%2fapi.py"):
+    for path in ("/../server.py", "/%2e%2e/server.py", "/..%2fapi.py", "/../pages/privacy.html", "/%2e%2e/templates/app.html"):
         status, _, _ = web.call("GET", path, token=False)
         assert status == 404
 
@@ -195,3 +195,46 @@ def test_run_rules(web, deck):
 def test_doctor(web):
     status, body, _ = web.call("GET", "/api/v1/doctor")
     assert status == 200 and {"checks", "ok"} <= set(body) and body["checks"][0]["label"]
+
+
+# ---- your data and keys -----------------------------------------------------------
+def test_services_describe_what_happens_to_slides(web):
+    services = {s["id"]: s for s in web.call("GET", "/api/v1/services")[1]["services"]}
+    assert "never leave" in services["ollama"]["handling"] and services["ollama"]["policy_url"] == ""
+    for name in ("openrouter", "openai", "anthropic"):
+        assert services[name]["handling"] and services[name]["policy_url"].startswith("https://")
+
+
+def test_a_saved_key_can_be_removed_but_never_read(web):
+    web.call("PUT", "/api/v1/settings", {"provider": "openai", "model": "gpt-4o-mini", "api_key": "sk-secret-123"})
+    status, body, _ = web.call("DELETE", "/api/v1/settings/keys/openai")
+    assert status == 200 and body["keys_saved"]["openai"] is False
+    assert "sk-secret-123" not in (web.server.ws.env_path.read_text())
+    assert web.call("DELETE", "/api/v1/settings/keys/ollama")[1]["error"]["code"] == "bad_request"
+    assert web.call("DELETE", "/api/v1/settings/keys/nope")[1]["error"]["code"] == "bad_service"
+
+
+def test_storage_lists_what_is_kept_and_erases_on_request(web, deck):
+    upload(web, "talk.pptx", deck)
+    web.call("POST", "/api/v1/runs", {})
+    wait_done(web)
+    status, body, _ = web.call("GET", "/api/v1/storage")
+    places = {p["id"]: p for p in body["places"]}
+    assert set(places) == {"input", "output", "state", "logs", "settings"}
+    assert places["input"]["files"] == 1 and places["output"]["files"] == 1 and places["state"]["files"] >= 1
+    assert places["settings"]["has_slides"] is False and places["input"]["has_slides"] is True
+    assert web.call("POST", "/api/v1/storage/clear", {})[1]["error"]["code"] == "bad_request"  # needs confirm
+    status, body, _ = web.call("POST", "/api/v1/storage/clear", {"confirm": True})
+    assert status == 200 and body["erased"]["input"] == 1 and body["erased"]["output"] == 1
+    after = {p["id"]: p for p in web.call("GET", "/api/v1/storage")[1]["places"]}
+    assert after["input"]["files"] == after["output"]["files"] == after["state"]["files"] == 0
+    assert after["settings"]["files"] == 1  # settings and keys stay
+
+
+def test_erasing_is_refused_during_a_run(web, deck, fake_ollama):
+    fake_ollama.delay = 0.5
+    upload(web, "talk.pptx", deck)
+    web.call("POST", "/api/v1/runs", {})
+    assert web.call("POST", "/api/v1/storage/clear", {"confirm": True})[1]["error"]["code"] == "busy"
+    web.call("POST", f"/api/v1/runs/{web.call('GET', '/api/v1/runs/current')[1]['id']}/cancel")
+    wait_done(web)
