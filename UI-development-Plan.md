@@ -1,6 +1,6 @@
 # cappv1 Web UI: Development Plan
 
-Status: **v3, scope trimmed.** Phases 1 and 2 done. Edit freely, then approve phase by phase.
+Status: **v3, scope trimmed.** Phases 1 to 3 done. Edit freely, then approve phase by phase.
 
 What changed in v3: the web UI is deliberately small. It is **not a data manager**: no file manager, no history, no database, no report archive. It does what the engine does: set up a service, upload decks, run, watch, download. What changed from v1: no web framework (plain HTML/CSS/JS and a standard-library server); the engine stays a library behind a shared **service layer** that both the terminal and the browser use; `/init` ends by asking where to continue; security, testing and CI sections added; phases reordered so the service layer comes first.
 

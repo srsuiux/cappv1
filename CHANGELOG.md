@@ -5,6 +5,8 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 ## Unreleased
 
 ### Added
+- Web pages: Home (add decks, run, live feed of the alt text being written, download), Setup (service, model, key) and Doctor. Plain HTML, CSS and JavaScript with a bundled accessible typeface (Atkinson Hyperlegible, SIL OFL); works with a keyboard and screen reader, in light and dark.
+- A new `alt_written` progress event carrying each piece of alt text as it is settled.
 - Local web server (`src/web`, standard library only) with a documented JSON API (`docs/API.md`): token and Host checks, size-limited uploads, live progress over Server-Sent Events.
 - `cappv1 --web [--port N] [--no-open]` and `/web` / `/web stop` inside cappv1; `/init` now ends by offering the browser or the terminal.
 - `src/services/`, a service layer between the engine and the screens, with a pytest suite and GitHub Actions CI.
