@@ -100,7 +100,7 @@ def main() -> int:
     env = read_env_file()
     use_ollama = pick_provider(env) == "ollama"
     heading = "vision-capable models installed in Ollama" if use_ollama else "free vision-capable models on OpenRouter"
-    print(f"{_BOLD}cappv1 models{_RESET} - {heading}\n")
+    print(f"{_BOLD}cappv1 /models{_RESET} - {heading}\n")
     if current:
         print(f"  Current: {_CYAN}{current}{_RESET}\n")
 
@@ -142,7 +142,7 @@ def main() -> int:
     model_id, name = models[int(choice) - 1]
     write_model(model_id)
     print(f"\n{_BOLD}{_GREEN}✓{_RESET} Switched to {_CYAN}{model_id}{_RESET} ({name}) - saved to .env")
-    print("Run: cappv1 start")
+    print("Open cappv1 and type /run")
     return 0
 
 

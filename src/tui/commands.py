@@ -184,13 +184,34 @@ def cmd_models(session, args: str) -> None:
     console.print()
     env = _env()
     active = doctor.pick_provider(env) if envfile.ENV_PATH.exists() else None
-    start = next((i for i, (p, _) in enumerate(_SERVICES) if p == active), 0)
-    choice = select("Which AI service?", _service_rows(env, active), start)
-    if choice is None:
-        console.print(Text(" Nothing changed.", style=MUTED))
-        return
-    provider, name = _SERVICES[choice]
-    console.print(Text(f" {TICK} Service: {name}", style=OK))
+
+    # Already set up: show what is in use and don't walk through setup again.
+    config, _ = session.load()
+    change_model_only = False
+    if config and active:
+        label = f"{PROVIDER_LABELS[active]} · {config.model}"
+        pick = select(f"Currently using {label}", [
+            ("Keep this", "no changes"),
+            ("Change the model", f"stay with {PROVIDER_LABELS[active]}"),
+            ("Switch AI service", "choose a different service"),
+        ])
+        if pick not in (1, 2):
+            _ok(session, f"Keeping {label}")
+            console.print(Text("   ", style=MUTED), session.privacy_text(active), sep="")
+            console.print()
+            return
+        change_model_only = pick == 1
+
+    if change_model_only:
+        provider, name = active, PROVIDER_LABELS[active]
+    else:
+        start = next((i for i, (p, _) in enumerate(_SERVICES) if p == active), 0)
+        choice = select("Which AI service?", _service_rows(env, active), start)
+        if choice is None:
+            console.print(Text(" Nothing changed.", style=MUTED))
+            return
+        provider, name = _SERVICES[choice]
+        console.print(Text(f" {TICK} Service: {name}", style=OK))
 
     # the model last used with this service, so switching back is one Enter
     remembered = env.get(f"MODEL_{provider.upper()}") or (env.get("MODEL", "") if provider == active else "")
@@ -368,7 +389,7 @@ def cmd_run(session, args: str) -> None:
             return
         config = replace(config, overwrite_existing=True)
 
-    # the same checks `cappv1 doctor --quick` runs, so a problem shows up now, not mid-deck
+    # the same quick checks as /doctor, so a problem shows up now, not mid-deck
     env = _env()
     if config.provider == "ollama":
         try:

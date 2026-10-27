@@ -59,15 +59,17 @@ mkdir -p ~/.local/bin
 ln -sf "$(pwd)/bin/cappv1" ~/.local/bin/cappv1
 ```
 
-**4. Check that it works.**
+**4. Open it and check that it works.**
 
 ```
-cappv1 doctor
+cappv1
 ```
 
-You should see a list of green checkmarks. A red ✗ means something needs fixing, and the line next to it says what.
+The first time, it offers to walk you through choosing an AI service. Then type `/doctor` and press Enter. You should see a list of green checkmarks. A red ✗ means something needs fixing, and the line next to it says what.
 
-The first time you run `cappv1 doctor` or `cappv1`, it pauses for a few extra seconds to install what it needs. That's normal and only happens once.
+`cappv1` is the only command you type in Terminal. Everything else (`/run`, `/doctor`, `/models`, ...) is typed inside it.
+
+The first time you open cappv1, it pauses for a few extra seconds to install what it needs. That's normal and only happens once.
 
 ## Using it
 
@@ -93,21 +95,22 @@ Inside the session (type `/` to see them as you type):
 |---|---|
 | `/run` | Processes every `.pptx` in `input`, one by one. Add `--resume` to only continue unfinished files, or `--force` to redo everything and replace alt text that authors wrote themselves (it asks first). |
 | `/files` | Shows the files waiting in `input` and how far along each is. |
-| `/models` (also `/init`) | Switch the AI service or model. Pick a service (it shows which keep your slides on your computer), paste a key only if it's new, then pick a model. For OpenRouter you can choose free models, the cheapest paid ones, or browse by maker (OpenAI, Google, DeepSeek and more) with prices shown. Each service remembers the model you used last. |
+| `/models` (also `/init`) | Shows what you're using now and lets you keep it, change just the model, or switch service. To switch, pick a service (it shows which keep your slides on your computer), paste a key only if it's new, then pick a model. For OpenRouter you can choose free models, the cheapest paid ones, or browse by maker (OpenAI, Google, DeepSeek and more) with prices shown. Each service remembers the model you used last. |
 | `/doctor` | Checks your setup. Safe to run any time; it changes nothing. |
 | `/status` | Shows the service, model, and whether your slides stay on your computer. |
 | `/open` | Opens the `output` folder. |
 | `/clean` | **Permanently deletes** everything in `input` and `output`, plus saved progress. It asks first, but there's no undo. |
 | `/clear`, `/help`, `/exit` | Clear the screen, list commands, leave (or press `Ctrl+D`). |
 
-From your normal Terminal prompt:
+In your normal Terminal prompt there is just one command:
 
 | Type this | What it does |
 |---|---|
-| `cappv1` or `cappv1 start` | Opens the session. |
-| `cappv1 init` | Opens the session straight into setup. |
-| `cappv1 start --batch` | No prompt: processes `input` in the background and shows the log. For scripts. Add `--resume` to continue unfinished files. |
-| `cappv1 doctor`, `cappv1 models`, `cappv1 clean` | The same as the commands above, without opening the session. |
+| `cappv1` | Opens cappv1. Everything above is typed inside it. |
+| `cappv1 --batch` | For scripts only: no prompt, processes `input` in the background and shows the log. Add `--resume` or `--force` as in `/run`. |
+| `cappv1 --version`, `cappv1 --help` | Show the version, or a short reminder of the above. |
+
+Anything else, like `cappv1 doctor`, is refused with a reminder to open cappv1 first.
 
 ## Private mode: run everything on your own computer
 
@@ -134,11 +137,10 @@ If you downloaded a different model in step 2, also set `MODEL=` to its name, fo
 **4. Check and run.**
 
 ```
-cappv1 doctor
 cappv1
 ```
 
-Then type `/run` in the session. `cappv1 doctor` (or `/doctor`) should show green checks for "Ollama address is this computer", "Ollama is running", and "model is downloaded". `cappv1 models` lists the vision models you have installed and lets you pick one.
+Then type `/doctor`. It should show green checks for "Ollama address is this computer", "Ollama is running", and "model is downloaded". Type `/run` to start. `/models` lists the vision models you have installed and lets you pick one.
 
 **What to expect.** Local models are slower than the online services: roughly several seconds to a minute per image, depending on your computer. They process one image at a time. Small models also write plainer descriptions and are weaker on embedded Word/Excel objects, so read the results before sharing. If quality matters more than privacy, use a bigger local model or an online service.
 
@@ -160,13 +162,13 @@ Open `.env` and change `PROVIDER=` to another service (make sure that service's 
 | What you see | What to do |
 |---|---|
 | `command not found: cappv1` | Run step 3 of Install again from the project folder. If it still fails, run `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc`, then try again. |
-| A red ✗ in `cappv1 doctor` | Read the message beside it. It says what to fix. |
+| A red ✗ in `/doctor` | Read the message beside it. It says what to fix. |
 | `API key is not set` or `rejected this key (401)` | Re-check the key in `.env`: no spaces or quotes, and it's on the line that matches your `PROVIDER`. |
 | Some images, tables, or charts have no description | The AI service had a temporary hiccup. Type `/run` again; it retries only what's missing. |
-| `Ollama is running` shows a red ✗ | Open the Ollama app (or run `ollama serve` in Terminal), then run `cappv1 doctor` again. |
+| `Ollama is running` shows a red ✗ | Open the Ollama app (or run `ollama serve` in Terminal), then type `/doctor` again. |
 | `model ... is downloaded` shows a red ✗ | Run the `ollama pull ...` command shown next to it. |
 | Private mode is very slow, or a request times out | Use a smaller model (`gemma3:4b`), close other heavy apps, or raise `REQUEST_TIMEOUT=` in `.env`. |
-| A message mentioning "billing" or "402" | That model needs payment. On OpenRouter run `cappv1 models` and pick a free one. On OpenAI or Anthropic, add credit to your account. |
+| A message mentioning "billing" or "402" | That model needs payment. On OpenRouter type `/models` and pick a free one. On OpenAI or Anthropic, add credit to your account. |
 | A file doesn't process at all | The file may be damaged. Re-save it from PowerPoint and add it to `input` again. |
 
 ## How it works

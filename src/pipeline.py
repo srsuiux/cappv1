@@ -403,7 +403,7 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
         # failed slides - succeeded images on them are still cached, so
         # nothing gets re-captioned unnecessarily.
         logger.warning(
-            "[file: %s] finished with some images uncaptioned - rerun cappv1 start "
+            "[file: %s] finished with some images uncaptioned - type /run again "
             "to retry them (cached captions won't be re-fetched)",
             filename,
         )

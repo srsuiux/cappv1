@@ -2,11 +2,8 @@
 # Global launcher for the PPTX alt-text automation. Symlinked onto PATH
 # (~/.local/bin/cappv1) so it can be typed from any directory.
 #
-#   cappv1 / start / init     open the interactive session (slash commands, drag-and-drop)
-#   cappv1 start --batch      process every file in input/ in the background (scripts, no prompt)
-#   cappv1 doctor                                    check that the environment is set up correctly
-#   cappv1 models                                      pick a model (free OpenRouter, or installed in Ollama)
-#   cappv1 clean                                         wipe input/, output/, and tracked run state
+#   cappv1            open cappv1; everything else (/run, /doctor, /models, ...) is typed inside it
+#   cappv1 --batch    no prompt, for scripts: process every file in input/ in the background
 set -euo pipefail
 
 # Resolve this script's real location, following the symlink at
@@ -33,25 +30,20 @@ usage() {
 ${BOLD}cappv1${RESET} - PPTX alt-text automation
 
 ${BOLD}Usage${RESET}
-  cappv1                                   open the interactive session (also: cappv1 start)
-  cappv1 init                              open the session straight into setup
-  cappv1 start --batch [--resume]          no prompt: process input/ in the background
-  cappv1 doctor                            check your setup
-  cappv1 models                             pick a model (free OpenRouter, or local Ollama)
-  cappv1 clean                               wipe input/, output/, and run state
+  cappv1                    open cappv1 (everything else happens inside it)
+  cappv1 --batch [--resume] [--force]
+                            no prompt, for scripts: process input/ in the background
+  cappv1 --version
 
-${BOLD}Examples${RESET}
-  cappv1
-  cappv1 doctor
-  cappv1 models
-  cappv1 clean
+${BOLD}Inside cappv1${RESET}, type / to see the commands:
+  /run  /files  /models  /doctor  /status  /open  /clean  /help  /exit
 EOF
 }
 
 start() {
     if ! python3 src/doctor.py --quick; then
         echo ""
-        echo "${RED}Not ready to run yet${RESET} - see checks above, or run: cappv1 doctor"
+        echo "${RED}Not ready to run yet${RESET} - open cappv1 and type /doctor to see what to fix"
         exit 1
     fi
 
@@ -59,7 +51,7 @@ start() {
     pptx_files=(input/*.pptx)
     if [ ${#pptx_files[@]} -eq 0 ]; then
         echo ""
-        echo "${YELLOW}No .pptx files in input/ yet${RESET} - add one, then run: cappv1 start"
+        echo "${YELLOW}No .pptx files in input/ yet${RESET} - add one, then run: cappv1 --batch"
         exit 0
     fi
 
@@ -103,36 +95,6 @@ start() {
     tail -n +1 -f "$log_file"
 }
 
-clean() {
-    shopt -s nullglob
-    input_files=(input/*.pptx)
-    output_files=(output/*.pptx)
-    state_files=(.state/*.json)
-    n_in=${#input_files[@]}
-    n_out=${#output_files[@]}
-    n_state=${#state_files[@]}
-
-    [ "$n_in" -gt 0 ] && rm -f "${input_files[@]}"
-    [ "$n_out" -gt 0 ] && rm -f "${output_files[@]}"
-    [ "$n_state" -gt 0 ] && rm -f "${state_files[@]}"
-
-    echo "${BOLD}cappv1 clean${RESET}"
-    echo ""
-    echo "  ${GREEN}✓${RESET} removed $n_in file(s) from input/"
-    echo "  ${GREEN}✓${RESET} removed $n_out file(s) from output/"
-    echo "  ${GREEN}✓${RESET} cleared $n_state tracked run(s) from .state/"
-    echo ""
-    echo "Workspace is clean and ready to go - drop files into input/, then run: cappv1 start"
-}
-
-doctor() {
-    python3 src/doctor.py
-}
-
-models() {
-    python3 src/models.py
-}
-
 session() {
     exec ./run.sh --session "$@"
 }
@@ -140,37 +102,27 @@ session() {
 cmd="${1:-}"
 case "$cmd" in
     "")
-        [ -t 0 ] && [ -t 1 ] && session || usage
-        ;;
-    init)
-        session init
-        ;;
-    start)
-        shift
-        # the interactive session needs a real terminal; scripts and --batch get the old behavior
-        if [ -t 0 ] && [ -t 1 ] && [[ " $* " != *" --batch "* ]]; then
+        if [ -t 0 ] && [ -t 1 ]; then
             session
         else
-            args=(); for a in "$@"; do [ "$a" = "--batch" ] || args+=("$a"); done
-            start ${args[@]+"${args[@]}"}
+            usage
         fi
         ;;
-    doctor)
-        doctor
+    --batch)
+        shift
+        start "$@"
         ;;
-    models)
-        models
+    --version|-V)
+        python3 src/version.py
         ;;
-    clean)
-        clean
-        ;;
-    -h|--help|help)
+    -h|--help)
         usage
         ;;
     *)
         echo "${RED}Unknown command:${RESET} $cmd"
         echo ""
-        usage
+        echo "cappv1 has one command. Type ${BOLD}cappv1${RESET} to open it; everything else"
+        echo "(/run, /doctor, /models, /clean ...) is typed inside."
         exit 1
         ;;
 esac
