@@ -20,11 +20,11 @@ from src import doctor
 from src.config import Config, load_config
 from src.pipeline import inspect_file
 from src.tui import anim, envfile
+from src.version import VERSION
 from src.tui.commands import build_commands
 from src.tui.menu import select
 from src.tui.theme import ACCENT, ANIMATE, ARROW, MUTED, OK, PROVIDER_LABELS, TICK, WARN
 
-VERSION = "1.1.0"
 
 _PROMPT_STYLE = Style.from_dict({
     "rule": "#555555",
@@ -133,17 +133,15 @@ class Session:
         return FormattedText([("class:rule", "─" * width + "\n"), ("class:prompt", f"{ARROW} ")])
 
     # ---- startup ---------------------------------------------------------
-    def start(self, goto_init: bool = False) -> None:
+    def start(self) -> None:
         with self.console.status(anim.shimmer("Checking your setup", None), spinner="dots", spinner_style=ACCENT):
             self.load()
         self.console.print()
         self.banner()
-        if goto_init or not self.config:
-            if not goto_init:
-                pick = select("Set up now?", [("Yes, choose an AI service", "takes about a minute"), ("Not now", "")])
-                if pick != 0:
-                    return
-            self.dispatch("init", "")
+        if not self.config:
+            pick = select("Set up now?", [("Yes, choose an AI service", "takes about a minute"), ("Not now", "")])
+            if pick == 0:
+                self.dispatch("models", "")
 
     # ---- input handling --------------------------------------------------
     def find(self, name: str):
@@ -236,9 +234,9 @@ class Session:
 
 def main(argv: list[str]) -> int:
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
-        print("cappv1 needs an interactive terminal. For scripts or background runs use: cappv1 start --batch")
+        print("cappv1 needs an interactive terminal. For scripts or background runs use: cappv1 --batch")
         return 1
     session = Session()
-    session.start(goto_init="init" in argv)
+    session.start()
     session.loop()
     return 0

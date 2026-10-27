@@ -25,7 +25,7 @@ Short imperative subject ("Add Ollama provider"), then a few lines on why. One l
 ## Cutting a release
 
 1. Branch is merged to `main`; `git status` is clean.
-2. Update `VERSION` in `src/tui/session.py` and add a section to `CHANGELOG.md`.
+2. Update `VERSION` in `src/version.py` and add a section to `CHANGELOG.md`.
 3. Commit: `Release vX.Y.Z`.
 4. `git tag -a vX.Y.Z -m "cappv1 X.Y.Z"` then `git push origin main vX.Y.Z`.
 5. On GitHub, create a Release from the tag and paste the changelog section.

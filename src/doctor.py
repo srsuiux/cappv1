@@ -61,7 +61,7 @@ def pick_provider(env: dict[str, str]) -> str:
 def check_venv_deps() -> tuple[bool | None, str]:
     venv_python = ROOT / ".venv" / "bin" / "python"
     if not venv_python.exists():
-        return None, "will be created automatically the first time you run cappv1 start"
+        return None, "will be created automatically the first time you open cappv1"
     try:
         subprocess.run(
             [str(venv_python), "-c", "import pptx, httpx, PIL, imagehash, dotenv, rich, prompt_toolkit"],
@@ -69,7 +69,7 @@ def check_venv_deps() -> tuple[bool | None, str]:
         )
         return True, "installed"
     except Exception:
-        return False, "venv exists but dependencies are incomplete - try: rm -rf .venv && cappv1 start"
+        return False, "venv exists but dependencies are incomplete - try: rm -rf .venv && cappv1"
 
 
 def check_api_key_live(provider: str, key: str) -> tuple[bool, str]:
@@ -162,7 +162,7 @@ def main() -> int:
     parser.add_argument("--quick", action="store_true", help="skip the live API key check")
     args = parser.parse_args()
 
-    print(f"{_BOLD}cappv1 doctor{_RESET} - environment check\n")
+    print(f"{_BOLD}cappv1 /doctor{_RESET} - environment check\n")
     all_ok = True
 
     env_exists = (ROOT / ".env").exists()
@@ -201,9 +201,9 @@ def main() -> int:
 
     print()
     if all_ok:
-        print(f"{_BOLD}{_GREEN}All checks passed{_RESET} - ready to run. Type: cappv1 start")
+        print(f"{_BOLD}{_GREEN}All checks passed{_RESET} - ready to run. Open cappv1 and type /run")
     else:
-        print(f"{_BOLD}{_RED}Some checks failed.{_RESET} Fix the [{CROSS}] items above, then run: cappv1 doctor")
+        print(f"{_BOLD}{_RED}Some checks failed.{_RESET} Fix the [{CROSS}] items above, then run /doctor again")
     return 0 if all_ok else 1
 
 

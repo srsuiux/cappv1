@@ -2,6 +2,12 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
+## Unreleased
+
+### Changed
+- `cappv1` is now the only command in the shell. `cappv1 doctor`, `models`, `clean`, `init` and `start` are refused; use `/doctor`, `/models`, `/clean` and the others inside the session. `cappv1 --batch` remains for scripts, plus `--version` and `--help`.
+- `/models` (`/init`) shows the current service and model first and lets you keep it, change only the model, or switch service, instead of asking everything again.
+
 ## 1.1.0
 
 ### Added

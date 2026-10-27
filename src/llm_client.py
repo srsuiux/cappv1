@@ -303,7 +303,7 @@ async def _request_completion(
         if resp.status_code in (401, 403):
             logger.error(
                 "caption generation failed: %s rejected the request (%d) - "
-                "check your API key with 'cappv1 doctor'.",
+                "check your API key with /doctor.",
                 label, resp.status_code,
             )
             return None
