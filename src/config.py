@@ -59,7 +59,8 @@ class Config:
     overwrite_existing: bool = False
 
 
-def load_config() -> Config:
+def load_config(root: Path | None = None) -> Config:
+    root = root or ROOT
     provider = resolve_provider(os.environ)
     key_var, default_model, default_fallback = PROVIDERS[provider]
     api_key = os.environ.get(key_var, "").strip() if key_var else ""
@@ -87,9 +88,9 @@ def load_config() -> Config:
         concurrency=int(os.environ.get("CONCURRENCY", "").strip() or (1 if is_local else 4)),
         min_image_size_px=int(os.environ.get("MIN_IMAGE_SIZE_PX", "40")),
         max_alt_text_chars=int(os.environ.get("MAX_ALT_TEXT_CHARS", "125")),
-        input_dir=ROOT / "input",
-        output_dir=ROOT / "output",
-        state_dir=ROOT / ".state",
-        logs_dir=ROOT / "logs",
+        input_dir=root / "input",
+        output_dir=root / "output",
+        state_dir=root / ".state",
+        logs_dir=root / "logs",
         min_existing_alt_chars=int(os.environ.get("MIN_EXISTING_ALT_CHARS", "").strip() or 30),
     )

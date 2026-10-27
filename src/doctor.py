@@ -35,8 +35,8 @@ DEFAULT_OLLAMA_URL = "http://localhost:11434"
 DEFAULT_OLLAMA_MODEL = "gemma3:4b"  # mirrors src.config.PROVIDERS
 
 
-def read_env_file() -> dict[str, str]:
-    env_path = ROOT / ".env"
+def read_env_file(root: Path = ROOT) -> dict[str, str]:
+    env_path = root / ".env"
     values = {}
     if env_path.exists():
         for raw_line in env_path.read_text().splitlines():
