@@ -127,9 +127,11 @@ def inspect_file(config: Config, path: Path) -> tuple[str, FileState, str]:
     return "new", state, digest
 
 
-def discover_files(config: Config, resume_only: bool) -> list[Path]:
+def discover_files(config: Config, resume_only: bool, force: bool = False) -> list[Path]:
     result = []
     for f in sorted(config.input_dir.glob("*.pptx")):
+        if force:
+            (config.state_dir / f"{f.name}.json").unlink(missing_ok=True)  # forget saved progress and captions
         kind, state, _ = inspect_file(config, f)
         if kind == "done":
             logger.info("[file: %s] already captioned and unchanged, skipping", f.name)
@@ -184,7 +186,7 @@ async def _process_slide(
 
     if total_elements == 0:
         events.emit("slide_end", filename=filename, slide=slide_index, total=total_slides,
-                    captioned=0, decorative=0, cached=0, failed=0, empty=True)
+                    captioned=0, enhanced=0, kept=0, decorative=0, cached=0, failed=0, empty=True)
         logger.info(
             "[file: %s] %s %d/%d [section: %s] no images, tables, or charts",
             filename, bar, slide_index + 1, total_slides, section or "-",
@@ -192,146 +194,160 @@ async def _process_slide(
         state.mark_slide_done(slide_index)
         return 0
 
-    captioned, decorative, cached, failed = 0, 0, 0, 0
+    n = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0}
+
+    def author_text(shape) -> str:
+        """Alt-text the slide's author already wrote. We build on it, never
+        replace it, unless the run was started with --force."""
+        return "" if config.overwrite_existing else get_alt_text(shape).strip()
+
+    def key_for(base: str, author: str) -> str:
+        # the author's text changes what a good result is, so it is part of the cache key
+        return base + (f"|author:{hashlib.sha256(author.encode()).hexdigest()[:12]}" if author else "")
+
+    def from_cache(shape, key: str) -> bool:
+        if key not in state.caption_cache:
+            return False
+        n["cached"] += 1
+        set_alt_text(shape, state.caption_cache[key])
+        return True
+
+    def settle(shape, caption: str, author: str) -> str:
+        """Writes the model's answer and returns the final alt-text. With an
+        author's text, KEEP (or any non-answer) leaves it exactly as written."""
+        if author:
+            answer = caption.strip().strip("\"'. ").upper()
+            if not answer or answer.startswith("KEEP") or answer in ("DECORATIVE", "UNKNOWN"):
+                n["kept"] += 1
+                return author
+            n["enhanced"] += 1
+        else:
+            n["captioned"] += 1
+        set_alt_text(shape, caption)
+        return caption
 
     # No LLM call needed here - these are provably zero-pixel shapes (explicit
     # no-fill + no-line + no text), not a judgment call, so marking them
     # decorative is a pure XML write, same as PowerPoint's own "Mark as
-    # decorative" action.
+    # decorative" action. Anything the author labeled is left alone.
     for shape in invisible_shapes:
-        decorative += 1
+        if author_text(shape):
+            n["kept"] += 1
+            continue
+        n["decorative"] += 1
         mark_decorative(shape)
 
     async def handle_picture(shape):
-        nonlocal captioned, decorative, cached, failed
-        image = shape.image
-        image_bytes, ext = image.blob, image.ext
+        author = author_text(shape)
+        image_bytes, ext = shape.image.blob, shape.image.ext
 
         if is_too_small(image_bytes, config.min_image_size_px):
-            decorative += 1
-            mark_decorative(shape)
+            if author:
+                n["kept"] += 1
+            else:
+                n["decorative"] += 1
+                mark_decorative(shape)
             return
 
         img_hash = perceptual_hash(image_bytes)
-        if img_hash and img_hash in state.caption_cache:
-            cached += 1
-            set_alt_text(shape, state.caption_cache[img_hash])
+        key = key_for(img_hash, author) if img_hash else None
+        if key and from_cache(shape, key):
             return
 
         async with semaphore, events.working("picture", slide_index):
-            caption = await generate_caption(client, config, image_bytes, ext, context)
+            caption = await generate_caption(client, config, image_bytes, ext, context, existing=author)
 
         if caption is None:
-            failed += 1
+            n["failed"] += 1
             return
-        if caption == "":
-            decorative += 1
+        if caption == "" and not author:
+            n["decorative"] += 1
             mark_decorative(shape)
-            if img_hash:
-                state.caption_cache[img_hash] = ""
+            if key:
+                state.caption_cache[key] = ""
             return
 
-        captioned += 1
-        set_alt_text(shape, caption)
-        if img_hash:
-            state.caption_cache[img_hash] = caption
+        final = settle(shape, caption, author)
+        if key:
+            state.caption_cache[key] = final
 
     async def handle_table(shape):
-        nonlocal captioned, cached, failed
-        table = shape.table
-        text_repr = table_to_text(table)
-        content_hash = "table:" + hashlib.sha256(text_repr.encode()).hexdigest()
-        if content_hash in state.caption_cache:
-            cached += 1
-            set_alt_text(shape, state.caption_cache[content_hash])
+        author = author_text(shape)
+        text_repr = table_to_text(shape.table)
+        key = key_for("table:" + hashlib.sha256(text_repr.encode()).hexdigest(), author)
+        if from_cache(shape, key):
             return
 
         async with semaphore, events.working("table", slide_index):
-            caption = await generate_table_alt_text(client, config, text_repr, context)
+            caption = await generate_table_alt_text(client, config, text_repr, context, existing=author)
 
         if caption is None:
-            failed += 1
+            n["failed"] += 1
             return
-
-        captioned += 1
-        set_alt_text(shape, caption)
-        state.caption_cache[content_hash] = caption
+        state.caption_cache[key] = settle(shape, caption, author)
 
     async def handle_chart(shape):
-        nonlocal captioned, cached, failed
-        chart = shape.chart
-        text_repr = chart_to_text(chart)
-        content_hash = "chart:" + hashlib.sha256(text_repr.encode()).hexdigest()
-        if content_hash in state.caption_cache:
-            cached += 1
-            set_alt_text(shape, state.caption_cache[content_hash])
+        author = author_text(shape)
+        text_repr = chart_to_text(shape.chart)
+        key = key_for("chart:" + hashlib.sha256(text_repr.encode()).hexdigest(), author)
+        if from_cache(shape, key):
             return
 
         async with semaphore, events.working("chart", slide_index):
-            caption = await generate_chart_alt_text(client, config, text_repr, context)
+            caption = await generate_chart_alt_text(client, config, text_repr, context, existing=author)
 
         if caption is None:
-            failed += 1
+            n["failed"] += 1
             return
-
-        captioned += 1
-        set_alt_text(shape, caption)
-        state.caption_cache[content_hash] = caption
+        state.caption_cache[key] = settle(shape, caption, author)
 
     async def handle_ole(shape):
-        nonlocal captioned, cached, failed
+        author = author_text(shape)
         of = shape.ole_format
         blob = of.blob
         if blob is None:
-            failed += 1
+            n["kept" if author else "failed"] += 1
             return
         text_repr = ole_object_to_text(blob)
-        content_hash = "ole:" + hashlib.sha256(blob).hexdigest()
-        if content_hash in state.caption_cache:
-            cached += 1
-            set_alt_text(shape, state.caption_cache[content_hash])
+        key = key_for("ole:" + hashlib.sha256(blob).hexdigest(), author)
+        if from_cache(shape, key):
             return
 
         caption = None
         if text_repr:
             async with semaphore, events.working("object", slide_index):
-                caption = await generate_ole_alt_text(client, config, text_repr, context)
+                caption = await generate_ole_alt_text(client, config, text_repr, context, existing=author)
+        elif author:
+            n["kept"] += 1  # nothing readable to improve it with
+            return
 
         if caption is None:
-            failed += 1
+            n["failed"] += 1
             return
-        if caption.strip().upper() == "UNKNOWN":
+        if caption.strip().upper() == "UNKNOWN" and not author:
             # Heuristic extraction gave the model nothing usable - still
             # better than silence: an honest, non-invented fallback naming
             # what kind of object this is, not what it contains.
             caption = f"Embedded {of.prog_id or 'object'} (automatic description unavailable)"
-
-        captioned += 1
-        set_alt_text(shape, caption)
-        state.caption_cache[content_hash] = caption
+        state.caption_cache[key] = settle(shape, caption, author)
 
     async def handle_smartart(shape):
-        nonlocal captioned, cached, failed
+        author = author_text(shape)
         text_repr = smartart_to_text(shape)
         if not text_repr:
-            failed += 1
+            n["kept" if author else "failed"] += 1
             return
-        content_hash = "smartart:" + hashlib.sha256(text_repr.encode()).hexdigest()
-        if content_hash in state.caption_cache:
-            cached += 1
-            set_alt_text(shape, state.caption_cache[content_hash])
+        key = key_for("smartart:" + hashlib.sha256(text_repr.encode()).hexdigest(), author)
+        if from_cache(shape, key):
             return
 
         async with semaphore, events.working("diagram", slide_index):
-            caption = await generate_smartart_alt_text(client, config, text_repr, context)
+            caption = await generate_smartart_alt_text(client, config, text_repr, context, existing=author)
 
         if caption is None:
-            failed += 1
+            n["failed"] += 1
             return
-
-        captioned += 1
-        set_alt_text(shape, caption)
-        state.caption_cache[content_hash] = caption
+        state.caption_cache[key] = settle(shape, caption, author)
 
     await asyncio.gather(
         *(handle_picture(shape) for shape in pictures),
@@ -341,17 +357,17 @@ async def _process_slide(
         *(handle_smartart(shape) for shape in smartart_shapes),
     )
 
+    failed = n["failed"]
     logger.info(
-        "[file: %s] %s %d/%d [section: %s] captioned %d, decorative %d, cached %d, "
-        "failed %d (of %d elements: %d images, %d tables, %d charts, %d OLE objects, "
-        "%d SmartArt, %d invisible shapes)",
+        "[file: %s] %s %d/%d [section: %s] captioned %d, enhanced %d, kept author's %d, "
+        "decorative %d, cached %d, failed %d (of %d elements: %d images, %d tables, "
+        "%d charts, %d OLE objects, %d SmartArt, %d invisible shapes)",
         filename, bar, slide_index + 1, total_slides, section or "-",
-        captioned, decorative, cached, failed,
+        n["captioned"], n["enhanced"], n["kept"], n["decorative"], n["cached"], failed,
         total_elements, len(pictures), len(tables), len(charts), len(ole_objects),
         len(smartart_shapes), len(invisible_shapes),
     )
-    events.emit("slide_end", filename=filename, slide=slide_index, total=total_slides,
-                captioned=captioned, decorative=decorative, cached=cached, failed=failed, empty=False)
+    events.emit("slide_end", filename=filename, slide=slide_index, total=total_slides, empty=False, **n)
     if failed == 0:
         state.mark_slide_done(slide_index)
     return failed
@@ -408,10 +424,10 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     logger.info("[file: %s] saved to %s", filename, out_path)
 
 
-async def run(config: Config, resume_only: bool = False) -> list[str]:
+async def run(config: Config, resume_only: bool = False, force: bool = False) -> list[str]:
     for leftover in config.output_dir.glob("*.part"):
         leftover.unlink(missing_ok=True)  # from a run that was killed mid-save
-    files = discover_files(config, resume_only)
+    files = discover_files(config, resume_only, force)
     if not files:
         logger.info("nothing to process")
         events.emit("run_empty")

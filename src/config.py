@@ -55,6 +55,8 @@ class Config:
     output_dir: Path
     state_dir: Path
     logs_dir: Path
+    min_existing_alt_chars: int = 30
+    overwrite_existing: bool = False
 
 
 def load_config() -> Config:
@@ -89,4 +91,5 @@ def load_config() -> Config:
         output_dir=ROOT / "output",
         state_dir=ROOT / ".state",
         logs_dir=ROOT / "logs",
+        min_existing_alt_chars=int(os.environ.get("MIN_EXISTING_ALT_CHARS", "").strip() or 30),
     )

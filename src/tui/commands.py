@@ -4,7 +4,7 @@ import platform
 import shutil
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 from urllib.parse import urlparse
 
@@ -360,6 +360,14 @@ def cmd_run(session, args: str) -> None:
         console.print(Text("\n Nothing to process yet. Drag a .pptx into this window first.\n", style=MUTED))
         return
 
+    force = "--force" in args
+    if force:
+        console.print(Text("\n --force redoes every file from scratch and replaces alt text that authors wrote themselves.", style=WARN))
+        if select("Continue?", [("No, keep what's there", ""), ("Yes, redo everything", "author text is replaced")]) != 1:
+            console.print(Text(" Nothing changed.\n", style=MUTED))
+            return
+        config = replace(config, overwrite_existing=True)
+
     # the same checks `cappv1 doctor --quick` runs, so a problem shows up now, not mid-deck
     env = _env()
     if config.provider == "ollama":
@@ -374,7 +382,7 @@ def cmd_run(session, args: str) -> None:
 
     setup_logging(config.logs_dir, console=False)
     resume = "--resume" in args
-    pending = discover_files(config, resume)
+    pending = discover_files(config, resume, force)
     if not pending:
         names = [f.name for f in config.input_dir.glob("*.pptx")]
         shown = ", ".join(names[:3]) + (f" and {len(names) - 3} more" if len(names) > 3 else "")
@@ -387,7 +395,7 @@ def cmd_run(session, args: str) -> None:
     view = RunView(console, config)
     try:
         with view:
-            failed = asyncio.run(run(config, resume_only=resume))
+            failed = asyncio.run(run(config, resume_only=resume, force=force))
     except KeyboardInterrupt:
         console.print(Text("\n Stopped. Finished slides are saved; /run continues from there.\n", style=WARN))
         return
@@ -400,7 +408,13 @@ def cmd_run(session, args: str) -> None:
     body = Text()
     body.append(f"{view.files_ok} of {len(pending)} file(s) finished", style=f"bold {OK if not (failed or view.files_bad) else WARN}")
     body.append(f"   in {took // 60}m {took % 60:02d}s\n", style=MUTED)
-    body.append(f"{t['captioned']} described · {t['decorative']} decorative · {t['cached']} reused · {t['failed']} failed")
+    parts = [f"{t['captioned']} described"]
+    if t["enhanced"]:
+        parts.append(f"{t['enhanced']} improved")
+    if t["kept"]:
+        parts.append(f"{t['kept']} kept as written")
+    parts += [f"{t['decorative']} decorative", f"{t['cached']} reused", f"{t['failed']} failed"]
+    body.append(" · ".join(parts))
     if failed or view.files_bad:
         body.append("\nSome items need a retry. Run /run again; finished work isn't redone.", style=WARN)
     else:
@@ -448,7 +462,7 @@ def cmd_exit(session, args: str) -> None:
 
 def build_commands() -> list[Command]:
     return [
-        Command("run", "Describe everything in input/ (add --resume to continue unfinished files)", cmd_run, ("start",)),
+        Command("run", "Describe everything in input/ (--resume continues unfinished files; --force redoes all and replaces authors' text)", cmd_run, ("start",)),
         Command("files", "Show the files waiting in input/ and their progress", cmd_files, ("ls",)),
         Command("models", "Switch the AI service or model", cmd_models, ("init", "setup", "provider")),
         Command("doctor", "Check that everything is working", cmd_doctor),

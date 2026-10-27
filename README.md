@@ -91,7 +91,7 @@ Inside the session (type `/` to see them as you type):
 
 | Type this | What it does |
 |---|---|
-| `/run` | Processes every `.pptx` in `input`, one by one. Add `--resume` to only continue unfinished files. |
+| `/run` | Processes every `.pptx` in `input`, one by one. Add `--resume` to only continue unfinished files, or `--force` to redo everything and replace alt text that authors wrote themselves (it asks first). |
 | `/files` | Shows the files waiting in `input` and how far along each is. |
 | `/models` (also `/init`) | Switch the AI service or model. Pick a service (it shows which keep your slides on your computer), paste a key only if it's new, then pick a model. For OpenRouter you can choose free models, the cheapest paid ones, or browse by maker (OpenAI, Google, DeepSeek and more) with prices shown. Each service remembers the model you used last. |
 | `/doctor` | Checks your setup. Safe to run any time; it changes nothing. |
@@ -174,6 +174,17 @@ Open `.env` and change `PROVIDER=` to another service (make sure that service's 
 For each file, the tool goes through the slides one at a time. For each picture, table, chart, or embedded object (a pasted-in Word, Excel, or Visio file, or a SmartArt diagram) it sends the content to the AI along with the slide's title and notes, so the description fits its context. Pictures are sent as images; everything else is sent as text. The AI's answer is written into that shape's alt-text field, the same one PowerPoint's **Edit Alt Text** uses.
 
 Shapes that are completely invisible (no fill, no outline, no text) are marked as decorative, like PowerPoint's own "Mark as decorative" button, so screen readers skip them. Everything else in the file stays exactly as it was.
+
+## Alt text that's already there, and picking up where it stopped
+
+**If you already wrote alt text, cappv1 builds on it; it never silently replaces it.** For each picture, table, chart, or diagram that already has alt text:
+
+- If it's very short (under 30 characters by default, such as just "Logo"), it's treated as unfinished. The AI writes an improved version that keeps your wording and adds what's missing.
+- Otherwise the AI judges it. If it already says what the item shows and why it matters, it's left exactly as you wrote it. If not, an improved version that keeps your wording is used.
+
+The run summary counts these separately ("improved", "kept as written"), so you can see what changed. Change the 30-character cutoff with `MIN_EXISTING_ALT_CHARS` in `.env`. To replace everything with fresh descriptions anyway, use `/run --force`.
+
+**Crashes and interruptions don't cost you finished work.** Each finished file is saved to `output` on its own, and progress is saved as it goes. If cappv1 stops partway through a batch (laptop closes, a crash, `Ctrl+C`), run `/run` again: finished files are skipped, and the file it stopped on continues with its saved descriptions, so nothing is paid for twice. A file that you edit and drop in again is recognised as changed; only the new or edited items are sent to the AI. A file that hasn't changed is reported as already captioned.
 
 ## For developers
 

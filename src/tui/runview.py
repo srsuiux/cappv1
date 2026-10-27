@@ -21,7 +21,7 @@ class RunView:
         self.slide, self.slides = 0, 0
         self.in_flight: list[tuple[str, int, float]] = []
         self.first_call_done = False
-        self.totals = {"captioned": 0, "decorative": 0, "cached": 0, "failed": 0}
+        self.totals = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0}
         self.file_totals = dict(self.totals)
         self.files_ok, self.files_bad = 0, []
         self.live: Live | None = None
@@ -73,6 +73,12 @@ class RunView:
         line = Text(" ")
         line.append(f"{TICK} {t['captioned']} described", style=OK)
         line.append("   ")
+        if t["enhanced"]:
+            line.append(f"✎ {t['enhanced']} improved", style=OK)
+            line.append("   ")
+        if t["kept"]:
+            line.append(f"❝ {t['kept']} kept as written", style=MUTED)
+            line.append("   ")
         line.append(f"◐ {t['decorative']} decorative", style=MUTED)
         line.append("   ")
         line.append(f"↺ {t['cached']} reused", style=MUTED)
@@ -140,6 +146,10 @@ class RunView:
             self.slide = d["slide"] + 1
             if not d["empty"]:
                 bits = [f"{d['captioned']} described"]
+                if d["enhanced"]:
+                    bits.append(f"{d['enhanced']} improved")
+                if d["kept"]:
+                    bits.append(f"{d['kept']} kept as written")
                 if d["decorative"]:
                     bits.append(f"{d['decorative']} decorative")
                 if d["cached"]:

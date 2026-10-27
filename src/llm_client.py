@@ -88,6 +88,48 @@ _SMARTART_SYSTEM_PROMPT = (
 )
 
 
+_REVIEW_SUFFIX = (
+    "\n\nThe slide's author already wrote alt-text for this element; it is shown after the "
+    "slide context. Respect it:\n"
+    "- {verdict}\n"
+    "- When you improve it, keep the author's wording, facts and intent wherever they are "
+    "accurate. Add only what is missing (what it shows, and why it matters on this slide). "
+    "Never contradict the author.\n"
+    "- Never respond with DECORATIVE or UNKNOWN."
+)
+_VERDICT_ADEQUATE = (
+    "If it already tells a screen-reader user what this shows and why it matters, reply with "
+    "exactly: KEEP. Otherwise reply with the improved alt-text only."
+)
+_VERDICT_TOO_SHORT = (
+    "It is very short, so it is probably incomplete. Do NOT reply KEEP. Reply with an improved "
+    "version that builds on it."
+)
+
+
+def _with_existing(messages: list[dict], existing: str, too_short: bool) -> list[dict]:
+    """Adds the author's own alt-text, and the rules for building on it, to a request."""
+    suffix = _REVIEW_SUFFIX.format(verdict=_VERDICT_TOO_SHORT if too_short else _VERDICT_ADEQUATE)
+    note = f"\n\nAuthor's existing alt-text: {existing}"
+    out = []
+    for m in messages:
+        m = dict(m)
+        if m["role"] == "system":
+            m["content"] += suffix
+        elif isinstance(m["content"], list):
+            m["content"] = [dict(part, text=part["text"] + note) if part["type"] == "text" else part for part in m["content"]]
+        else:
+            m["content"] += note
+        out.append(m)
+    return out
+
+
+def _review(config: Config, messages: list[dict], existing: str) -> list[dict]:
+    if not existing:
+        return messages
+    return _with_existing(messages, existing, too_short=len(existing) < config.min_existing_alt_chars)
+
+
 def _error_detail(resp: httpx.Response) -> str:
     """Pulls the useful part out of a provider error body, if present."""
     try:
@@ -328,9 +370,10 @@ async def generate_caption(
     context: SlideContext,
     max_retries: int = 3,
     primary_max_retries: int = 1,
+    existing: str = "",
 ) -> str | None:
     """Returns caption text, "" for a decorative image, or None on permanent failure."""
-    messages = _build_image_messages(image_bytes, ext, context, config.max_alt_text_chars)
+    messages = _review(config, _build_image_messages(image_bytes, ext, context, config.max_alt_text_chars), existing)
     text = await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
     if text is None:
         return None
@@ -344,11 +387,12 @@ async def generate_table_alt_text(
     context: SlideContext,
     max_retries: int = 3,
     primary_max_retries: int = 1,
+    existing: str = "",
 ) -> str | None:
     """Returns a text description of a table's content, or None on permanent failure."""
-    messages = _build_text_messages(
+    messages = _review(config, _build_text_messages(
         _TABLE_SYSTEM_PROMPT, table_text, context, config.max_alt_text_chars, "Table"
-    )
+    ), existing)
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
 
 
@@ -359,11 +403,12 @@ async def generate_chart_alt_text(
     context: SlideContext,
     max_retries: int = 3,
     primary_max_retries: int = 1,
+    existing: str = "",
 ) -> str | None:
     """Returns a text description of a chart's data, or None on permanent failure."""
-    messages = _build_text_messages(
+    messages = _review(config, _build_text_messages(
         _CHART_SYSTEM_PROMPT, chart_text, context, config.max_alt_text_chars, "Chart data"
-    )
+    ), existing)
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
 
 
@@ -374,15 +419,16 @@ async def generate_ole_alt_text(
     context: SlideContext,
     max_retries: int = 3,
     primary_max_retries: int = 1,
+    existing: str = "",
 ) -> str | None:
     """Returns a text description of an embedded OLE object's content, the
     literal string "UNKNOWN" if the model found no usable signal in the
     heuristically-extracted text, or None on permanent failure. The caller
     decides what to do with "UNKNOWN" (e.g. a progId-based fallback string) -
     this function doesn't guess at that."""
-    messages = _build_text_messages(
+    messages = _review(config, _build_text_messages(
         _OLE_SYSTEM_PROMPT, ole_text, context, config.max_alt_text_chars, "Embedded object content"
-    )
+    ), existing)
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
 
 
@@ -393,10 +439,11 @@ async def generate_smartart_alt_text(
     context: SlideContext,
     max_retries: int = 3,
     primary_max_retries: int = 1,
+    existing: str = "",
 ) -> str | None:
     """Returns a text description of a SmartArt diagram's structure, or None
     on permanent failure."""
-    messages = _build_text_messages(
+    messages = _review(config, _build_text_messages(
         _SMARTART_SYSTEM_PROMPT, smartart_text, context, config.max_alt_text_chars, "Diagram outline"
-    )
+    ), existing)
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
