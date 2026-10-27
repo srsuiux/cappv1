@@ -215,6 +215,7 @@ async def _process_slide(
             return False
         n["cached"] += 1
         set_alt_text(shape, state.caption_cache[key])
+        events.emit("alt_written", filename=filename, slide=slide_index, outcome="cached", text=state.caption_cache[key])
         return True
 
     def settle(shape, caption: str, author: str) -> str:
@@ -224,11 +225,14 @@ async def _process_slide(
             answer = caption.strip().strip("\"'. ").upper()
             if not answer or answer.startswith("KEEP") or answer in ("DECORATIVE", "UNKNOWN"):
                 n["kept"] += 1
+                events.emit("alt_written", filename=filename, slide=slide_index, outcome="kept", text=author)
                 return author
             n["enhanced"] += 1
         else:
             n["captioned"] += 1
         set_alt_text(shape, caption)
+        events.emit("alt_written", filename=filename, slide=slide_index,
+                    outcome="enhanced" if author else "captioned", text=caption)
         return caption
 
     # No LLM call needed here - these are provably zero-pixel shapes (explicit

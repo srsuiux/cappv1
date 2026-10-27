@@ -164,6 +164,7 @@ def test_run_streams_progress_and_produces_a_download(web, deck):
     stream = resp.read().decode()
     conn.close()
     assert "event: slide_end" in stream and "event: run_finished" in stream
+    assert "event: alt_written" in stream and "A short test description." in stream
     assert wait_done(web)["state"] == "done"
     status, body, resp = web.call("GET", "/api/v1/files/talk.pptx/download")
     assert status == 200 and body[:2] == b"PK" and "attachment" in resp.getheader("Content-Disposition")
