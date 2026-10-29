@@ -75,9 +75,15 @@ class _ColorFormatter(logging.Formatter):
         return f"{color}{line}{_RESET}" if color else line
 
 
+class PlainNote(Exception):
+    """A note already written for a person; shown as it is, without an error type."""
+
+
 def explain_error(exc: Exception) -> str:
     """One plain line for a person reading the notes, never a traceback."""
     text = str(exc).strip().strip("\"'")
+    if isinstance(exc, PlainNote):
+        return text
     if isinstance(exc, KeyError) and "no relationship" in text:
         return "the file points to a part that isn't inside it (a broken link in the original)"
     return f"{type(exc).__name__}: {text}"[:200] if text else type(exc).__name__

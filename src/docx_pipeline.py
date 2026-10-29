@@ -27,7 +27,7 @@ from src.docx_reader import (
 )
 from src.image_filter import is_too_small
 from src.llm_client import generate_caption, generate_ole_alt_text, generate_table_alt_text
-from src.pipeline import _FILE_NAME, inspect_file, record_skip
+from src.pipeline import _FILE_NAME, PlainNote, inspect_file, record_skip
 from src.pptx_reader import ole_object_to_text
 from src.state import FileState, save_state
 
@@ -60,7 +60,8 @@ async def run_docx_file(
             record_skip(state, filename, 0, "the document", kind, exc)
     reason = table_alt_text_unsupported(doc)
     if tables and reason:
-        record_skip(state, filename, 0, f"the {len(tables)} table(s) of the document", "table", ValueError(reason))
+        count = f"{len(tables)} table" + ("" if len(tables) == 1 else "s")
+        record_skip(state, filename, 0, "the document", "tables", PlainNote(f"{count} not described: {reason}"))
         tables = []
     events.emit("file_open", filename=filename, kind="document", total_slides=1, items=len(pictures) + len(tables) + len(objects),
                 resumed=len(state.completed_slide_indices))

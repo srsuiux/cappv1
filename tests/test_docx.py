@@ -146,7 +146,9 @@ def test_tables_in_an_old_compatibility_mode_document_are_left_alone(tmp_path, f
     assert 'descr="' in xml and 'descr=""' not in xml  # the picture still got its text
     from src.state import load_state
     notes = load_state(config.state_dir, "a.docx").skipped
-    assert len(notes) == 1 and notes[0]["kind"] == "table" and "compatibility mode 11" in notes[0]["error"]
+    assert len(notes) == 1 and notes[0]["kind"] == "tables"
+    assert notes[0]["error"].startswith("1 table not described") and "compatibility mode (11)" in notes[0]["error"]
+    assert "Error" not in notes[0]["error"]
 
 
 def test_tables_in_a_modern_document_are_described(tmp_path, fake_ollama, monkeypatch):

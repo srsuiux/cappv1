@@ -177,8 +177,9 @@ def table_alt_text_unsupported(doc) -> str | None:
                 pass
     if mode >= _FIRST_MODE_WITH_TABLE_ALT_TEXT:
         return None
-    return (f"this document is saved in Word compatibility mode {mode}, where Word cannot open a file "
-            "that has table alt text; open it in Word and use Save As to bring it up to date, then run again")
+    return (f"this document is in Word's old compatibility mode ({mode}), and Word cannot open a file that has "
+            "table descriptions in that mode, so the tables were left as they were and the pictures were described. "
+            "To describe the tables: open the file in Word, choose Save As, save a .docx, then run it again")
 
 
 def get_table_alt_text(table: Table) -> str:
