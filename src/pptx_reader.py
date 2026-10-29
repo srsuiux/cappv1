@@ -19,6 +19,7 @@ class SlideContext:
     title: str
     body_text: str
     notes: str
+    kind: str = "slide"  # "document" for a Word file: the prompts then talk about a document
 
 
 def open_presentation(path: Path) -> Presentation:
