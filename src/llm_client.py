@@ -89,8 +89,8 @@ _SMARTART_SYSTEM_PROMPT = (
 
 
 _REVIEW_SUFFIX = (
-    "\n\nThe slide's author already wrote alt-text for this element; it is shown after the "
-    "slide context. Respect it:\n"
+    "\n\nThe author already wrote alt-text for this element; it is shown after the "
+    "context. Respect it:\n"
     "- {verdict}\n"
     "- When you improve it, keep the author's wording, facts and intent wherever they are "
     "accurate. Add only what is missing (what it shows, and why it matters on this slide). "
@@ -161,28 +161,41 @@ def _ext_to_mime(ext: str) -> str:
     }.get(ext, "image/png")
 
 
+def _context_label(context: SlideContext) -> str:
+    return "Document context" if context.kind == "document" else "Slide context"
+
+
 def _context_text(context: SlideContext) -> str:
-    context_lines = [f"Slide title: {context.title}" if context.title else None]
+    context_lines = [f"{'Heading' if context.kind == 'document' else 'Slide title'}: {context.title}" if context.title else None]
     if context.section:
         context_lines.append(f"Section: {context.section}")
     if context.body_text:
-        context_lines.append(f"Slide text: {context.body_text}")
+        context_lines.append(f"{'Nearby text' if context.kind == 'document' else 'Slide text'}: {context.body_text}")
     if context.notes:
         context_lines.append(f"Speaker notes: {context.notes}")
     return "\n".join(line for line in context_lines if line)
+
+
+def _for_document(text: str, context: SlideContext) -> str:
+    """The prompts are written for slides; for a Word file they say document instead."""
+    if context.kind != "document":
+        return text
+    return (text.replace("PowerPoint slides", "Word documents").replace("on the slide", "in the document")
+            .replace("on this slide", "in this document").replace("on slide", "in the document")
+            .replace("slide's author", "document's author").replace("the slide", "the document"))
 
 
 def _build_image_messages(image_bytes: bytes, ext: str, context: SlideContext, max_chars: int) -> list[dict]:
     b64 = base64.b64encode(image_bytes).decode("ascii")
     mime = _ext_to_mime(ext)
     return [
-        {"role": "system", "content": _IMAGE_SYSTEM_PROMPT.format(max_chars=max_chars)},
+        {"role": "system", "content": _for_document(_IMAGE_SYSTEM_PROMPT, context).format(max_chars=max_chars)},
         {
             "role": "user",
             "content": [
                 {
                     "type": "text",
-                    "text": f"Slide context:\n{_context_text(context)}\n\nWrite alt-text for this image.",
+                    "text": f"{_context_label(context)}:\n{_context_text(context)}\n\nWrite alt-text for this image.",
                 },
                 {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
             ],
@@ -192,11 +205,11 @@ def _build_image_messages(image_bytes: bytes, ext: str, context: SlideContext, m
 
 def _build_text_messages(system_prompt: str, element_text: str, context: SlideContext, max_chars: int, label: str) -> list[dict]:
     return [
-        {"role": "system", "content": system_prompt.format(max_chars=max_chars)},
+        {"role": "system", "content": _for_document(system_prompt, context).format(max_chars=max_chars)},
         {
             "role": "user",
             "content": (
-                f"Slide context:\n{_context_text(context)}\n\n"
+                f"{_context_label(context)}:\n{_context_text(context)}\n\n"
                 f"{label}:\n{element_text}\n\nWrite alt-text for this {label.lower()}."
             ),
         },

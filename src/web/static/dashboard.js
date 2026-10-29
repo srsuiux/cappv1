@@ -23,10 +23,10 @@ async function load() {
 
   // what to do next
   let say, link;
-  if (!settings.configured) { say = ["Choose an AI service", "cappv1 needs to know which one describes your slides."]; link = ["/services", "Choose a service"]; }
+  if (!settings.configured) { say = ["Choose an AI service", "cappv1 needs to know which one describes your pictures, charts and tables."]; link = ["/services", "Choose a service"]; }
   else if (run.state === "running") { say = ["A run is in progress", "Open Files to watch it."]; link = ["/files", "Watch progress"]; }
-  else if (!list.length) { say = ["Add your first deck", "Drop in a .pptx file and cappv1 writes the alt text."]; link = ["/files", "Add files"]; }
-  else if (waiting) { say = [`${plural(waiting, "file is", "files are")} ready`, "Slides already described are reused, not paid for twice."]; link = ["/files", "Write alt text"]; }
+  else if (!list.length) { say = ["Add your first file", "Drop in a .pptx or .docx file and cappv1 improves its accessibility."]; link = ["/files", "Add files"]; }
+  else if (waiting) { say = [`${plural(waiting, "file is", "files are")} ready`, "Slides already described are reused, not paid for twice."]; link = ["/files", "Improve accessibility"]; }
   else { say = ["All your files are finished", "Download them from Files."]; link = ["/files", "Go to Files"]; }
   $("next").replaceChildren(h("p", {}, say[0], h("br"), h("span", { class: "muted" }, say[1])), h("a", { class: "btn", href: link[0] }, link[1]));
 

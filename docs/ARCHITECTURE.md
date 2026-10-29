@@ -10,7 +10,7 @@ cappv1 is three layers. Each depends only on the one below it.
         engine (src/pipeline.py and friends)     reads decks, calls the AI, writes alt text
 ```
 
-- **Engine** (`pipeline.py`, `pptx_reader.py`, `llm_client.py`, `state.py`, `events.py`): the work itself. A library, not a service. It reports progress through `events.py`.
+- **Engine** (`pipeline.py`, `pptx_reader.py`, `docx_pipeline.py`, `docx_reader.py`, `llm_client.py`, `state.py`, `events.py`): the work itself. `pipeline.py` picks the deck or Word path by file extension (`SUPPORTED_EXTENSIONS`); run events carry `kind` (`slides` or `document`) so a front end can show the right view. A library, not a service. It reports progress through `events.py`.
 - **Services** (`src/services/`): everything a screen needs, as plain functions that return data or raise `ServiceError(code, message, fix)`. No printing, no HTTP.
 - **Front ends**: `src/tui` (terminal session) and `src/web` (local web server). They only ask and draw; the logic lives in services, so they never disagree. A run started in one is visible in the other because they share one `RunManager`.
 

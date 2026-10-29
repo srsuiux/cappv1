@@ -121,8 +121,8 @@ def test_upload_list_download_delete(web, deck):
 
 
 def test_bad_uploads_are_refused(web, deck, monkeypatch):
-    assert upload(web, "notes.txt", b"hello")[1]["error"]["code"] == "not_pptx"
-    assert upload(web, "fake.pptx", b"not a zip")[1]["error"]["code"] == "not_pptx"
+    assert upload(web, "notes.txt", b"hello")[1]["error"]["code"] == "unsupported_file"
+    assert upload(web, "fake.pptx", b"not a zip")[1]["error"]["code"] == "unsupported_file"
     status, body, _ = upload(web, "..%2Fescape.pptx", deck)  # only the file name part is ever used
     assert status == 201 and body["name"] == "escape.pptx" and not (web.server.ws.root / "escape.pptx").exists()
     web.call("DELETE", "/api/v1/files/escape.pptx")
@@ -245,3 +245,16 @@ def test_erasing_is_refused_during_a_run(web, deck, fake_ollama):
     assert web.call("POST", "/api/v1/storage/clear", {"confirm": True})[1]["error"]["code"] == "busy"
     web.call("POST", f"/api/v1/runs/{web.call('GET', '/api/v1/runs/current')[1]['id']}/cancel")
     wait_done(web)
+
+
+def test_a_word_document_goes_through_the_whole_web_api(web, tmp_path):
+    from tests.test_docx import make_docx
+
+    status, body, _ = upload(web, "paper.docx", make_docx(tmp_path / "paper.docx").read_bytes())
+    assert status == 201 and body["name"] == "paper.docx"
+    assert web.call("GET", "/api/v1/files/paper.docx/audit")[1]["error"]["code"] == "audit_unsupported"
+    assert web.call("POST", "/api/v1/runs", {})[0] in (200, 201, 202)
+    web.server.runs.wait(30)
+    assert web.call("GET", "/api/v1/files")[1]["files"][0]["state"] == "done"
+    status, _, headers = web.call("GET", "/api/v1/files/paper.docx/download")
+    assert status == 200 and "wordprocessingml" in headers.getheader("Content-Type")

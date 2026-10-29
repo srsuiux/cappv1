@@ -1,6 +1,6 @@
-<!-- title="Files" nav="files" layout="app" script="files.js" description="Add decks, write alt text, and download the finished files." -->
+<!-- title="Files" nav="files" layout="app" script="files.js" description="Add decks and Word documents, improve their accessibility, and download the finished files." -->
 <h1>Files</h1>
-<p class="muted">Add your PowerPoint files. cappv1 describes the pictures, charts and tables, and saves a finished copy. Your original files are never changed.</p>
+<p class="muted">Add your PowerPoint (.pptx) or Word (.docx) files. cappv1 improves their accessibility by writing alt text for the pictures, charts and tables (in a Word document: pictures and tables), and saves a finished copy. Your original files are never changed.</p>
 <div id="problem"></div>
 <section class="stage" id="stage" aria-labelledby="ptitle" tabindex="-1" data-phase="working" hidden>
   <h2 id="ptitle">Working…</h2>
@@ -14,16 +14,22 @@
     <ul class="feed" id="feed" tabindex="0" aria-label="What cappv1 wrote, newest first"></ul></details>
   <div class="actions"><button class="quiet" id="stop" type="button">Stop after this slide</button><button class="quiet" id="dismiss" type="button" hidden>Close</button></div>
 </section>
-<label class="drop" id="drop"><input type="file" id="pick" accept=".pptx" multiple>
-  <strong>Choose .pptx files</strong><span class="muted">or drop them here. Up to 200 MB each.</span></label>
-<h2>Your files</h2>
-<p class="muted" id="empty" hidden>No files yet. Add a .pptx above to begin.</p>
-<ul class="files" id="files" aria-label="Your files"></ul>
-<details id="more"><summary>More options</summary>
-  <label class="check"><input type="checkbox" id="force"><span>Replace alt text that people already wrote<br><span class="muted">When this is off, cappv1 keeps or improves what the author wrote.</span></span></label>
-</details>
-<div class="actions"><button id="run" type="button" disabled>Write alt text</button><span class="muted" id="runhelp">Slides already described are reused, not paid for twice.</span></div>
-<p class="note">cappv1 makes a copy of each document, adds the alt text to the copy, and shows the finished copy here to download. Your original is never changed.</p>
+<label class="drop" id="drop"><input type="file" id="pick" accept=".pptx,.docx" multiple>
+  <strong>Choose .pptx or .docx files</strong><span class="muted">or drop them here. Up to 200 MB each.</span></label>
+<h2>Current files</h2>
+<p class="muted" id="empty" hidden>Nothing waiting. Add a .pptx or .docx above to begin.</p>
+<ul class="files" id="files" aria-label="Current files"></ul>
+<div class="options">
+  <label class="check"><input type="checkbox" id="force" autocomplete="off"><span>Replace alt text that people already wrote<br><span class="muted">When this is off, cappv1 keeps or improves what the author wrote.</span></span></label>
+</div>
+<div class="actions"><button id="run" type="button" disabled>Improve accessibility</button><span class="muted" id="runhelp">Items already described are reused, not paid for twice.</span></div>
+<p class="note">cappv1 makes a copy of each file, adds the alt text to the copy, and shows the finished copy here to download. Your original is never changed.</p>
+
+<section id="prevwrap" aria-labelledby="prevtitle" hidden>
+  <h2 id="prevtitle">Previous files</h2>
+  <p class="muted">Finished in an earlier run. They are skipped unless you choose to replace alt text above.</p>
+  <ul class="files previous" id="prev" aria-label="Previous files"></ul>
+</section>
 
 <section class="progress" id="audit" aria-labelledby="atitle" tabindex="-1" hidden>
   <h2 id="atitle">Accessibility check</h2>

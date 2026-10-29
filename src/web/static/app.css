@@ -44,6 +44,8 @@ label.f{display:block;font-weight:700;margin:16px 0 4px}
 .note{background:var(--tint);padding:10px 14px;border-radius:var(--r);margin:12px 0}
 .note{border:1px solid var(--line)}.note.error{border-color:var(--bad)}.note.good{border-color:var(--ok)}
 details{margin:16px 0}summary{cursor:pointer;min-height:44px;padding:8px 0}
+.options{margin:16px 0 8px}
+ul.files.previous{opacity:.9}
 .check{display:flex;gap:10px;align-items:flex-start;margin:6px 0}.check input{margin-top:6px;width:18px;height:18px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:var(--paper);padding:8px;z-index:9}
@@ -58,6 +60,7 @@ details{margin:16px 0}summary{cursor:pointer;min-height:44px;padding:8px 0}
 .stage h2{margin:0 0 6px;font-size:1.35rem}
 .deck{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 8px;max-height:11rem;overflow:auto;padding:2px}
 .stage:not([data-phase=working]) .deck{max-height:none}
+.deck.items .tile{width:2.05rem}
 .tile{position:relative;overflow:hidden;width:2.9rem;height:2.05rem;display:grid;place-items:center;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--muted);font-size:.75rem}
 .tile.now{border:2px solid var(--blue);color:var(--ink);background:var(--tint)}
 .tile.done{border-color:var(--ok);background:var(--tint);color:var(--ink)}

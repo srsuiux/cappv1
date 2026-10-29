@@ -32,7 +32,7 @@ def test_bad_names_are_refused(ws, name):
 def test_a_file_that_is_not_a_deck_is_refused_and_leaves_nothing(ws):
     with pytest.raises(ServiceError) as err:
         files.store(ws, "fake.pptx", [b"this is not a zip"])
-    assert err.value.code == "not_pptx"
+    assert err.value.code == "unsupported_file"
     assert list(ws.input_dir.iterdir()) == []
 
 

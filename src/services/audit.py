@@ -8,6 +8,9 @@ from src.services.workspace import Workspace
 def report(ws: Workspace, name: str) -> dict:
     """Checks the finished copy if there is one, otherwise the original. Read-only."""
     name = files.safe_name(name)
+    if not name.lower().endswith(".pptx"):
+        raise ServiceError("audit_unsupported", "The accessibility check only reads PowerPoint decks for now.",
+                           "Word documents get alt text, but are not checked yet.")
     finished = ws.output_dir / name
     path = finished if finished.is_file() else ws.input_dir / name
     if not path.is_file():

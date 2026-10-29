@@ -45,6 +45,8 @@ logger = logging.getLogger("pptx_alt_text")
 
 _FILE_NAME = re.compile(r"[\w\- .()]+\.(png|jpe?g|gif|bmp|tiff?|emf|wmf|svg|webp)", re.IGNORECASE)
 
+SUPPORTED_EXTENSIONS = (".pptx", ".docx")
+
 _RESET, _BOLD, _DIM = "\033[0m", "\033[1m", "\033[2m"
 _RED, _GREEN, _YELLOW, _CYAN, _GRAY = (
     "\033[31m", "\033[32m", "\033[33m", "\033[36m", "\033[90m",
@@ -131,9 +133,20 @@ def inspect_file(config: Config, path: Path) -> tuple[str, FileState, str]:
     return "new", state, digest
 
 
+def discover_candidates(config: Config) -> list[Path]:
+    """The .pptx and .docx files in input/ (Word's ~$ lock files are not files)."""
+    candidates = config.input_dir.iterdir() if config.input_dir.is_dir() else []
+    return sorted(p for p in candidates if p.suffix.lower() in SUPPORTED_EXTENSIONS and not p.name.startswith("~$"))
+
+
+def file_kind(path: Path) -> str:
+    """"document" for a Word file, "slides" for a deck: front ends show a view to match."""
+    return "document" if path.suffix.lower() == ".docx" else "slides"
+
+
 def discover_files(config: Config, resume_only: bool, force: bool = False) -> list[Path]:
     result = []
-    for f in sorted(config.input_dir.glob("*.pptx")):
+    for f in discover_candidates(config):
         if force:
             (config.state_dir / f"{f.name}.json").unlink(missing_ok=True)  # forget saved progress and captions
         kind, state, _ = inspect_file(config, f)
@@ -386,6 +399,10 @@ async def _process_slide(
 
 
 async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio.Semaphore, path: Path) -> None:
+    if path.suffix.lower() == ".docx":
+        from src.docx_pipeline import run_docx_file  # imported here: it imports this module
+
+        return await run_docx_file(config, client, semaphore, path)
     filename = path.name
     logger.info("[file: %s] starting", filename)
 
@@ -395,7 +412,7 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     _, state, digest = inspect_file(config, path)
     state.content_hash = digest
     save_state(config.state_dir, state)
-    events.emit("file_open", filename=filename, total_slides=total_slides,
+    events.emit("file_open", filename=filename, kind="slides", total_slides=total_slides,
                 resumed=len(state.completed_slide_indices))
 
     # Every slide is walked again on a resume: the output deck is rebuilt from
@@ -454,7 +471,7 @@ async def run(config: Config, resume_only: bool = False, force: bool = False) ->
     async with httpx.AsyncClient() as client:
         for n, path in enumerate(files, start=1):
             logger.info("=== file %d/%d: %s ===", n, total, path.name)
-            events.emit("file_start", filename=path.name, index=n, total=total)
+            events.emit("file_start", filename=path.name, index=n, total=total, kind=file_kind(path))
             try:
                 await run_file(config, client, semaphore, path)
             except Exception as exc:

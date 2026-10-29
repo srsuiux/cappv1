@@ -26,7 +26,7 @@ Every failure has the same shape, with a plain-language message and what to do n
 
 | Status | Codes |
 |---|---|
-| 400 | `bad_name`, `not_pptx`, `bad_service`, `no_model`, `no_key`, `bad_request` |
+| 400 | `bad_name`, `unsupported_file`, `audit_unsupported`, `bad_service`, `no_model`, `no_key`, `bad_request` |
 | 401 | `unauthorized` |
 | 404 | `not_found`, `no_output` |
 | 409 | `busy`, `nothing_to_do`, `no_files`, `not_configured`, `model_missing` |
@@ -48,8 +48,8 @@ All paths start with `/api/v1`. Bodies are JSON unless noted.
 | `POST /storage/clear` | `{confirm: true}`: erase decks, finished copies, saved progress and logs. Keeps settings and keys. Refused during a run. |
 | `GET /services/<id>/models` | Models to choose from. OpenAI and Anthropic: a short list. Ollama: installed vision models. OpenRouter: `free`, `cheapest`, and `makers`. |
 | `GET /files` | Files in the input list: `name`, `size`, `state` (`new`, `partial`, `changed`, `done`), `has_output`. |
-| `PUT /files/<name>` | Upload a deck. The body is the raw file (not multipart) and `Content-Length` is required. Up to 200 MB. It is checked to be a real `.pptx` before it is kept. |
-| `DELETE /files/<name>` | Remove a deck from the input list (not while a run is going). |
+| `PUT /files/<name>` | Upload a `.pptx` or `.docx`. The body is the raw file (not multipart) and `Content-Length` is required. Up to 200 MB. It is checked to be a real file of that type before it is kept. |
+| `DELETE /files/<name>` | Remove a file from the input list (not while a run is going). |
 | `GET /files/<name>/download` | The finished copy. |
 | `POST /runs` | `{resume?, force?, confirm?}` → `202` with the run and `pending` files. `force` replaces alt text the author wrote, so it also needs `confirm: true`. |
 | `GET /runs/current` | The latest run: `id`, `state` (`idle`, `running`, `done`, `cancelled`, `failed`), `failed_files`, `error`. |

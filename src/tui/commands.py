@@ -62,7 +62,7 @@ def cmd_help(session, args: str) -> None:
         table.add_row(Text(names, style=f"bold {ACCENT}"), Text(c.help))
     session.console.print()
     session.console.print(table)
-    session.console.print(Text("\n Tip: drag a .pptx file (or a folder of them) into this window to add it.", style=MUTED))
+    session.console.print(Text("\n Tip: drag a .pptx or .docx file (or a folder of them) into this window to add it.", style=MUTED))
     session.console.print()
 
 
@@ -93,7 +93,7 @@ _STATE_TEXT = {
 def cmd_files(session, args: str) -> None:
     listing = files.list_files(session.ws)
     if not listing:
-        session.console.print(Text("\n No files yet. Drag a .pptx into this window, or copy it into the input/ folder.\n", style=MUTED))
+        session.console.print(Text("\n No files yet. Drag a .pptx or .docx into this window, or copy it into the input/ folder.\n", style=MUTED))
         return
     table = Table(box=None, padding=(0, 2), show_edge=False)
     table.add_column("File", overflow="fold")
@@ -113,9 +113,9 @@ def _slide_list(slides: list) -> str:
 
 def cmd_audit(session, args: str) -> None:
     """Reports what cappv1 noticed but will not change. Read-only."""
-    names = [args.strip()] if args.strip() else [f.name for f in files.list_files(session.ws)]
+    names = [args.strip()] if args.strip() else [f.name for f in files.list_files(session.ws) if f.name.lower().endswith(".pptx")]  # the check reads decks only
     if not names:
-        session.console.print(Text("\n No files yet. Drag a .pptx into this window first.\n", style=MUTED))
+        session.console.print(Text("\n No files yet. Drag a .pptx or .docx into this window first.\n", style=MUTED))
         return
     for name in names:
         try:
@@ -400,7 +400,7 @@ def cmd_run(session, args: str) -> None:
             console.print(Text(f"\n {TICK} {err.message}", style=OK))
             console.print(Text(" Their finished copies are in output/ (type /open). Add new files, or edit a deck and drop it in again.\n", style=MUTED))
         elif err.code == "no_files":
-            console.print(Text("\n Nothing to process yet. Drag a .pptx into this window first.\n", style=MUTED))
+            console.print(Text("\n Nothing to process yet. Drag a .pptx or .docx into this window first.\n", style=MUTED))
         else:
             _service_error(session, err)
         return

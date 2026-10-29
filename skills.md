@@ -58,6 +58,14 @@ This covers the common case (a single connected hierarchy/list layout). It will 
 - **Decorative-marking exists for pictures and for a narrow class of AutoShapes, not tables/charts/OLE objects/SmartArt.** `mark_decorative()` triggers for pictures via `is_too_small()` or the vision model's own `DECORATIVE` response, and for AutoShapes/connectors via `extract_invisible_shapes()`/`_is_invisible_shape()` — which only matches a shape with an **explicit** `<a:noFill/>` on both fill and line and no text: provably zero rendered pixels, not a judgment call. It deliberately does *not* match a shape that merely omits a fill/line element (which could inherit a visible theme style) — verified against a real deck's diagram connectors (arrows with `cx=0` because they're vertical, but a real `solidFill` stroke) to make sure those aren't caught. An inserted table/chart/OLE/SmartArt essentially always carries real data, so none of those get a decorative path.
 - **Grouped native-PowerPoint diagrams** — a `p:grpSp` containing AutoShapes with no picture/table/chart/OLE/SmartArt inside (e.g. a set of ovals+lines forming a Venn-style diagram drawn by hand in PowerPoint) — are still unhandled. There's no image to send (it's not a picture) and no single coherent text source (its content is scattered across sibling shapes' individual text runs, not one XML part like the cases above). The practical workaround in use is manually flattening this specific case to a picture in PowerPoint first, which routes it through the already-solid picture-captioning path.
 
+## Word documents (.docx) — on a feature branch
+
+`src/docx_reader.py` and `src/docx_pipeline.py` apply the same invariant to Word files. The only fields written are the ones Word's own "Edit Alt Text" pane edits: `descr` on a picture's `wp:docPr` (plus Word 365's `adec:decorative` flag for tiny or model-judged decorative pictures) and `w:tblDescription` on a table. A table's title (`w:tblCaption`) is the author's and is never touched. Everything else must come out identical; `tests/test_docx.py` diffs the output against the input with those fields removed.
+
+- Pictures are matched on the XML (a `wp:docPr` whose drawing holds an `a:blip`), not on python-docx shape types. `mc:Fallback` copies are skipped.
+- Not handled yet: charts, SmartArt, embedded objects, headers/footers/footnotes, and EMF/WMF/SVG/TIFF pictures (logged and left alone). Table header rows are not flagged: `w:tblHeader` repeats the row across pages, which is visible.
+- Context for the model is the nearest heading above the element and the paragraphs next to it. Read-only.
+
 ## If you're extending this codebase
 
 - Don't add features that reformat, reposition, restyle, resize, or "clean up" slides — that is out of scope for this tool, full stop.

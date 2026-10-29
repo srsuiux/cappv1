@@ -1,4 +1,4 @@
-"""The decks in input/ and output/. Deliberately small: add, list, fetch, clean."""
+"""The decks and Word documents in input/ and output/. Deliberately small: add, list, fetch, clean."""
 import os
 import zipfile
 from dataclasses import asdict, dataclass
@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Iterable
 
 from src.config import load_config
-from src.pipeline import inspect_file
+from src.pipeline import SUPPORTED_EXTENSIONS, inspect_file
 from src.services.errors import ServiceError
 from src.services.workspace import Workspace
 
@@ -25,21 +25,36 @@ class FileInfo:
 
 
 def safe_name(name: str) -> str:
-    """A bare, plain .pptx filename, or ServiceError. Folders in the name are dropped."""
+    """A bare, plain .pptx or .docx filename, or ServiceError. Folders in the name are dropped."""
     base = Path(str(name).replace("\\", "/")).name.strip()
     if not base or base.startswith(".") or any(ord(c) < 32 for c in base) or len(base) > 200:
         raise ServiceError("bad_name", "That file name can't be used.", "Rename the file and try again.")
-    if not base.lower().endswith(".pptx"):
-        raise ServiceError("not_pptx", f"{base} isn't a .pptx file.", "cappv1 only works with PowerPoint .pptx files.")
-    return base[:-5] + ".pptx"
+    ext = Path(base).suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise ServiceError("unsupported_file", f"{base} isn't a .pptx or .docx file.",
+                           "cappv1 works with PowerPoint .pptx and Word .docx files.")
+    return base[:-len(ext)] + ext
 
 
-def _looks_like_pptx(path: Path) -> bool:
+_MAIN_PART = {".pptx": "ppt/presentation.xml", ".docx": "word/document.xml"}
+
+
+def _looks_valid(path: Path, ext: str) -> bool:
     if not zipfile.is_zipfile(path):
         return False
     with zipfile.ZipFile(path) as z:
         names = set(z.namelist())
-    return "[Content_Types].xml" in names and "ppt/presentation.xml" in names
+    return "[Content_Types].xml" in names and _MAIN_PART[ext] in names
+
+
+def input_candidates(folder: Path) -> list[Path]:
+    """Supported files directly inside a folder (Word's ~$ lock files and dotfiles are skipped)."""
+    return sorted(p for p in folder.iterdir()
+                  if p.suffix.lower() in SUPPORTED_EXTENSIONS and not p.name.startswith(("~$", ".")))
+
+
+def input_paths(ws: Workspace) -> list[Path]:
+    return input_candidates(ws.input_dir) if ws.input_dir.is_dir() else []
 
 
 def store(ws: Workspace, name: str, chunks: Iterable[bytes]) -> FileInfo:
@@ -55,11 +70,13 @@ def store(ws: Workspace, name: str, chunks: Iterable[bytes]) -> FileInfo:
                 size += len(chunk)
                 if size > MAX_UPLOAD_BYTES:
                     raise ServiceError("too_big", f"{name} is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
-                                       "Split the deck or compress its pictures in PowerPoint.")
+                                       "Split the file or compress its pictures first.")
                 f.write(chunk)
-        if not _looks_like_pptx(tmp):
-            raise ServiceError("not_pptx", f"{name} isn't a valid PowerPoint file.",
-                               "Open it in PowerPoint and save a copy as .pptx.")
+        ext = Path(name).suffix.lower()
+        if not _looks_valid(tmp, ext):
+            kind, app = ("PowerPoint", "PowerPoint") if ext == ".pptx" else ("Word", "Word")
+            raise ServiceError("unsupported_file", f"{name} isn't a valid {kind} file.",
+                               f"Open it in {app} and save a copy as {ext}.")
         os.replace(tmp, target)
     finally:
         tmp.unlink(missing_ok=True)
@@ -89,11 +106,11 @@ def describe(ws: Workspace, name: str) -> FileInfo:
 
 
 def list_files(ws: Workspace) -> list[FileInfo]:
-    return [describe(ws, p.name) for p in sorted(ws.input_dir.glob("*.pptx"))]
+    return [describe(ws, p.name) for p in input_paths(ws)]
 
 
 def output_file(ws: Workspace, name: str) -> Path:
-    """The finished copy of a deck, for download."""
+    """The finished copy of a file, for download."""
     path = ws.output_dir / safe_name(name)
     if not path.is_file() or path.resolve().parent != ws.output_dir.resolve():
         raise ServiceError("no_output", f"There is no finished copy of {name} yet.", "Run it first.")
@@ -104,9 +121,9 @@ def clean(ws: Workspace, dry_run: bool = False) -> dict[str, int]:
     """Deletes decks in input/ and output/ and all saved progress. No undo.
     With dry_run it only counts what would go."""
     counts = {"input": 0, "output": 0, "progress": 0}
-    for key, folder, pattern in (("input", ws.input_dir, "*.pptx"), ("output", ws.output_dir, "*.pptx"),
-                                 ("progress", ws.state_dir, "*.json*")):
-        for f in folder.glob(pattern):
+    for key, folder, patterns in (("input", ws.input_dir, ("*.pptx", "*.docx")), ("output", ws.output_dir, ("*.pptx", "*.docx")),
+                                  ("progress", ws.state_dir, ("*.json*",))):
+        for f in (f for pattern in patterns for f in folder.glob(pattern)):
             if not dry_run:
                 f.unlink(missing_ok=True)
             counts[key] += 1

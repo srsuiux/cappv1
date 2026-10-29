@@ -43,7 +43,7 @@ _CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'
         "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
 _STATUS_FOR_CODE = {
-    "bad_name": 400, "not_pptx": 400, "bad_service": 400, "no_model": 400, "no_key": 400, "bad_request": 400,
+    "bad_name": 400, "unsupported_file": 400, "audit_unsupported": 400, "bad_service": 400, "no_model": 400, "no_key": 400, "bad_request": 400,
     "no_output": 404, "not_found": 404,
     "busy": 409, "nothing_to_do": 409, "no_files": 409, "not_configured": 409, "model_missing": 409,
     "length_required": 411, "too_big": 413,
