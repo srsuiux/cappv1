@@ -22,6 +22,8 @@ from src.docx_reader import (
 
 LONG = "A bar chart of quarterly sales for each region, used to compare the north and the south"
 
+W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
 
 def png(color=(200, 60, 60), size=(300, 200)) -> io.BytesIO:
     buf = io.BytesIO()
@@ -163,6 +165,43 @@ def test_table_description_goes_in_schema_order(tmp_path):
     set_table_alt_text(table, "x")
     tags = [etree.QName(c).localname for c in pr]
     assert tags.index("tblDescription") < tags.index("tblPrChange")
+
+
+def bare_table(tmp_path, style=False):
+    """A table the way LibreOffice writes it: no tblLook, and no style unless asked."""
+    doc = Document(str(make_docx(tmp_path / "a.docx")))
+    table = extract_tables(doc)[0].table
+    pr = table._tbl.tblPr
+    for tag in ("tblLook", "tblStyle"):
+        for el in pr.findall(f"{W}{tag}"):
+            pr.remove(el)
+    if style:
+        etree.SubElement(pr, f"{W}tblStyle").set(f"{W}val", "TableGrid")
+    return table, pr
+
+
+def test_a_table_description_comes_with_an_all_off_table_look(tmp_path):
+    """Word refuses a file that has tblDescription but no tblLook."""
+    table, pr = bare_table(tmp_path)
+    set_table_alt_text(table, "x")
+    tags = [etree.QName(c).localname for c in pr]
+    assert tags[-2:] == ["tblLook", "tblDescription"]
+    look = pr.find(f"{W}tblLook")
+    assert look.get(f"{W}val") == "0000" and look.get(f"{W}firstRow") == "0" and look.get(f"{W}noHBand") == "0"
+
+
+def test_an_existing_table_look_is_left_alone(tmp_path):
+    table, pr = bare_table(tmp_path)
+    etree.SubElement(pr, f"{W}tblLook").set(f"{W}val", "04A0")
+    set_table_alt_text(table, "x")
+    assert [c.get(f"{W}val") for c in pr.findall(f"{W}tblLook")] == ["04A0"]
+
+
+def test_a_styled_table_without_a_look_is_skipped_not_restyled(tmp_path):
+    table, pr = bare_table(tmp_path, style=True)
+    with pytest.raises(ValueError):
+        set_table_alt_text(table, "x")
+    assert pr.find(f"{W}tblLook") is None and pr.find(f"{W}tblDescription") is None
 
 
 def test_decorative_marking_is_not_added_twice(tmp_path):

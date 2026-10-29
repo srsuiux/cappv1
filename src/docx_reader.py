@@ -45,8 +45,11 @@ def save_document(doc, source: Path, dest: Path) -> None:
         doc.part._element, encoding="UTF-8")
     with zipfile.ZipFile(source) as src, zipfile.ZipFile(dest, "w") as out:
         for info in src.infolist():
-            out.writestr(info, body if info.filename == name else src.read(info.filename),
-                         compress_type=info.compress_type)
+            # a fresh entry rather than the source's, which the writer would otherwise modify
+            entry = zipfile.ZipInfo(info.filename, info.date_time)
+            entry.compress_type = info.compress_type
+            entry.external_attr = info.external_attr
+            out.writestr(entry, body if info.filename == name else src.read(info.filename))
 
 
 def _wp(tag: str) -> str:
@@ -121,12 +124,29 @@ def get_table_alt_text(table: Table) -> str:
 
 def set_table_alt_text(table: Table, text: str) -> None:
     """Writes w:tblDescription, the field behind Word's table Alt Text 'Description'.
-    The table's title (w:tblCaption) is the author's and is left alone."""
+    The table's title (w:tblCaption) is the author's and is left alone.
+
+    Word refuses a file whose table has a description but no w:tblLook (checked on real
+    documents saved by LibreOffice). An all-off tblLook changes nothing you can see on a table
+    without a style, so it is added then; with a style attached it could switch on that style's
+    first-row or banding formatting, so the table is skipped instead."""
     pr = table._tbl.tblPr  # python-docx adds it when missing
     el = pr.find(qn("w:tblDescription"))
     if el is None:
+        if pr.find(qn("w:tblLook")) is None:
+            if pr.find(qn("w:tblStyle")) is not None:
+                raise ValueError("the table has a style but no table-look setting, and adding one could change how it looks")
+            look = etree.Element(qn("w:tblLook"))
+            for name, value in (("val", "0000"), ("firstRow", "0"), ("lastRow", "0"), ("firstColumn", "0"),
+                                ("lastColumn", "0"), ("noHBand", "0"), ("noVBand", "0")):
+                look.set(qn(f"w:{name}"), value)
+            # schema order: tblLook, tblCaption, tblDescription, then tblPrChange last
+            anchor = next((a for a in (pr.find(qn("w:tblCaption")), pr.find(qn("w:tblPrChange"))) if a is not None), None)
+            if anchor is not None:
+                anchor.addprevious(look)
+            else:
+                pr.append(look)
         el = etree.Element(qn("w:tblDescription"))
-        # schema order: tblCaption, tblDescription, then tblPrChange last
         anchor = pr.find(qn("w:tblPrChange"))
         if anchor is not None:
             anchor.addprevious(el)
