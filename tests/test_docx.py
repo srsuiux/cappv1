@@ -228,3 +228,24 @@ def test_clean_removes_documents_too(configured, tmp_path):
     files.store_path(configured, make_docx(tmp_path / "paper.docx"))
     assert files.clean(configured)["input"] == 1
     assert files.list_files(configured) == []
+
+
+def test_run_events_say_what_kind_of_file_it_is(configured, tmp_path):
+    """The web page shows slide tiles for a deck and item chips for a Word document."""
+    from src.services import files
+    from src.services.runs import RunManager
+    from tests.helpers import make_deck
+
+    files.store_path(configured, make_docx(tmp_path / "paper.docx"))
+    files.store_path(configured, make_deck(tmp_path / "talk.pptx"))
+    runs = RunManager(configured)
+    runs.start()
+    assert runs.wait(30)
+    events = runs.events_since(0)
+    kinds = {e["filename"]: e["kind"] for e in events if e["event"] == "file_start"}
+    assert kinds == {"paper.docx": "document", "talk.pptx": "slides"}
+    opened = {e["filename"]: e for e in events if e["event"] == "file_open"}
+    assert opened["paper.docx"]["kind"] == "document" and opened["paper.docx"]["items"] == 2
+    assert opened["talk.pptx"]["kind"] == "slides" and opened["talk.pptx"]["total_slides"] == 3
+    written = [e for e in events if e["event"] == "alt_written" and e["filename"] == "paper.docx"]
+    assert len(written) == 2

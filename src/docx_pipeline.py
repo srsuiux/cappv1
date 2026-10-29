@@ -43,16 +43,22 @@ async def run_docx_file(
     _, state, digest = inspect_file(config, path)
     state.content_hash = digest
     save_state(config.state_dir, state)
-    events.emit("file_open", filename=filename, total_slides=1, resumed=len(state.completed_slide_indices))
 
     pictures = extract_pictures(doc)
     tables = extract_tables(doc)
+    events.emit("file_open", filename=filename, kind="document", total_slides=1, items=len(pictures) + len(tables),
+                resumed=len(state.completed_slide_indices))
     events.emit("slide_start", filename=filename, slide=0, total=1,
                 counts={"picture": len(pictures), "table": len(tables), "chart": 0,
                         "object": 0, "diagram": 0, "invisible": 0})
 
     n = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0}
     skipped = 0
+
+    def remember(key: str, caption: str) -> None:
+        # saved at once, so stopping a long document keeps the captions already paid for
+        state.caption_cache[key] = caption
+        save_state(config.state_dir, state)
 
     def author_text(raw: str) -> str:
         text = "" if config.overwrite_existing else raw.strip()
@@ -114,9 +120,9 @@ async def run_docx_file(
         if caption == "" and not author:
             n["decorative"] += 1
             mark_decorative(pic.doc_pr)
-            state.caption_cache[key] = ""
+            remember(key, "")
             return
-        state.caption_cache[key] = settle(write, caption, author)
+        remember(key, settle(write, caption, author))
 
     async def handle_table(tbl):
         author = author_text(get_table_alt_text(tbl.table))
@@ -133,7 +139,7 @@ async def run_docx_file(
         if caption is None:
             n["failed"] += 1
             return
-        state.caption_cache[key] = settle(write, caption, author)
+        remember(key, settle(write, caption, author))
 
     await asyncio.gather(*(handle_picture(p) for p in pictures), *(handle_table(t) for t in tables))
 

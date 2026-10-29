@@ -139,6 +139,11 @@ def discover_candidates(config: Config) -> list[Path]:
     return sorted(p for p in candidates if p.suffix.lower() in SUPPORTED_EXTENSIONS and not p.name.startswith("~$"))
 
 
+def file_kind(path: Path) -> str:
+    """"document" for a Word file, "slides" for a deck: front ends show a view to match."""
+    return "document" if path.suffix.lower() == ".docx" else "slides"
+
+
 def discover_files(config: Config, resume_only: bool, force: bool = False) -> list[Path]:
     result = []
     for f in discover_candidates(config):
@@ -407,7 +412,7 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     _, state, digest = inspect_file(config, path)
     state.content_hash = digest
     save_state(config.state_dir, state)
-    events.emit("file_open", filename=filename, total_slides=total_slides,
+    events.emit("file_open", filename=filename, kind="slides", total_slides=total_slides,
                 resumed=len(state.completed_slide_indices))
 
     # Every slide is walked again on a resume: the output deck is rebuilt from
@@ -466,7 +471,7 @@ async def run(config: Config, resume_only: bool = False, force: bool = False) ->
     async with httpx.AsyncClient() as client:
         for n, path in enumerate(files, start=1):
             logger.info("=== file %d/%d: %s ===", n, total, path.name)
-            events.emit("file_start", filename=path.name, index=n, total=total)
+            events.emit("file_start", filename=path.name, index=n, total=total, kind=file_kind(path))
             try:
                 await run_file(config, client, semaphore, path)
             except Exception as exc:
