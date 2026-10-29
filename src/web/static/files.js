@@ -19,7 +19,10 @@ const noun = (names, n = 1) => {
   return n === 1 ? w[0] : w[1];
 };
 
-function showProblem(err) { $("problem").replaceChildren(err ? problem(err) : ""); }
+function showProblem(err) {
+  $("problem").replaceChildren(err ? problem(err) : "");
+  if (err) $("problem").scrollIntoView({ block: "center" }); // the page can be long: an error up top must not go unseen
+}
 const mb = (n) => (n / 1048576 >= 0.1 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
 
 async function download(name) {

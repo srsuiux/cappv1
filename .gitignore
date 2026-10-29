@@ -9,4 +9,6 @@ logs/
 output/*.pptx
 !output/.gitkeep
 input/*.pptx
+input/*.docx
+output/*.docx
 !input/.gitkeep
