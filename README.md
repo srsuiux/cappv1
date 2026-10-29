@@ -1,8 +1,8 @@
-# cappv1: PPTX Alt-Text Automation
+# cappv1: Accessibility for PowerPoint and Word
 
 cappv1 looks at the pictures, tables, charts, and other embedded content (like a pasted-in Word document or diagram) in your PowerPoint files and writes a short description for each one. These descriptions are called "alt text," and screen readers read them aloud to people who can't see the slide.
 
-You drop in `.pptx` files and get the same files back with the descriptions added. Nothing you can see changes: no layout, text, fonts, or colors. (It also marks a table's top row as its header when that is visually inert, which screen readers and checkers like Blackboard Ally need.) Your originals are never modified.
+You drop in `.pptx` or Word `.docx` files and get the same files back with the descriptions added. Nothing you can see changes: no layout, text, fonts, or colors. (It also marks a table's top row as its header when that is visually inert, which screen readers and checkers like Blackboard Ally need.) Your originals are never modified.
 
 **Example:** an instructor preparing lecture slides for a blind or low-vision student can use this to make sure every chart, photo, and diagram has a description before sharing the deck.
 
@@ -78,7 +78,7 @@ The first time you open cappv1, it pauses for a few extra seconds to install wha
    cappv1
    ```
    A session opens with a `❯` prompt, like a chat. The first time, it offers to walk you through choosing an AI service.
-2. **Add your files.** Drag your `.pptx` files (or a whole folder of them) into the Terminal window, and press Enter. They are copied into the `input` folder for you. You can also copy them there yourself.
+2. **Add your files.** Drag your `.pptx` or `.docx` files (or a whole folder of them) into the Terminal window, and press Enter. They are copied into the `input` folder for you. You can also copy them there yourself.
 3. **Run it.** Type `/run` and press Enter. A live display shows which file and slide it's on and what it's doing right now (looking at a picture, reading a chart, saving the deck). Press `Ctrl+C` to stop; finished slides are remembered.
 4. **Collect your files.** Each finished file appears in the `output` folder under its original name. Type `/open` to open that folder.
 5. **Check the result.** Open a file from `output` in PowerPoint, right-click a picture, table, or chart, and choose **Edit Alt Text**. The descriptions are usually good, but give them a quick read before sharing anything important.
@@ -93,7 +93,7 @@ Inside the session (type `/` to see them as you type):
 
 | Type this | What it does |
 |---|---|
-| `/run` | Processes every `.pptx` in `input`, one by one. Add `--resume` to only continue unfinished files, or `--force` to redo everything and replace alt text that authors wrote themselves (it asks first). |
+| `/run` | Processes every `.pptx` and `.docx` in `input`, one by one. Add `--resume` to only continue unfinished files, or `--force` to redo everything and replace alt text that authors wrote themselves (it asks first). |
 | `/files` | Shows the files waiting in `input` and how far along each is. |
 | `/init` | Sets up cappv1 (service, key, model). If it's already set up, it shows what you're using and lets you keep it, change just the model, or switch service. Safe to run again. |
 | `/models` | Goes straight to picking an AI service and model. For OpenRouter you can choose free models, the cheapest paid ones, or browse by maker (OpenAI, Google, DeepSeek and more) with prices shown. Each service remembers the model you used last. |
@@ -177,6 +177,8 @@ Open `.env` and change `PROVIDER=` to another service (make sure that service's 
 ## How it works
 
 For each file, the tool goes through the slides one at a time. For each picture, table, chart, or embedded object (a pasted-in Word, Excel, or Visio file, or a SmartArt diagram) it sends the content to the AI along with the slide's title and notes, so the description fits its context. Pictures are sent as images; everything else is sent as text. The AI's answer is written into that shape's alt-text field, the same one PowerPoint's **Edit Alt Text** uses.
+
+**Word documents (`.docx`)** are handled the same way for pictures and tables: the description goes into the picture's or table's alt-text field (the one Word's **Edit Alt Text** pane uses), and the AI sees the nearest heading and the paragraphs around the item as context. Tiny pictures are marked decorative. Charts, SmartArt, embedded objects, and headers, footers or footnotes are not handled in Word yet, and the accessibility check (`/audit`) reads decks only.
 
 Shapes that are completely invisible (no fill, no outline, no text) are marked as decorative, like PowerPoint's own "Mark as decorative" button, so screen readers skip them. Everything else in the file stays exactly as it was.
 
