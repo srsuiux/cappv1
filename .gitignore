@@ -10,5 +10,6 @@ output/*.pptx
 !output/.gitkeep
 input/*.pptx
 input/*.docx
+input/*.doc
 output/*.docx
 !input/.gitkeep
