@@ -15,6 +15,7 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.text import Text
 
+from src.pipeline import SUPPORTED_EXTENSIONS
 from src.services import files, settings
 from src.services.errors import ServiceError
 from src.services.runs import RunManager
@@ -102,7 +103,7 @@ class Session:
         body.append("✻ ", style=ACCENT)
         body.append("Welcome to cappv1", style="bold")
         body.append(f"  v{VERSION}\n", style=MUTED)
-        body.append("  Alt-text for PowerPoint, with a screen-reader user in mind\n\n", style=MUTED)
+        body.append("  Alt-text for PowerPoint and Word, with a screen-reader user in mind\n\n", style=MUTED)
         if s.configured:
             body.append(f"  {s.provider_label} · {s.model}\n")
             body.append("  ")
@@ -114,7 +115,7 @@ class Session:
         self.console.print(Panel(body, box=box.ROUNDED, border_style=ACCENT, padding=(1, 2), expand=False))
         n = self.pending_count()
         hint = f"{n} file(s) in input/. Type /run to start." if n and s.configured else \
-            "Drag a .pptx into this window to add it · / for commands · /help"
+            "Drag a .pptx or .docx into this window to add it · / for commands · /help"
         self.console.print(Text(f" {hint}\n", style=MUTED))
 
     def _toolbar(self):
@@ -160,7 +161,7 @@ class Session:
     def add_files(self, paths: list[Path]) -> None:
         added = 0
         for src in paths:
-            for f in (sorted(src.glob("*.pptx")) if src.is_dir() else [src]):
+            for f in (files.input_candidates(src) if src.is_dir() else [src]):
                 try:
                     target = self.ws.input_dir / files.safe_name(f.name)
                     if target.exists() and target.resolve() != f.resolve():
@@ -180,7 +181,7 @@ class Session:
         if added:
             self.console.print(Text(f" Type /run to describe {'it' if added == 1 else 'them'}.\n", style=MUTED))
         else:
-            self.console.print(Text(" No .pptx files were added.\n", style=WARN))
+            self.console.print(Text(" No .pptx or .docx files were added.\n", style=WARN))
 
     def as_paths(self, line: str) -> list[Path] | None:
         """Terminal drag-and-drop pastes a (quoted or escaped) path."""
@@ -189,7 +190,7 @@ class Session:
         except ValueError:
             return None
         paths = [Path(p).expanduser() for p in parts]
-        if paths and all(p.exists() and (p.is_dir() or p.suffix.lower() == ".pptx") for p in paths):
+        if paths and all(p.exists() and (p.is_dir() or p.suffix.lower() in SUPPORTED_EXTENSIONS) for p in paths):
             return paths
         return None
 
@@ -212,7 +213,7 @@ class Session:
             return
         close = difflib.get_close_matches(word.lower(), list(_WORDS), n=1)
         hint = f" Did you mean /{_WORDS[close[0]]}?" if close else ""
-        self.console.print(Text(f" I don't understand that yet.{hint} Type /help for commands, or drag a .pptx file here.\n", style=WARN))
+        self.console.print(Text(f" I don't understand that yet.{hint} Type /help for commands, or drag a .pptx or .docx file here.\n", style=WARN))
 
     def loop(self) -> None:
         while True:

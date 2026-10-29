@@ -26,7 +26,7 @@ Every failure has the same shape, with a plain-language message and what to do n
 
 | Status | Codes |
 |---|---|
-| 400 | `bad_name`, `not_pptx`, `bad_service`, `no_model`, `no_key`, `bad_request` |
+| 400 | `bad_name`, `unsupported_file`, `audit_unsupported`, `bad_service`, `no_model`, `no_key`, `bad_request` |
 | 401 | `unauthorized` |
 | 404 | `not_found`, `no_output` |
 | 409 | `busy`, `nothing_to_do`, `no_files`, `not_configured`, `model_missing` |

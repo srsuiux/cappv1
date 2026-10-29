@@ -59,7 +59,7 @@ function render() {
       h("span", {}, h("span", { class: "name" }, f.name), h("br"), h("span", { class: "muted" }, mb(f.size))),
       h("span", { class: "state" },
         h("span", { class: ready ? "ok" : tone }, ready ? "✔ Finished copy ready" : label), " ",
-        h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)), " ",
+        f.name.toLowerCase().endsWith(".pptx") ? h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)) : null, " ",
         f.has_output ? h("button", { class: "quiet small", type: "button", onclick: () => download(f.name) }, "Download", h("span", { class: "sr" }, " " + f.name)) : null, " ",
         h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => remove(f.name) }, "Remove", h("span", { class: "sr" }, " " + f.name))));
   }));
@@ -235,7 +235,7 @@ function doneList(saved, tally) {
       h("span", {}, h("b", {}, f.name), h("small", {}, f.incomplete ? "Finished copy ready. Some items couldn't be described, so run again to finish them." : "Finished copy ready"), h("small", { class: "path" }, "Saved on this computer: " + f.path)),
       h("span", { class: "row-actions" },
         h("button", { type: "button", onclick: () => download(f.name) }, "Download finished copy", h("span", { class: "sr" }, " " + f.name)),
-        h("button", { class: "quiet", type: "button", onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)))))),
+        f.name.toLowerCase().endsWith(".pptx") ? h("button", { class: "quiet", type: "button", onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)) : null)))),
     h("p", { class: "muted" }, `${plural(tally.written, "description", "descriptions")} written` + (tally.kept ? `, ${tally.kept} kept as the author wrote them.` : ".") + " It's also in your list below, marked as ready."),
   ];
 }

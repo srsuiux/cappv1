@@ -165,3 +165,66 @@ def test_a_failed_model_call_leaves_the_file_to_retry(tmp_path, fake_ollama, mon
     state = load_state(config.state_dir, "a.docx")
     assert state.status == "in_progress" and state.completed_slide_indices == []
     assert (config.output_dir / "a.docx").exists()  # saved as far as it got
+
+
+# ---- services, runs and the web server --------------------------------------------
+def test_docx_uploads_are_accepted_and_checked(ws, tmp_path):
+    from src.services import files
+    from src.services.errors import ServiceError
+
+    info = files.store_path(ws, make_docx(tmp_path / "paper.docx"))
+    assert info.name == "paper.docx" and info.state == "new"
+    assert [f.name for f in files.list_files(ws)] == ["paper.docx"]
+    with pytest.raises(ServiceError) as err:
+        files.store(ws, "fake.docx", [b"not a zip"])
+    assert err.value.code == "unsupported_file"
+    # a deck renamed to .docx is not a Word document
+    from tests.helpers import make_deck
+
+    with pytest.raises(ServiceError):
+        files.store_path(ws, make_deck(tmp_path / "d.pptx").rename(tmp_path / "d.docx"))
+    assert files.safe_name("Paper.DOCX") == "Paper.docx"
+
+
+def test_word_lock_files_are_ignored(ws, tmp_path):
+    from src.services import files
+
+    files.store_path(ws, make_docx(tmp_path / "paper.docx"))
+    (ws.input_dir / "~$paper.docx").write_bytes(b"lock")
+    assert [f.name for f in files.list_files(ws)] == ["paper.docx"]
+
+
+def test_a_run_through_the_service_captions_a_docx(configured, tmp_path):
+    from src.services import files
+    from src.services.runs import RunManager
+
+    files.store_path(configured, make_docx(tmp_path / "paper.docx"))
+    runs = RunManager(configured)
+    runs.start()
+    assert runs.wait(30)
+    assert runs.status().state == "done" and runs.status().failed_files == []
+    assert files.list_files(configured)[0].state == "done"
+    assert files.output_file(configured, "paper.docx").is_file()
+    assert get_alt_text(extract_pictures(out_doc_at(configured.output_dir / "paper.docx"))[0].doc_pr)
+
+
+def out_doc_at(path):
+    return Document(str(path))
+
+
+def test_the_accessibility_check_says_it_is_decks_only(configured, tmp_path):
+    from src.services import audit, files
+    from src.services.errors import ServiceError
+
+    files.store_path(configured, make_docx(tmp_path / "paper.docx"))
+    with pytest.raises(ServiceError) as err:
+        audit.report(configured, "paper.docx")
+    assert err.value.code == "audit_unsupported"
+
+
+def test_clean_removes_documents_too(configured, tmp_path):
+    from src.services import files
+
+    files.store_path(configured, make_docx(tmp_path / "paper.docx"))
+    assert files.clean(configured)["input"] == 1
+    assert files.list_files(configured) == []

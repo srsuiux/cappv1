@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass, field, replace
 
 from src import doctor, events
 from src.config import Config, load_config
-from src.pipeline import inspect_file, run, setup_logging
+from src.pipeline import discover_candidates, inspect_file, run, setup_logging
 from src.services import envfile
 from src.services.errors import ServiceError
 from src.services.workspace import Workspace
@@ -41,7 +41,7 @@ def _pending(config: Config, resume: bool, force: bool) -> list[str]:
     """Which files a run would process. Looks only; changes nothing. (Mirrors
     pipeline.discover_files, which also logs and, with force, forgets progress.)"""
     out = []
-    for f in sorted(config.input_dir.glob("*.pptx")):
+    for f in discover_candidates(config):
         kind = inspect_file(config, f)[0]
         if force or (kind != "done" and not (resume and kind in ("new", "changed"))):
             out.append(f.name)
@@ -80,9 +80,9 @@ class RunManager:
                 raise ServiceError("model_missing", f"{config.model} isn't downloaded.",
                                    f"Run: ollama pull {config.model}  (or pick another model)")
 
-        names = [p.name for p in config.input_dir.glob("*.pptx")]
+        names = [p.name for p in discover_candidates(config)]
         if not names:
-            raise ServiceError("no_files", "There are no files to process yet.", "Add a .pptx file first.")
+            raise ServiceError("no_files", "There are no files to process yet.", "Add a .pptx or .docx file first.")
         pending = _pending(config, resume, force)
         if not pending:
             shown = ", ".join(names[:3]) + (f" and {len(names) - 3} more" if len(names) > 3 else "")

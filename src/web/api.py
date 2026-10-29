@@ -120,7 +120,8 @@ def delete_file(req):
 def download_file(req):
     path = files.output_file(req.ws, req.groups[0])
     size = path.stat().st_size
-    req.h._headers(200, "application/vnd.openxmlformats-officedocument.presentationml.presentation", size,
+    kind = "wordprocessingml.document" if path.suffix.lower() == ".docx" else "presentationml.presentation"
+    req.h._headers(200, f"application/vnd.openxmlformats-officedocument.{kind}", size,
                    {"Content-Disposition": f"attachment; filename*=UTF-8''{quote(path.name)}"})
     with path.open("rb") as fh:
         while block := fh.read(1 << 20):

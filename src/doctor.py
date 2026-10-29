@@ -196,7 +196,7 @@ def main() -> int:
     all_ok &= report(check_dir_writable(output_dir), "output/ folder is ready")
 
     if not args.quick:
-        pptx_count = len(list(input_dir.glob("*.pptx")))
+        pptx_count = len(list(input_dir.glob("*.pptx"))) + len(list(input_dir.glob("*.docx")))
         print(f"\n  {_BOLD}{pptx_count}{_RESET} file(s) waiting in input/")
 
     print()

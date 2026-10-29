@@ -1,6 +1,6 @@
-<!-- title="Files" nav="files" layout="app" script="files.js" description="Add decks, write alt text, and download the finished files." -->
+<!-- title="Files" nav="files" layout="app" script="files.js" description="Add decks and Word documents, write alt text, and download the finished files." -->
 <h1>Files</h1>
-<p class="muted">Add your PowerPoint files. cappv1 describes the pictures, charts and tables, and saves a finished copy. Your original files are never changed.</p>
+<p class="muted">Add your PowerPoint (.pptx) or Word (.docx) files. cappv1 describes the pictures, charts and tables (in Word: pictures and tables), and saves a finished copy. Your original files are never changed.</p>
 <div id="problem"></div>
 <section class="stage" id="stage" aria-labelledby="ptitle" tabindex="-1" data-phase="working" hidden>
   <h2 id="ptitle">Working…</h2>
@@ -14,10 +14,10 @@
     <ul class="feed" id="feed" tabindex="0" aria-label="What cappv1 wrote, newest first"></ul></details>
   <div class="actions"><button class="quiet" id="stop" type="button">Stop after this slide</button><button class="quiet" id="dismiss" type="button" hidden>Close</button></div>
 </section>
-<label class="drop" id="drop"><input type="file" id="pick" accept=".pptx" multiple>
-  <strong>Choose .pptx files</strong><span class="muted">or drop them here. Up to 200 MB each.</span></label>
+<label class="drop" id="drop"><input type="file" id="pick" accept=".pptx,.docx" multiple>
+  <strong>Choose .pptx or .docx files</strong><span class="muted">or drop them here. Up to 200 MB each.</span></label>
 <h2>Your files</h2>
-<p class="muted" id="empty" hidden>No files yet. Add a .pptx above to begin.</p>
+<p class="muted" id="empty" hidden>No files yet. Add a .pptx or .docx above to begin.</p>
 <ul class="files" id="files" aria-label="Your files"></ul>
 <details id="more"><summary>More options</summary>
   <label class="check"><input type="checkbox" id="force"><span>Replace alt text that people already wrote<br><span class="muted">When this is off, cappv1 keeps or improves what the author wrote.</span></span></label>

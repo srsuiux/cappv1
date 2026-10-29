@@ -45,7 +45,7 @@ logger = logging.getLogger("pptx_alt_text")
 
 _FILE_NAME = re.compile(r"[\w\- .()]+\.(png|jpe?g|gif|bmp|tiff?|emf|wmf|svg|webp)", re.IGNORECASE)
 
-_SUPPORTED = (".pptx", ".docx")
+SUPPORTED_EXTENSIONS = (".pptx", ".docx")
 
 _RESET, _BOLD, _DIM = "\033[0m", "\033[1m", "\033[2m"
 _RED, _GREEN, _YELLOW, _CYAN, _GRAY = (
@@ -133,10 +133,15 @@ def inspect_file(config: Config, path: Path) -> tuple[str, FileState, str]:
     return "new", state, digest
 
 
+def discover_candidates(config: Config) -> list[Path]:
+    """The .pptx and .docx files in input/ (Word's ~$ lock files are not files)."""
+    candidates = config.input_dir.iterdir() if config.input_dir.is_dir() else []
+    return sorted(p for p in candidates if p.suffix.lower() in SUPPORTED_EXTENSIONS and not p.name.startswith("~$"))
+
+
 def discover_files(config: Config, resume_only: bool, force: bool = False) -> list[Path]:
     result = []
-    candidates = config.input_dir.iterdir() if config.input_dir.is_dir() else []
-    for f in sorted(p for p in candidates if p.suffix.lower() in _SUPPORTED and not p.name.startswith("~$")):
+    for f in discover_candidates(config):
         if force:
             (config.state_dir / f"{f.name}.json").unlink(missing_ok=True)  # forget saved progress and captions
         kind, state, _ = inspect_file(config, f)

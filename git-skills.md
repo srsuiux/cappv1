@@ -84,7 +84,7 @@ Slash commands live inside the session. The shell exposes only `cappv1`, `--batc
 
 ## 8. Status (update when it changes)
 
-Stable: engine, services, terminal, batch CLI, web server and API, web UI (v1.3.0). Added in v1.4.0: read-only `/audit` (contrast, reading order; `src/audit.py`). Its web UI page is not built yet. Planned: file health check, screen-reader audit. Not started: npm launcher, PyPI/Homebrew, Windows. In progress on `feature/docx-support`: Word (.docx) in the engine only (pictures and tables); no terminal, web or service support yet, so do not describe it as available. Do not describe anything unstarted as available.
+Stable: engine, services, terminal, batch CLI, web server and API, web UI (v1.3.0). Added in v1.4.0: read-only `/audit` (contrast, reading order; `src/audit.py`). Its web UI page is not built yet. Planned: file health check, screen-reader audit. Not started: npm launcher, PyPI/Homebrew, Windows. In progress on `feature/docx-support`: Word (.docx) through the engine, services, terminal and web server/UI (pictures and tables only; the accessibility check `/audit` is decks only). Not released: do not describe it as available until it is merged and tagged. Do not describe anything unstarted as available.
 
 ## 9. Keep this file honest
 

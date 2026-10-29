@@ -16,10 +16,10 @@
     <tr><th scope="row">A picture</th><td>The picture itself</td></tr>
     <tr><th scope="row">A table</th><td>The table's text</td></tr>
     <tr><th scope="row">A chart</th><td>The chart's text and numbers</td></tr>
-    <tr><th scope="row">Every item</th><td>The slide's title, section name, text and speaker notes, any alt text already there, and cappv1's instructions</td></tr>
+    <tr><th scope="row">Every item</th><td>The slide's title, section name, text and speaker notes, any alt text already there, and cappv1's instructions. For a Word document: the nearest heading above the item, the paragraphs just before and after it, any alt text already there, and cappv1's instructions</td></tr>
   </tbody>
 </table>
-<p>The whole file is never uploaded, other slides are not included, and file names are not sent. Because speaker notes and slide text are included as context, don't use a cloud service for decks whose notes you wouldn't want it to see.</p>
+<p>The whole file is never uploaded, other slides (or the rest of a Word document) are not included, and file names are not sent. Because speaker notes and slide text are included as context, don't use a cloud service for decks whose notes you wouldn't want it to see.</p>
 
 <h2>What each service does with it</h2>
 <table>
@@ -39,8 +39,8 @@
   <caption>Kept in cappv1's folder</caption>
   <thead><tr><th scope="col">Where</th><th scope="col">What</th></tr></thead>
   <tbody>
-    <tr><th scope="row"><code>input/</code></th><td>Copies of the decks you added</td></tr>
-    <tr><th scope="row"><code>output/</code></th><td>The finished decks</td></tr>
+    <tr><th scope="row"><code>input/</code></th><td>Copies of the decks and Word documents you added</td></tr>
+    <tr><th scope="row"><code>output/</code></th><td>The finished decks and documents</td></tr>
     <tr><th scope="row"><code>.state/</code></th><td>Progress, and the alt text already written, so repeat runs cost nothing</td></tr>
     <tr><th scope="row"><code>logs/</code></th><td>File names, slide counts and error messages, not slide content</td></tr>
     <tr><th scope="row"><code>.env</code></th><td>Your chosen service and model, and any API keys, readable only by your account</td></tr>
