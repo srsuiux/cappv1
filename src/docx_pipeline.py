@@ -16,6 +16,7 @@ from src.docx_reader import (
     get_table_alt_text,
     mark_decorative,
     open_document,
+    save_document,
     set_alt_text,
     set_table_alt_text,
     table_to_text,
@@ -179,7 +180,7 @@ async def run_docx_file(
     out_path = config.output_dir / filename
     events.emit("file_saving", filename=filename)
     part_path = out_path.with_name(out_path.name + ".part")
-    doc.save(str(part_path))
+    save_document(doc, path, part_path)
     os.replace(part_path, out_path)
     if failed == 0:
         state.status = "complete"

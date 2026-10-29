@@ -1,3 +1,4 @@
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from lxml import etree
 from src.pptx_reader import SlideContext
 
 _WP_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+_A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 _A16_DECORATIVE_URI = "{C183D7F6-B498-43B3-948B-1728B52AA6E4}"
 _ADEC_NS = "http://schemas.microsoft.com/office/drawing/2017/decorative"
 _MC_FALLBACK = "{http://schemas.openxmlformats.org/markup-compatibility/2006}Fallback"
@@ -32,6 +34,19 @@ class DocTable:
 
 def open_document(path: Path):
     return Document(str(path))
+
+
+def save_document(doc, source: Path, dest: Path) -> None:
+    """Writes the finished copy by taking the original file as it is and replacing only the
+    document body. Saving through python-docx would repackage every part (order, content
+    types, XML declarations), which some readers such as Blackboard's previewer refuse."""
+    name = doc.part.partname.lstrip("/")
+    body = b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + etree.tostring(
+        doc.part._element, encoding="UTF-8")
+    with zipfile.ZipFile(source) as src, zipfile.ZipFile(dest, "w") as out:
+        for info in src.infolist():
+            out.writestr(info, body if info.filename == name else src.read(info.filename),
+                         compress_type=info.compress_type)
 
 
 def _wp(tag: str) -> str:
@@ -93,7 +108,7 @@ def mark_decorative(doc_pr) -> None:
         return
     ext_lst = doc_pr.find(qn("a:extLst"))
     if ext_lst is None:
-        ext_lst = etree.SubElement(doc_pr, qn("a:extLst"))
+        ext_lst = etree.SubElement(doc_pr, qn("a:extLst"), nsmap={"a": _A_NS})
     ext = etree.SubElement(ext_lst, qn("a:ext"), uri=_A16_DECORATIVE_URI)
     etree.SubElement(ext, f"{{{_ADEC_NS}}}decorative", {"val": "1"}, nsmap={"adec": _ADEC_NS})
 

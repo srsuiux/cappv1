@@ -106,6 +106,29 @@ def test_only_alt_text_changes_in_the_document(tmp_path, fake_ollama, monkeypatc
                 assert a.read(name) == b.read(name), name
 
 
+def test_the_package_keeps_the_originals_order_and_bytes(tmp_path, fake_ollama, monkeypatch):
+    """Only word/document.xml is rewritten; Blackboard's previewer refuses repackaged files."""
+    config = docx_config(tmp_path, fake_ollama, monkeypatch)
+    src = make_docx(config.input_dir / "a.docx")
+    run(config)
+
+    with zipfile.ZipFile(src) as a, zipfile.ZipFile(config.output_dir / "a.docx") as b:
+        assert a.namelist() == b.namelist()
+        for name in a.namelist():
+            if name != "word/document.xml":
+                assert a.read(name) == b.read(name), name
+        assert b.read("word/document.xml").startswith(b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
+
+
+def test_the_decorative_flag_uses_the_standard_prefix(tmp_path, fake_ollama, monkeypatch):
+    config = docx_config(tmp_path, fake_ollama, monkeypatch)
+    make_docx(config.input_dir / "a.docx", tiny=True)
+    run(config)
+    with zipfile.ZipFile(config.output_dir / "a.docx") as z:
+        xml = z.read("word/document.xml").decode()
+    assert "<a:extLst" in xml and "ns0:" not in xml
+
+
 def test_tiny_pictures_are_marked_decorative_without_a_model_call(tmp_path, fake_ollama, monkeypatch):
     config = docx_config(tmp_path, fake_ollama, monkeypatch)
     make_docx(config.input_dir / "a.docx", tiny=True)
