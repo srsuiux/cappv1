@@ -139,7 +139,7 @@ def start_run(req):
     if force and not _flag(body, "confirm"):
         raise ServiceError("bad_request", "Replacing the author's own alt text needs confirmation.",
                            "Send “confirm”: true along with “force”: true.")
-    plan = req.runs.start(resume=_flag(body, "resume"), force=force)
+    plan = req.runs.start(resume=_flag(body, "resume"), force=force, console_logs=True)
     req.h.send_json(202, {**_run_dict(req), "pending": plan.pending})
 
 

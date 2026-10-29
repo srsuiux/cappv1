@@ -75,6 +75,24 @@ class _ColorFormatter(logging.Formatter):
         return f"{color}{line}{_RESET}" if color else line
 
 
+def explain_error(exc: Exception) -> str:
+    """One plain line for a person reading the notes, never a traceback."""
+    text = str(exc).strip().strip("\"'")
+    if isinstance(exc, KeyError) and "no relationship" in text:
+        return "the file points to a part that isn't inside it (a broken link in the original)"
+    return f"{type(exc).__name__}: {text}"[:200] if text else type(exc).__name__
+
+
+def record_skip(state: FileState, filename: str, slide: int, where: str, kind: str, exc: Exception) -> None:
+    """An item that can't be read is skipped, never fatal to the file. It is
+    noted in the file's saved progress, the log and the event stream, so
+    someone can look at it later."""
+    error = explain_error(exc)
+    state.skipped.append({"where": where, "kind": kind, "error": error})
+    logger.warning("[file: %s] skipped %s on %s: %s", filename, kind, where, error)
+    events.emit("element_skipped", filename=filename, slide=slide, where=where, kind=kind, error=error)
+
+
 def progress_bar(done: int, total: int, width: int = 18) -> str:
     if total <= 0:
         return "[" + "-" * width + "]"
@@ -87,6 +105,7 @@ def setup_logging(logs_dir: Path, console: bool = True) -> None:
     log_path = logs_dir / f"run-{time.strftime('%Y%m%d-%H%M%S')}.log"
     logger.setLevel(logging.INFO)
     logger.handlers.clear()
+    logger.propagate = not console  # with its own console handler, the root logger would print every line twice
 
     fmt = "%(asctime)s %(levelname)s %(message)s"
     datefmt = "%H:%M:%S"
@@ -203,7 +222,7 @@ async def _process_slide(
 
     if total_elements == 0:
         events.emit("slide_end", filename=filename, slide=slide_index, total=total_slides,
-                    captioned=0, enhanced=0, kept=0, decorative=0, cached=0, failed=0, empty=True)
+                    captioned=0, enhanced=0, kept=0, decorative=0, cached=0, failed=0, skipped=0, empty=True)
         logger.info(
             "[file: %s] %s %d/%d [section: %s] no images, tables, or charts",
             filename, bar, slide_index + 1, total_slides, section or "-",
@@ -211,7 +230,17 @@ async def _process_slide(
         state.mark_slide_done(slide_index)
         return 0
 
-    n = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0}
+    n = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0, "skipped": 0}
+
+    def skip(kind: str, exc: Exception) -> None:
+        n["skipped"] += 1
+        record_skip(state, filename, slide_index, f"slide {slide_index + 1}", kind, exc)
+
+    async def guarded(kind: str, handler, shape) -> None:
+        try:
+            await handler(shape)
+        except Exception as exc:  # one unreadable item must not stop the file
+            skip(kind, exc)
 
     def author_text(shape) -> str:
         """Alt-text the slide's author already wrote. We build on it, never
@@ -257,8 +286,12 @@ async def _process_slide(
         if author_text(shape):
             n["kept"] += 1
             continue
+        try:
+            mark_decorative(shape)
+        except Exception as exc:
+            skip("invisible shape", exc)
+            continue
         n["decorative"] += 1
-        mark_decorative(shape)
 
     async def handle_picture(shape):
         author = author_text(shape)
@@ -375,20 +408,20 @@ async def _process_slide(
         state.caption_cache[key] = settle(shape, caption, author)
 
     await asyncio.gather(
-        *(handle_picture(shape) for shape in pictures),
-        *(handle_table(shape) for shape in tables),
-        *(handle_chart(shape) for shape in charts),
-        *(handle_ole(shape) for shape in ole_objects),
-        *(handle_smartart(shape) for shape in smartart_shapes),
+        *(guarded("picture", handle_picture, shape) for shape in pictures),
+        *(guarded("table", handle_table, shape) for shape in tables),
+        *(guarded("chart", handle_chart, shape) for shape in charts),
+        *(guarded("embedded object", handle_ole, shape) for shape in ole_objects),
+        *(guarded("diagram", handle_smartart, shape) for shape in smartart_shapes),
     )
 
     failed = n["failed"]
     logger.info(
         "[file: %s] %s %d/%d [section: %s] captioned %d, enhanced %d, kept author's %d, "
-        "decorative %d, cached %d, failed %d (of %d elements: %d images, %d tables, "
+        "decorative %d, cached %d, failed %d, skipped %d (of %d elements: %d images, %d tables, "
         "%d charts, %d OLE objects, %d SmartArt, %d invisible shapes)",
         filename, bar, slide_index + 1, total_slides, section or "-",
-        n["captioned"], n["enhanced"], n["kept"], n["decorative"], n["cached"], failed,
+        n["captioned"], n["enhanced"], n["kept"], n["decorative"], n["cached"], failed, n["skipped"],
         total_elements, len(pictures), len(tables), len(charts), len(ole_objects),
         len(smartart_shapes), len(invisible_shapes),
     )
@@ -411,6 +444,7 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     total_slides = len(prs.slides)
     _, state, digest = inspect_file(config, path)
     state.content_hash = digest
+    state.skipped = []  # every slide is walked again, so the notes are rebuilt
     save_state(config.state_dir, state)
     events.emit("file_open", filename=filename, kind="slides", total_slides=total_slides,
                 resumed=len(state.completed_slide_indices))
@@ -420,10 +454,17 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     # saved captions applied again. Cached items cost no model calls.
     any_failed = False
     for index, slide in enumerate(prs.slides):
-        failed = await _process_slide(
-            slide, index, total_slides, filename, section_map.get(index),
-            config, client, semaphore, state,
-        )
+        try:
+            failed = await _process_slide(
+                slide, index, total_slides, filename, section_map.get(index),
+                config, client, semaphore, state,
+            )
+        except Exception as exc:  # the slide itself is unreadable: note it and move on
+            record_skip(state, filename, index, f"slide {index + 1}", "whole slide", exc)
+            state.mark_slide_done(index)
+            failed = 0
+            events.emit("slide_end", filename=filename, slide=index, total=total_slides, empty=False,
+                        captioned=0, enhanced=0, kept=0, decorative=0, cached=0, failed=0, skipped=1)
         any_failed = any_failed or failed > 0
         save_state(config.state_dir, state)
 
@@ -449,7 +490,10 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
         # only now is the file really done
         state.status = "complete"
         save_state(config.state_dir, state)
-    events.emit("file_saved", filename=filename, path=str(out_path), incomplete=any_failed)
+    events.emit("file_saved", filename=filename, path=str(out_path), incomplete=any_failed, skipped=len(state.skipped))
+    if state.skipped:
+        logger.warning("[file: %s] %d item(s) were skipped and need a look: %s", filename, len(state.skipped),
+                       "; ".join(f"{s['kind']} on {s['where']}" for s in state.skipped))
     logger.info("[file: %s] saved to %s", filename, out_path)
 
 

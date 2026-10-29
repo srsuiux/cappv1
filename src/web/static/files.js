@@ -61,12 +61,20 @@ async function audit(name) {
   } catch (err) { showProblem(err); }
 }
 
+// What could not be read in a file, so someone can look at it later
+function skipNotes(list) {
+  return h("span", { class: "skips" }, h("span", { class: "warn" }, `${plural(list.length, "item was", "items were")} skipped. Check ${list.length === 1 ? "it" : "them"} in the original:`),
+    h("ul", {}, ...list.slice(0, 10).map((s) => h("li", {}, `${s.where}, ${s.kind}: ${s.error}`)),
+      list.length > 10 ? h("li", {}, `and ${list.length - 10} more (see the run log)`) : null));
+}
+
 function row(f) {
   const [label, tone] = STATE[f.state] || [f.state, ""];
   const ready = fresh.has(f.name);
   return h("li", { class: ready ? "fresh" : "" },
     h("span", {}, h("span", { class: "name" }, f.name), h("br"), h("span", { class: "muted" }, `${KIND_LABEL[kindOf(f.name)]} · ${mb(f.size)}`),
-      isWord(f.name) ? h("span", { class: "muted" }, " · pictures and tables") : null),
+      isWord(f.name) ? h("span", { class: "muted" }, " · pictures and tables") : null,
+      f.skipped && f.skipped.length ? skipNotes(f.skipped) : null),
     h("span", { class: "state" },
       h("span", { class: ready ? "ok" : tone }, ready ? "✔ Finished copy ready" : label), " ",
       !isWord(f.name) ? h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)) : null, " ",
@@ -153,12 +161,14 @@ let kind = "slides", items = { total: 0, done: 0 };
 // one chip per picture or table instead, filled in as each is described.
 function buildDeck(total) {
   tiles = Array.from({ length: total }, (_, i) => h("span", { class: "tile" }, String(i + 1)));
+  skippedTiles.clear();
   $("deck").classList.toggle("items", kind === "document");
   $("deck").replaceChildren(...tiles);
 }
+const skippedTiles = new Set(); // slides that had something it could not read
 function mark(i, state) {
   const t = tiles[i];
-  if (t) t.className = "tile " + state;
+  if (t) t.className = "tile " + (state === "done" && skippedTiles.has(i) ? "skip" : state);
 }
 
 function watch(id) {
@@ -183,7 +193,7 @@ function watch(id) {
   stage.scrollIntoView({ block: "start" });
   stage.focus({ preventScroll: true });
   let fileNo = 1, fileCount = 1, name = "";
-  const saved = [], tally = { written: 0, kept: 0 };
+  const saved = [], tally = { written: 0, kept: 0, skipped: 0 };
   $("stop").onclick = async () => {
     $("stop").disabled = true;
     announce("Stopping after this slide");
@@ -260,11 +270,17 @@ function watch(id) {
         feed(where(ev), ev.outcome === "kept" ? "Kept the alt text you wrote." : clip(ev.text), say && say[0]);
         break;
       }
+      case "element_skipped":
+        tally.skipped++;
+        if (kind === "slides") skippedTiles.add(ev.slide);
+        feed(where(ev), `${ev.kind}: ${ev.error}`, "Skipped, and noted so you can check it later");
+        announce(`Skipped a ${ev.kind} on ${ev.where}`);
+        break;
       case "file_saving":
         $("now").textContent = "Saving the finished copy…";
         break;
       case "file_saved":
-        saved.push({ name: ev.filename, path: ev.path, incomplete: ev.incomplete, kind });
+        saved.push({ name: ev.filename, path: ev.path, incomplete: ev.incomplete, kind, skipped: ev.skipped || 0 });
         fresh.add(ev.filename);
         announce(ev.incomplete ? `${ev.filename} saved, some items could not be described` : `${ev.filename} finished`);
         break;
@@ -295,6 +311,7 @@ function doneList(saved, tally) {
         h("button", { type: "button", onclick: () => download(f.name) }, "Download finished copy", h("span", { class: "sr" }, " " + f.name)),
         !isWord(f.name) ? h("button", { class: "quiet", type: "button", onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)) : null)))),
     h("p", { class: "muted" }, `${plural(tally.written, "description", "descriptions")} written` + (tally.kept ? `, ${tally.kept} kept as the author wrote them.` : ".") + " It's also in your list below, marked as ready."),
+    tally.skipped ? h("p", { class: "note" }, `${plural(tally.skipped, "item", "items")} could not be read and ${tally.skipped === 1 ? "was" : "were"} skipped, so the rest could finish. The list below says which, so you can check ${tally.skipped === 1 ? "it" : "them"} in the original.`) : null,
   ];
 }
 

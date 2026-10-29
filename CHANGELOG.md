@@ -2,6 +2,11 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
+## Unreleased
+
+- A damaged item no longer stops a file. A slide or document item that cannot be read (for example an embedded object whose part is missing, which used to end the file with "no relationship with key 'rId4'") is skipped, noted in the file's saved progress and the log, and the rest finishes. The Files page lists what was skipped under each file and marks the slide, and the terminal run view prints it. Applies to decks and Word documents.
+- A run started from the browser now prints its log in the terminal that started cappv1 (`--web`, or `/web` in the terminal session).
+
 ## 1.5.0
 
 - Word documents (`.docx`): pictures and tables get alt text (`wp:docPr` description and `w:tblDescription`), through the terminal, the batch command and the web UI. Charts, SmartArt, embedded objects and headers/footers are not handled yet, and `/audit` stays decks-only.

@@ -168,7 +168,11 @@ class RunView:
             line = Text(f" {'!' if d['incomplete'] else TICK} ", style=WARN if d["incomplete"] else OK)
             line.append(f"Saved output/{d['filename']}", style="bold")
             line.append("  some items need a retry, run /run again" if d["incomplete"] else "", style=WARN)
+            if d.get("skipped"):
+                line.append(f"  {d['skipped']} item(s) skipped, see the notes above", style=WARN)
             self._say(line)
+        elif event == "element_skipped":
+            self._say(Text(f"  ! skipped a {d['kind']} on {d['where']}: {d['error']}", style=WARN))
         elif event == "file_failed":
             self.files_bad.append(d["filename"])
             self._say(Text(f" {CROSS} {d['filename']} could not be processed: {d['error']}", style=BAD))

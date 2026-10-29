@@ -1,7 +1,7 @@
 """The decks and Word documents in input/ and output/. Deliberately small: add, list, fetch, clean."""
 import os
 import zipfile
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterable
 
@@ -19,6 +19,7 @@ class FileInfo:
     size: int
     state: str  # new | partial | changed | done
     has_output: bool
+    skipped: list[dict] = field(default_factory=list)  # items it could not read, to look at later: {where, kind, error}
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -98,11 +99,14 @@ def exists(ws: Workspace, name: str) -> bool:
 
 def describe(ws: Workspace, name: str) -> FileInfo:
     path = ws.input_dir / name
+    skipped = []
     try:
-        state = inspect_file(load_config(ws.root), path)[0]
+        state, saved, _ = inspect_file(load_config(ws.root), path)
+        if state != "changed":  # notes about an older version of the file no longer apply
+            skipped = list(saved.skipped)
     except Exception:
         state = "new"  # not configured yet: it simply hasn't been processed
-    return FileInfo(name, path.stat().st_size, state, (ws.output_dir / name).exists())
+    return FileInfo(name, path.stat().st_size, state, (ws.output_dir / name).exists(), skipped)
 
 
 def list_files(ws: Workspace) -> list[FileInfo]:

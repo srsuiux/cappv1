@@ -90,21 +90,22 @@ class RunManager:
                                "Add new files, or edit a deck and add it again.")
         return RunPlan(config, resume, force, pending)
 
-    def launch(self, plan: RunPlan) -> None:
+    def launch(self, plan: RunPlan, console_logs: bool = False) -> None:
         with self._lock:
             if self.running:
                 raise ServiceError("busy", "A run is already in progress.")
             self._log = []
             self._cancel = False
             self._status = RunStatus(state="running", started=time.time())
-            setup_logging(plan.config.logs_dir, console=False)
+            setup_logging(plan.config.logs_dir, console=console_logs)
             unsubscribe = events.subscribe(self._on_event)
             self._thread = threading.Thread(target=self._work, args=(plan, unsubscribe), daemon=True, name="cappv1-run")
             self._thread.start()
 
-    def start(self, resume: bool = False, force: bool = False) -> RunPlan:
+    def start(self, resume: bool = False, force: bool = False, console_logs: bool = False) -> RunPlan:
+        """console_logs: also print the run log in the terminal that started cappv1 (for runs started from the browser)."""
         plan = self.prepare(resume, force)
-        self.launch(plan)
+        self.launch(plan, console_logs)
         return plan
 
     # ---- running (background thread) ----------------------------------------

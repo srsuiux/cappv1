@@ -22,7 +22,7 @@ from src.docx_reader import (
 )
 from src.image_filter import is_too_small
 from src.llm_client import generate_caption, generate_table_alt_text
-from src.pipeline import _FILE_NAME, inspect_file
+from src.pipeline import _FILE_NAME, inspect_file, record_skip
 from src.state import FileState, save_state
 
 logger = logging.getLogger("pptx_alt_text")
@@ -42,18 +42,30 @@ async def run_docx_file(
     doc = open_document(path)
     _, state, digest = inspect_file(config, path)
     state.content_hash = digest
+    state.skipped = []
     save_state(config.state_dir, state)
 
-    pictures = extract_pictures(doc)
-    tables = extract_tables(doc)
+    pictures, tables = [], []
+    for kind, find, into in (("pictures", extract_pictures, pictures), ("tables", extract_tables, tables)):
+        try:
+            into.extend(find(doc))
+        except Exception as exc:  # unreadable parts of the document are noted, the rest still gets done
+            record_skip(state, filename, 0, "the document", kind, exc)
     events.emit("file_open", filename=filename, kind="document", total_slides=1, items=len(pictures) + len(tables),
                 resumed=len(state.completed_slide_indices))
     events.emit("slide_start", filename=filename, slide=0, total=1,
                 counts={"picture": len(pictures), "table": len(tables), "chart": 0,
                         "object": 0, "diagram": 0, "invisible": 0})
 
-    n = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0}
-    skipped = 0
+    n = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0, "skipped": 0}
+    skipped = 0  # pictures that can't be sent to a model; left as they were
+
+    async def guarded(kind: str, handler, element, number: int) -> None:
+        try:
+            await handler(element)
+        except Exception as exc:  # one unreadable item must not stop the document
+            n["skipped"] += 1
+            record_skip(state, filename, 0, f"{kind} {number} of the document", kind, exc)
 
     def remember(key: str, caption: str) -> None:
         # saved at once, so stopping a long document keeps the captions already paid for
@@ -92,6 +104,8 @@ async def run_docx_file(
 
     async def handle_picture(pic):
         nonlocal skipped
+        if pic.image_bytes is None:
+            raise ValueError("the picture's image is missing from the file (a broken link in the original)")
         author = author_text(get_alt_text(pic.doc_pr))
         if pic.ext.lower() in _UNSENDABLE_EXTS:
             logger.warning("[file: %s] a .%s picture can't be sent to a vision model - left as it is", filename, pic.ext)
@@ -141,13 +155,16 @@ async def run_docx_file(
             return
         remember(key, settle(write, caption, author))
 
-    await asyncio.gather(*(handle_picture(p) for p in pictures), *(handle_table(t) for t in tables))
+    await asyncio.gather(
+        *(guarded("picture", handle_picture, p, i) for i, p in enumerate(pictures, 1)),
+        *(guarded("table", handle_table, t, i) for i, t in enumerate(tables, 1)),
+    )
 
     failed = n["failed"]
     logger.info(
         "[file: %s] captioned %d, enhanced %d, kept author's %d, decorative %d, cached %d, failed %d, "
-        "skipped %d (of %d elements: %d images, %d tables)",
-        filename, n["captioned"], n["enhanced"], n["kept"], n["decorative"], n["cached"], failed, skipped,
+        "left as is %d, skipped %d (of %d elements: %d images, %d tables)",
+        filename, n["captioned"], n["enhanced"], n["kept"], n["decorative"], n["cached"], failed, skipped, n["skipped"],
         len(pictures) + len(tables), len(pictures), len(tables),
     )
     events.emit("slide_end", filename=filename, slide=0, total=1, empty=not (pictures or tables), **n)
@@ -167,5 +184,8 @@ async def run_docx_file(
     if failed == 0:
         state.status = "complete"
         save_state(config.state_dir, state)
-    events.emit("file_saved", filename=filename, path=str(out_path), incomplete=failed > 0)
+    events.emit("file_saved", filename=filename, path=str(out_path), incomplete=failed > 0, skipped=len(state.skipped))
+    if state.skipped:
+        logger.warning("[file: %s] %d item(s) were skipped and need a look: %s", filename, len(state.skipped),
+                       "; ".join(f"{s['kind']} on {s['where']}" for s in state.skipped))
     logger.info("[file: %s] saved to %s", filename, out_path)

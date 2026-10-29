@@ -9,6 +9,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.history import FileHistory, InMemoryHistory
+from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 from rich import box
 from rich.console import Console, Group
@@ -218,7 +219,8 @@ class Session:
     def loop(self) -> None:
         while True:
             try:
-                line = self.prompt.prompt(self._message())
+                with patch_stdout(raw=True):  # a run started in the browser prints its log above the prompt
+                    line = self.prompt.prompt(self._message())
             except KeyboardInterrupt:
                 self.console.print(Text(" Press Ctrl+D or type /exit to leave.", style=MUTED))
                 continue

@@ -19,7 +19,7 @@ _MAX_CONTEXT_CHARS = 600
 @dataclass
 class DocPicture:
     doc_pr: etree._Element  # wp:docPr, which holds the alt text Word's "Edit Alt Text" pane edits
-    image_bytes: bytes
+    image_bytes: bytes | None  # None when the file points to an image that isn't in it
     ext: str
     block: etree._Element  # the top-level body child that contains it, for context
 
@@ -62,13 +62,11 @@ def extract_pictures(doc) -> list[DocPicture]:
         blips = doc_pr.getparent().xpath(".//a:blip[@r:embed]")
         if not blips:
             continue
-        part = related.get(blips[0].get(qn("r:embed")))
-        if part is None:
-            continue
+        part = related.get(blips[0].get(qn("r:embed")))  # None: the image is missing from the file
         found.append(DocPicture(
             doc_pr=doc_pr,
-            image_bytes=part.blob,
-            ext=Path(str(part.partname)).suffix.lstrip("."),
+            image_bytes=part.blob if part is not None else None,
+            ext=Path(str(part.partname)).suffix.lstrip(".") if part is not None else "",
             block=_top_block(doc_pr, body),
         ))
     return found

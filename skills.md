@@ -66,6 +66,10 @@ This covers the common case (a single connected hierarchy/list layout). It will 
 - Not handled yet: charts, SmartArt, embedded objects, headers/footers/footnotes, and EMF/WMF/SVG/TIFF pictures (logged and left alone). Table header rows are not flagged: `w:tblHeader` repeats the row across pages, which is visible.
 - Context for the model is the nearest heading above the element and the paragraphs next to it. Read-only.
 
+## Errors never stop a file
+
+An item or slide that cannot be read (for example an embedded object whose part is missing from a damaged file, which makes python-pptx raise `no relationship with key ...`) is **skipped**, not fatal: `record_skip()` in `src/pipeline.py` adds a `{where, kind, error}` note to the file's saved progress (`FileState.skipped`), logs it and emits `element_skipped`; the rest of the file is processed and saved. A skip is not a failure to retry (it would fail the same way), so the file still finishes; the notes are how someone finds it later. A failed model call is different: it is retried on the next run. Cancelling (`CancelledError`) is never swallowed. Keep every new element handler inside this guard.
+
 ## If you're extending this codebase
 
 - Don't add features that reformat, reposition, restyle, resize, or "clean up" slides — that is out of scope for this tool, full stop.
