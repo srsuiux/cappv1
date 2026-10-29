@@ -103,7 +103,7 @@ class Session:
         body.append("✻ ", style=ACCENT)
         body.append("Welcome to cappv1", style="bold")
         body.append(f"  v{VERSION}\n", style=MUTED)
-        body.append("  Alt-text for PowerPoint and Word, with a screen-reader user in mind\n\n", style=MUTED)
+        body.append("  Improve the accessibility of PowerPoint and Word files, with a screen-reader user in mind\n\n", style=MUTED)
         if s.configured:
             body.append(f"  {s.provider_label} · {s.model}\n")
             body.append("  ")

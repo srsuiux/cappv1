@@ -7,6 +7,7 @@ const STATE = {
 let files = [];
 let busy = false;
 const fresh = new Set(); // finished in the latest run
+const session = new Set(); // added or run on this page, so they stay under Current files
 
 const isWord = (name) => name.toLowerCase().endsWith(".docx");
 const KIND_LABEL = { slides: "PowerPoint deck", document: "Word document" };
@@ -60,26 +61,33 @@ async function audit(name) {
   } catch (err) { showProblem(err); }
 }
 
+function row(f) {
+  const [label, tone] = STATE[f.state] || [f.state, ""];
+  const ready = fresh.has(f.name);
+  return h("li", { class: ready ? "fresh" : "" },
+    h("span", {}, h("span", { class: "name" }, f.name), h("br"), h("span", { class: "muted" }, `${KIND_LABEL[kindOf(f.name)]} · ${mb(f.size)}`),
+      isWord(f.name) ? h("span", { class: "muted" }, " · pictures and tables") : null),
+    h("span", { class: "state" },
+      h("span", { class: ready ? "ok" : tone }, ready ? "✔ Finished copy ready" : label), " ",
+      !isWord(f.name) ? h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)) : null, " ",
+      f.has_output ? h("button", { class: "quiet small", type: "button", onclick: () => download(f.name) }, "Download", h("span", { class: "sr" }, " " + f.name)) : null, " ",
+      h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => remove(f.name) }, "Remove", h("span", { class: "sr" }, " " + f.name))));
+}
+
 function render() {
-  $("empty").hidden = files.length > 0;
-  $("files").replaceChildren(...files.map((f) => {
-    const [label, tone] = STATE[f.state] || [f.state, ""];
-    const ready = fresh.has(f.name);
-    return h("li", { class: ready ? "fresh" : "" },
-      h("span", {}, h("span", { class: "name" }, f.name), h("br"), h("span", { class: "muted" }, `${KIND_LABEL[kindOf(f.name)]} · ${mb(f.size)}`),
-        isWord(f.name) ? h("span", { class: "muted" }, " · pictures and tables") : null),
-      h("span", { class: "state" },
-        h("span", { class: ready ? "ok" : tone }, ready ? "✔ Finished copy ready" : label), " ",
-        !isWord(f.name) ? h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)) : null, " ",
-        f.has_output ? h("button", { class: "quiet small", type: "button", onclick: () => download(f.name) }, "Download", h("span", { class: "sr" }, " " + f.name)) : null, " ",
-        h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => remove(f.name) }, "Remove", h("span", { class: "sr" }, " " + f.name))));
-  }));
+  // Current: waiting to be done, or touched on this page. Previous: finished earlier.
+  const current = files.filter((f) => f.state !== "done" || session.has(f.name));
+  const previous = files.filter((f) => !current.includes(f));
+  $("empty").hidden = current.length > 0;
+  $("files").replaceChildren(...current.map(row));
+  $("prevwrap").hidden = previous.length === 0;
+  $("prev").replaceChildren(...previous.map(row));
   const force = $("force").checked;
   const n = force ? files.length : files.filter((f) => f.state !== "done").length;
   $("run").disabled = busy || n === 0;
-  $("run").textContent = n === 0 ? "Write alt text" : `${force ? "Replace and write" : "Write"} alt text for ${plural(n, "file", "files")}`;
+  $("run").textContent = n === 0 ? "Improve accessibility" : `${force ? "Replace and improve" : "Improve"} accessibility for ${plural(n, "file", "files")}`;
   $("runhelp").textContent = force
-    ? "This replaces alt text people wrote, in the finished copies. Your originals are not changed."
+    ? "This replaces alt text people wrote, in the finished copies, and includes previous files. Your originals are not changed."
     : "Items already described are reused, not paid for twice.";
 }
 
@@ -95,6 +103,7 @@ async function upload(list) {
     try {
       await api("PUT", `/files/${encodeURIComponent(file.name)}`, file, true);
     } catch (err) { showProblem(new ApiError({ code: err.code, message: `${file.name}: ${err.message}`, fix: err.fix })); continue; }
+    session.add(file.name);
     announce(`${file.name} added`);
   }
   await loadFiles();
@@ -194,6 +203,7 @@ function watch(id) {
     switch (ev.event) {
       case "file_start":
         fileNo = ev.index; fileCount = ev.total; name = ev.filename;
+        session.add(name);
         kind = ev.kind || kindOf(name);
         items = { total: 0, done: 0 };
         $("stop").textContent = stopLabel();
