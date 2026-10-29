@@ -4,6 +4,8 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
+- Word: finished copies open in Word and preview in Blackboard. The output is now the original file with only `word/document.xml` replaced, instead of a python-docx re-save. Documents saved in Word compatibility mode 11 or 12 (what LibreOffice writes) get no table alt text, because Word refuses to open them with it; picture alt text is unaffected, and one note says to use Save As in Word first.
+- Word: embedded objects (for example Visio drawings) now get alt text, so an accessibility checker no longer sees them as undescribed pictures. The Privacy page now lists the text read from an embedded object.
 - Files page: every file has a checkbox, with Select all and a count. "Improve accessibility" runs only the ticked files (`POST /runs` takes `files`). New files are ticked for you; previous files can be ticked too. "Remove all" empties the Current files list after an inline confirmation.
 - Sidebar: an icon beside every link, and a button that folds it to an icon rail (remembered in this browser). The theme choice is now three icon buttons (System, Light, Dark) with tooltips and screen-reader names.
 - Fixes a stray "null" shown on the finished-run card.

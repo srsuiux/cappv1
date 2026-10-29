@@ -27,6 +27,14 @@ class DocPicture:
 
 
 @dataclass
+class DocObject:
+    shape: etree._Element  # the v:shape that previews the object; its alt attribute is the alt text
+    blob: bytes | None  # the embedded file; None for a linked object or a part missing from the file
+    prog_id: str
+    block: etree._Element
+
+
+@dataclass
 class DocTable:
     table: Table
     block: etree._Element
@@ -88,6 +96,43 @@ def extract_pictures(doc) -> list[DocPicture]:
             block=_top_block(doc_pr, body),
         ))
     return found
+
+
+_VML_NS = "urn:schemas-microsoft-com:vml"
+_OFFICE_NS = "urn:schemas-microsoft-com:office:office"
+
+
+def extract_objects(doc) -> list[DocObject]:
+    """Embedded objects (Visio drawings, Excel sheets, ...) in the body. Word shows each as a
+    preview picture inside w:object; the description lives on that VML shape's alt attribute,
+    which is what Word's Edit Alt Text pane edits for it."""
+    body = doc.element.body
+    related = doc.part.related_parts
+    found = []
+    for obj in body.iter(qn("w:object")):
+        if _in_fallback(obj):
+            continue
+        shape = obj.find(f".//{{{_VML_NS}}}shape")
+        if shape is None:
+            continue
+        ole = obj.find(f"{{{_OFFICE_NS}}}OLEObject")
+        rid = ole.get(qn("r:id")) if ole is not None else None
+        part = related.get(rid) if rid else None
+        found.append(DocObject(
+            shape=shape,
+            blob=part.blob if part is not None else None,
+            prog_id=(ole.get("ProgID") or "") if ole is not None else "",
+            block=_top_block(obj, body),
+        ))
+    return found
+
+
+def get_object_alt_text(shape) -> str:
+    return shape.get("alt", "") or ""
+
+
+def set_object_alt_text(shape, text: str) -> None:
+    shape.set("alt", text)
 
 
 def extract_tables(doc) -> list[DocTable]:

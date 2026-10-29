@@ -156,6 +156,59 @@ def test_tables_in_a_modern_document_are_described(tmp_path, fake_ollama, monkey
     assert "tblDescription" in zipfile.ZipFile(config.output_dir / "a.docx").read("word/document.xml").decode()
 
 
+def add_object(path, *, alt=None):
+    """Embeds a small Word file as an OLE object, the way a Visio or Excel one sits in a document."""
+    inner = io.BytesIO()
+    inside = Document()
+    inside.add_paragraph("Customer places Order; Order contains Product")
+    inside.save(inner)
+    alt_attr = f' alt="{alt}"' if alt else ""
+    ns = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+          'xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" '
+          'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"')
+    obj = (f'<w:p {ns}><w:r><w:object w:dxaOrig="100" w:dyaOrig="100"><v:shape id="ole_rId9" style="width:10pt"{alt_attr}>'
+           f'<v:imagedata o:title=""/></v:shape><o:OLEObject Type="Embed" ProgID="" ShapeID="ole_rId9" '
+           f'DrawAspect="Content" ObjectID="_1" r:id="rId9"/></w:object></w:r></w:p>')
+    with zipfile.ZipFile(path) as z:
+        parts = {n: z.read(n) for n in z.namelist()}
+    parts["word/embeddings/oleObject1.bin"] = inner.getvalue()
+    rels = parts["word/_rels/document.xml.rels"].decode().replace(
+        "</Relationships>", '<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/'
+        'relationships/oleObject" Target="embeddings/oleObject1.bin"/></Relationships>')
+    parts["word/_rels/document.xml.rels"] = rels.encode()
+    types = parts["[Content_Types].xml"].decode().replace(
+        "<Override", '<Default Extension="bin" ContentType="application/vnd.openxmlformats-officedocument.oleObject"/><Override', 1)
+    parts["[Content_Types].xml"] = types.encode()
+    doc = parts["word/document.xml"].decode().replace("<w:sectPr", obj.replace(f" {ns}", "") + "<w:sectPr", 1)
+    parts["word/document.xml"] = doc.encode()
+    with zipfile.ZipFile(path, "w") as z:
+        for name, data in parts.items():
+            z.writestr(name, data)
+
+
+def object_alts(config, name="a.docx"):
+    xml = etree.fromstring(zipfile.ZipFile(config.output_dir / name).read("word/document.xml"))
+    return [v.get("alt") for v in xml.iter("{urn:schemas-microsoft-com:vml}shape")]
+
+
+def test_an_embedded_object_gets_alt_text_on_its_preview_shape(tmp_path, fake_ollama, monkeypatch):
+    config = docx_config(tmp_path, fake_ollama, monkeypatch)
+    src = make_docx(config.input_dir / "a.docx")
+    add_object(src)
+    run(config)
+    assert [a for a in object_alts(config) if a]  # described, not left bare
+    assert "ProgID" in zipfile.ZipFile(config.output_dir / "a.docx").read("word/document.xml").decode()
+
+
+def test_an_authors_object_alt_text_is_kept(tmp_path, fake_ollama, monkeypatch):
+    config = docx_config(tmp_path, fake_ollama, monkeypatch)
+    src = make_docx(config.input_dir / "a.docx")
+    add_object(src, alt="ER diagram drawn by the author")
+    fake_ollama.reply = "KEEP"
+    run(config)
+    assert object_alts(config) == ["ER diagram drawn by the author"]
+
+
 def test_the_decorative_flag_uses_the_standard_prefix(tmp_path, fake_ollama, monkeypatch):
     config = docx_config(tmp_path, fake_ollama, monkeypatch)
     make_docx(config.input_dir / "a.docx", tiny=True)

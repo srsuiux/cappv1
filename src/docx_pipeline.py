@@ -9,22 +9,26 @@ import httpx
 from src import events
 from src.config import Config
 from src.docx_reader import (
+    extract_objects,
     extract_pictures,
     extract_tables,
     get_alt_text,
     get_context,
+    get_object_alt_text,
     get_table_alt_text,
     mark_decorative,
     open_document,
     save_document,
     table_alt_text_unsupported,
     set_alt_text,
+    set_object_alt_text,
     set_table_alt_text,
     table_to_text,
 )
 from src.image_filter import is_too_small
-from src.llm_client import generate_caption, generate_table_alt_text
+from src.llm_client import generate_caption, generate_ole_alt_text, generate_table_alt_text
 from src.pipeline import _FILE_NAME, inspect_file, record_skip
+from src.pptx_reader import ole_object_to_text
 from src.state import FileState, save_state
 
 logger = logging.getLogger("pptx_alt_text")
@@ -47,8 +51,9 @@ async def run_docx_file(
     state.skipped = []
     save_state(config.state_dir, state)
 
-    pictures, tables = [], []
-    for kind, find, into in (("pictures", extract_pictures, pictures), ("tables", extract_tables, tables)):
+    pictures, tables, objects = [], [], []
+    for kind, find, into in (("pictures", extract_pictures, pictures), ("tables", extract_tables, tables),
+                             ("embedded objects", extract_objects, objects)):
         try:
             into.extend(find(doc))
         except Exception as exc:  # unreadable parts of the document are noted, the rest still gets done
@@ -57,11 +62,11 @@ async def run_docx_file(
     if tables and reason:
         record_skip(state, filename, 0, f"the {len(tables)} table(s) of the document", "table", ValueError(reason))
         tables = []
-    events.emit("file_open", filename=filename, kind="document", total_slides=1, items=len(pictures) + len(tables),
+    events.emit("file_open", filename=filename, kind="document", total_slides=1, items=len(pictures) + len(tables) + len(objects),
                 resumed=len(state.completed_slide_indices))
     events.emit("slide_start", filename=filename, slide=0, total=1,
                 counts={"picture": len(pictures), "table": len(tables), "chart": 0,
-                        "object": 0, "diagram": 0, "invisible": 0})
+                        "object": len(objects), "diagram": 0, "invisible": 0})
 
     n = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0, "skipped": 0}
     skipped = 0  # pictures that can't be sent to a model; left as they were
@@ -161,7 +166,35 @@ async def run_docx_file(
             return
         remember(key, settle(write, caption, author))
 
+    async def handle_object(obj):
+        author = author_text(get_object_alt_text(obj.shape))
+        write = lambda text: set_object_alt_text(obj.shape, text)  # noqa: E731
+        if obj.blob is None:
+            raise ValueError("the embedded object is linked or missing from the file, so there is nothing to read")
+        text_repr = ole_object_to_text(obj.blob)
+        key = key_for("ole:" + hashlib.sha256(obj.blob).hexdigest(), author)
+        if from_cache(write, key):
+            return
+
+        caption = None
+        if text_repr:
+            context = get_context(doc, obj.block)
+            async with semaphore, events.working("object", 0):
+                caption = await generate_ole_alt_text(client, config, text_repr, context, existing=author)
+        elif author:
+            n["kept"] += 1  # nothing readable to improve it with
+            return
+
+        if text_repr and caption is None:
+            n["failed"] += 1
+            return
+        if not author and (not text_repr or caption.strip().upper() == "UNKNOWN"):
+            # nothing usable to read: an honest label of what it is, not an invented description
+            caption = f"Embedded {obj.prog_id or 'object'} (automatic description unavailable)"
+        remember(key, settle(write, caption, author))
+
     await asyncio.gather(
+        *(guarded("embedded object", handle_object, o, i) for i, o in enumerate(objects, 1)),
         *(guarded("picture", handle_picture, p, i) for i, p in enumerate(pictures, 1)),
         *(guarded("table", handle_table, t, i) for i, t in enumerate(tables, 1)),
     )
@@ -169,11 +202,11 @@ async def run_docx_file(
     failed = n["failed"]
     logger.info(
         "[file: %s] captioned %d, enhanced %d, kept author's %d, decorative %d, cached %d, failed %d, "
-        "left as is %d, skipped %d (of %d elements: %d images, %d tables)",
+        "left as is %d, skipped %d (of %d elements: %d images, %d tables, %d objects)",
         filename, n["captioned"], n["enhanced"], n["kept"], n["decorative"], n["cached"], failed, skipped, n["skipped"],
-        len(pictures) + len(tables), len(pictures), len(tables),
+        len(pictures) + len(tables) + len(objects), len(pictures), len(tables), len(objects),
     )
-    events.emit("slide_end", filename=filename, slide=0, total=1, empty=not (pictures or tables), **n)
+    events.emit("slide_end", filename=filename, slide=0, total=1, empty=not (pictures or tables or objects), **n)
     if failed == 0:
         state.mark_slide_done(0)
         save_state(config.state_dir, state)
