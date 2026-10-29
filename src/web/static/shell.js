@@ -11,6 +11,25 @@ if (menu) {
   wide.addEventListener("change", sync);
 }
 
+// Sidebar: collapses to an icon rail on wide screens; the choice is remembered in this browser.
+const collapse = document.getElementById("collapse");
+if (collapse) {
+  const apply = (collapsed) => {
+    document.documentElement.dataset.nav = collapsed ? "collapsed" : "expanded";
+    collapse.setAttribute("aria-expanded", String(!collapsed));
+    const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+    collapse.setAttribute("aria-label", label);
+    collapse.title = label;
+  };
+  apply(document.documentElement.dataset.nav === "collapsed");
+  collapse.addEventListener("click", () => {
+    const collapsed = document.documentElement.dataset.nav !== "collapsed";
+    apply(collapsed);
+    try { localStorage.setItem("cappv1.nav", collapsed ? "collapsed" : "expanded"); } catch { /* not remembered */ }
+    document.getElementById("live").textContent = collapsed ? "Sidebar collapsed" : "Sidebar expanded";
+  });
+}
+
 // Theme: System follows the device; Light and Dark are remembered in this browser.
 const root = document.documentElement;
 const buttons = [...document.querySelectorAll("[data-theme-set]")];
@@ -25,6 +44,7 @@ for (const b of buttons) {
     try { value === "system" ? localStorage.removeItem("cappv1.theme") : localStorage.setItem("cappv1.theme", value); } catch { /* not remembered */ }
     setPressed();
     document.getElementById("live").textContent = `Theme: ${value}`;
+    b.focus();
   });
 }
 setPressed();

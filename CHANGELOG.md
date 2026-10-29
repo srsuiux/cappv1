@@ -4,6 +4,10 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
+- Files page: every file has a checkbox, with Select all and a count. "Improve accessibility" runs only the ticked files (`POST /runs` takes `files`). New files are ticked for you; previous files can be ticked too. "Remove all" empties the Current files list after an inline confirmation.
+- Sidebar: an icon beside every link, and a button that folds it to an icon rail (remembered in this browser). The theme choice is now three icon buttons (System, Light, Dark) with tooltips and screen-reader names.
+- Fixes a stray "null" shown on the finished-run card.
+
 - A damaged item no longer stops a file. A slide or document item that cannot be read (for example an embedded object whose part is missing, which used to end the file with "no relationship with key 'rId4'") is skipped, noted in the file's saved progress and the log, and the rest finishes. The Files page lists what was skipped under each file and marks the slide, and the terminal run view prints it. Applies to decks and Word documents.
 - A run started from the browser now prints its log in the terminal that started cappv1 (`--web`, or `/web` in the terminal session).
 

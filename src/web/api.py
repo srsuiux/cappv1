@@ -139,7 +139,10 @@ def start_run(req):
     if force and not _flag(body, "confirm"):
         raise ServiceError("bad_request", "Replacing the author's own alt text needs confirmation.",
                            "Send “confirm”: true along with “force”: true.")
-    plan = req.runs.start(resume=_flag(body, "resume"), force=force, console_logs=True)
+    only = body.get("files")
+    if only is not None and not (isinstance(only, list) and all(isinstance(n, str) for n in only)):
+        raise ServiceError("bad_request", "“files” must be a list of file names.", "Send the names exactly as the files list shows them.")
+    plan = req.runs.start(resume=_flag(body, "resume"), force=force, console_logs=True, only=only)
     req.h.send_json(202, {**_run_dict(req), "pending": plan.pending})
 
 

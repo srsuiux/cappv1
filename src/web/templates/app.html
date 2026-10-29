@@ -11,35 +11,54 @@
 </head>
 <body class="app">
 <a class="skip" href="#main">Skip to content</a>
+<svg class="sprite" hidden aria-hidden="true" focusable="false">
+  <symbol id="i-logo" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12.5l3 3 5-6"/></symbol>
+  <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
+  <symbol id="i-files" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/></symbol>
+  <symbol id="i-services" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+  <symbol id="i-health" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 4 12 2.5-6H21"/></symbol>
+  <symbol id="i-data" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+  <symbol id="i-how" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H14a3 3 0 010 6h-4a3 3 0 000 6h5.5"/></symbol>
+  <symbol id="i-privacy" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+  <symbol id="i-faq" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 115 .5c0 1.5-2.5 2-2.5 3.5"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-about" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-system" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></symbol>
+</svg>
 <div class="shell">
-  <aside class="side">
+  <aside class="side" id="side">
     <div class="side-top">
-      <a class="brand" href="/">cappv1</a>
+      <div class="brandrow">
+        <a class="brand" href="/" title="cappv1"><svg class="ic" aria-hidden="true"><use href="#i-logo"/></svg><span class="label">cappv1</span></a>
+        <button type="button" class="side-toggle" id="collapse" aria-controls="side" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg class="ic" aria-hidden="true"><use href="#i-panel"/></svg></button>
+      </div>
       <details class="menu" id="menu" open>
         <summary>Menu</summary>
         <nav aria-label="Main">
-          <p class="group" id="g-manage">Manage</p>
+          <p class="group" id="g-manage"><span>Manage</span></p>
           <ul aria-labelledby="g-manage">
-            <li><a href="/" data-nav="overview">Overview</a></li>
-            <li><a href="/files" data-nav="files">Files</a></li>
-            <li><a href="/services" data-nav="services">Services</a></li>
-            <li><a href="/health" data-nav="health">Health</a></li>
-            <li><a href="/data" data-nav="data">Your data</a></li>
+            <li><a href="/" data-nav="overview" title="Overview"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg><span class="label">Overview</span></a></li>
+            <li><a href="/files" data-nav="files" title="Files"><svg class="ic" aria-hidden="true"><use href="#i-files"/></svg><span class="label">Files</span></a></li>
+            <li><a href="/services" data-nav="services" title="Services"><svg class="ic" aria-hidden="true"><use href="#i-services"/></svg><span class="label">Services</span></a></li>
+            <li><a href="/health" data-nav="health" title="Health"><svg class="ic" aria-hidden="true"><use href="#i-health"/></svg><span class="label">Health</span></a></li>
+            <li><a href="/data" data-nav="data" title="Your data"><svg class="ic" aria-hidden="true"><use href="#i-data"/></svg><span class="label">Your data</span></a></li>
           </ul>
-          <p class="group" id="g-learn">Learn</p>
+          <p class="group" id="g-learn"><span>Learn</span></p>
           <ul aria-labelledby="g-learn">
-            <li><a href="/how-it-works" data-nav="how-it-works">How it works</a></li>
-            <li><a href="/privacy" data-nav="privacy">Privacy</a></li>
-            <li><a href="/faq" data-nav="faq">FAQ</a></li>
-            <li><a href="/about" data-nav="about">About</a></li>
+            <li><a href="/how-it-works" data-nav="how-it-works" title="How it works"><svg class="ic" aria-hidden="true"><use href="#i-how"/></svg><span class="label">How it works</span></a></li>
+            <li><a href="/privacy" data-nav="privacy" title="Privacy"><svg class="ic" aria-hidden="true"><use href="#i-privacy"/></svg><span class="label">Privacy</span></a></li>
+            <li><a href="/faq" data-nav="faq" title="FAQ"><svg class="ic" aria-hidden="true"><use href="#i-faq"/></svg><span class="label">FAQ</span></a></li>
+            <li><a href="/about" data-nav="about" title="About"><svg class="ic" aria-hidden="true"><use href="#i-about"/></svg><span class="label">About</span></a></li>
           </ul>
         </nav>
         <div class="theme" role="group" aria-labelledby="g-theme">
-          <p class="group" id="g-theme">Theme</p>
+          <p class="group" id="g-theme"><span>Theme</span></p>
           <div class="seg">
-            <button type="button" data-theme-set="system" aria-pressed="true">System</button>
-            <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
-            <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+            <button type="button" data-theme-set="system" aria-pressed="true" title="Match this device"><svg class="ic" aria-hidden="true"><use href="#i-system"/></svg><span class="sr">System</span></button>
+            <button type="button" data-theme-set="light" aria-pressed="false" title="Light"><svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg><span class="sr">Light</span></button>
+            <button type="button" data-theme-set="dark" aria-pressed="false" title="Dark"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg><span class="sr">Dark</span></button>
           </div>
         </div>
       </details>

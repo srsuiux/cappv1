@@ -22,6 +22,7 @@ class RunPlan:
     resume: bool
     force: bool
     pending: list[str]
+    only: list[str] | None = None  # the files chosen on the Files page; None means all of them
 
 
 @dataclass
@@ -37,11 +38,13 @@ class RunStatus:
         return asdict(self)
 
 
-def _pending(config: Config, resume: bool, force: bool) -> list[str]:
+def _pending(config: Config, resume: bool, force: bool, only: list[str] | None = None) -> list[str]:
     """Which files a run would process. Looks only; changes nothing. (Mirrors
     pipeline.discover_files, which also logs and, with force, forgets progress.)"""
     out = []
     for f in discover_candidates(config):
+        if only is not None and f.name not in only:
+            continue
         kind = inspect_file(config, f)[0]
         if force or (kind != "done" and not (resume and kind in ("new", "changed"))):
             out.append(f.name)
@@ -60,7 +63,7 @@ class RunManager:
         self._cancel = False
 
     # ---- starting ----------------------------------------------------------
-    def prepare(self, resume: bool = False, force: bool = False) -> RunPlan:
+    def prepare(self, resume: bool = False, force: bool = False, only: list[str] | None = None) -> RunPlan:
         """Checks everything a run needs, so a problem shows up now, not mid-deck."""
         if self.running:
             raise ServiceError("busy", "A run is already in progress.", "Wait for it to finish, or cancel it.")
@@ -81,14 +84,21 @@ class RunManager:
                                    f"Run: ollama pull {config.model}  (or pick another model)")
 
         names = [p.name for p in discover_candidates(config)]
+        if only is not None:
+            missing = [n for n in only if n not in names]
+            if missing:
+                raise ServiceError("not_found", f"{missing[0]} isn't in your list.", "Reload the page and choose from the files shown.")
+            if not only:
+                raise ServiceError("no_files", "No files are selected.", "Tick the files you want to improve, then try again.")
+            names = [n for n in names if n in only]
         if not names:
             raise ServiceError("no_files", "There are no files to process yet.", "Add a .pptx or .docx file first.")
-        pending = _pending(config, resume, force)
+        pending = _pending(config, resume, force, only)
         if not pending:
             shown = ", ".join(names[:3]) + (f" and {len(names) - 3} more" if len(names) > 3 else "")
             raise ServiceError("nothing_to_do", f"Already captioned and unchanged: {shown}.",
                                "Add new files, or edit a deck and add it again.")
-        return RunPlan(config, resume, force, pending)
+        return RunPlan(config, resume, force, pending, only)
 
     def launch(self, plan: RunPlan, console_logs: bool = False) -> None:
         with self._lock:
@@ -102,9 +112,9 @@ class RunManager:
             self._thread = threading.Thread(target=self._work, args=(plan, unsubscribe), daemon=True, name="cappv1-run")
             self._thread.start()
 
-    def start(self, resume: bool = False, force: bool = False, console_logs: bool = False) -> RunPlan:
+    def start(self, resume: bool = False, force: bool = False, console_logs: bool = False, only: list[str] | None = None) -> RunPlan:
         """console_logs: also print the run log in the terminal that started cappv1 (for runs started from the browser)."""
-        plan = self.prepare(resume, force)
+        plan = self.prepare(resume, force, only)
         self.launch(plan, console_logs)
         return plan
 
@@ -113,7 +123,7 @@ class RunManager:
         loop = asyncio.new_event_loop()
         try:
             self._loop = loop
-            self._task = loop.create_task(run(plan.config, resume_only=plan.resume, force=plan.force))
+            self._task = loop.create_task(run(plan.config, resume_only=plan.resume, force=plan.force, only=plan.only))
             if self._cancel:
                 self._task.cancel()
             failed = loop.run_until_complete(self._task)

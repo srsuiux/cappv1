@@ -163,9 +163,12 @@ def file_kind(path: Path) -> str:
     return "document" if path.suffix.lower() == ".docx" else "slides"
 
 
-def discover_files(config: Config, resume_only: bool, force: bool = False) -> list[Path]:
+def discover_files(config: Config, resume_only: bool, force: bool = False, only: list[str] | None = None) -> list[Path]:
+    """only: process just these file names (None means every file in input/)."""
     result = []
     for f in discover_candidates(config):
+        if only is not None and f.name not in only:
+            continue
         if force:
             (config.state_dir / f"{f.name}.json").unlink(missing_ok=True)  # forget saved progress and captions
         kind, state, _ = inspect_file(config, f)
@@ -497,10 +500,10 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     logger.info("[file: %s] saved to %s", filename, out_path)
 
 
-async def run(config: Config, resume_only: bool = False, force: bool = False) -> list[str]:
+async def run(config: Config, resume_only: bool = False, force: bool = False, only: list[str] | None = None) -> list[str]:
     for leftover in config.output_dir.glob("*.part"):
         leftover.unlink(missing_ok=True)  # from a run that was killed mid-save
-    files = discover_files(config, resume_only, force)
+    files = discover_files(config, resume_only, force, only)
     if not files:
         logger.info("nothing to process")
         events.emit("run_empty")

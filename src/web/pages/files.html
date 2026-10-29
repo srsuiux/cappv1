@@ -18,6 +18,11 @@
   <strong>Choose .pptx or .docx files</strong><span class="muted">or drop them here. Up to 200 MB each.</span></label>
 <h2>Current files</h2>
 <p class="muted" id="empty" hidden>Nothing waiting. Add a .pptx or .docx above to begin.</p>
+<div class="tools" id="tools" hidden>
+  <label class="check pick"><input type="checkbox" id="all"><span>Select all</span></label>
+  <span class="muted" id="picked"></span>
+  <span class="removeall" id="removeall"><button class="quiet small" id="rm" type="button">Remove all</button></span>
+</div>
 <ul class="files" id="files" aria-label="Current files"></ul>
 <div class="options">
   <label class="check"><input type="checkbox" id="force" autocomplete="off"><span>Replace alt text that people already wrote<br><span class="muted">When this is off, cappv1 keeps or improves what the author wrote.</span></span></label>
@@ -27,7 +32,7 @@
 
 <section id="prevwrap" aria-labelledby="prevtitle" hidden>
   <h2 id="prevtitle">Previous files</h2>
-  <p class="muted">Finished in an earlier run. They are skipped unless you choose to replace alt text above.</p>
+  <p class="muted">Finished in an earlier run. Tick one to include it in the next run, with the replace option above.</p>
   <ul class="files previous" id="prev" aria-label="Previous files"></ul>
 </section>
 

@@ -51,7 +51,7 @@ All paths start with `/api/v1`. Bodies are JSON unless noted.
 | `PUT /files/<name>` | Upload a `.pptx` or `.docx`. The body is the raw file (not multipart) and `Content-Length` is required. Up to 200 MB. It is checked to be a real file of that type before it is kept. |
 | `DELETE /files/<name>` | Remove a file from the input list (not while a run is going). |
 | `GET /files/<name>/download` | The finished copy. |
-| `POST /runs` | `{resume?, force?, confirm?}` → `202` with the run and `pending` files. `force` replaces alt text the author wrote, so it also needs `confirm: true`. |
+| `POST /runs` | `{resume?, force?, confirm?, files?}` → `202` with the run and `pending` files. `files` is a list of file names to process; leave it out to process every file. An unknown name is `not_found`; an empty list is `no_files`. `force` replaces alt text the author wrote, so it also needs `confirm: true`. |
 | `GET /runs/current` | The latest run: `id`, `state` (`idle`, `running`, `done`, `cancelled`, `failed`), `failed_files`, `error`. |
 | `POST /runs/<id>/cancel` | Stop after the item in flight; finished slides stay saved. |
 | `GET /runs/<id>/events` | Server-Sent Events (see below). |
