@@ -2,7 +2,7 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
-## Unreleased
+## 1.5.0
 
 - Word documents (`.docx`): pictures and tables get alt text (`wp:docPr` description and `w:tblDescription`), through the terminal, the batch command and the web UI. Charts, SmartArt, embedded objects and headers/footers are not handled yet, and `/audit` stays decks-only.
 - The Files page shows a deck's slide tiles or a document's item chips, lists current files apart from previous (already finished) ones, and always shows the "replace alt text" option, off by default.
