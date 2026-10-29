@@ -22,9 +22,6 @@ from src.docx_reader import (
 
 LONG = "A bar chart of quarterly sales for each region, used to compare the north and the south"
 
-W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
-
-
 def png(color=(200, 60, 60), size=(300, 200)) -> io.BytesIO:
     buf = io.BytesIO()
     Image.new("RGB", size, color).save(buf, "PNG")
@@ -122,6 +119,43 @@ def test_the_package_keeps_the_originals_order_and_bytes(tmp_path, fake_ollama, 
         assert b.read("word/document.xml").startswith(b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
 
 
+def set_mode(path, mode):
+    """Rewrites the compatibility mode in a Word file's settings, the way an old save has it."""
+    with zipfile.ZipFile(path) as z:
+        parts = {i: z.read(i) for i in z.namelist()}
+    xml = parts["word/settings.xml"].decode()
+    if "compatibilityMode" in xml:
+        import re
+        xml = re.sub(r'(compatibilityMode"[^>]*w:val=")\d+', rf"\g<1>{mode}", xml)
+    else:
+        xml = xml.replace("</w:settings>", f'<w:compat><w:compatSetting w:name="compatibilityMode" '
+                          f'w:uri="http://schemas.microsoft.com/office/word" w:val="{mode}"/></w:compat></w:settings>')
+    parts["word/settings.xml"] = xml.encode()
+    with zipfile.ZipFile(path, "w") as z:
+        for name, data in parts.items():
+            z.writestr(name, data)
+
+
+def test_tables_in_an_old_compatibility_mode_document_are_left_alone(tmp_path, fake_ollama, monkeypatch):
+    """Word cannot open a mode 11 file that has table alt text, so pictures only, and a note."""
+    config = docx_config(tmp_path, fake_ollama, monkeypatch)
+    set_mode(make_docx(config.input_dir / "a.docx"), 11)
+    run(config)
+    xml = zipfile.ZipFile(config.output_dir / "a.docx").read("word/document.xml").decode()
+    assert "tblDescription" not in xml and "tblCaption" not in xml
+    assert 'descr="' in xml and 'descr=""' not in xml  # the picture still got its text
+    from src.state import load_state
+    notes = load_state(config.state_dir, "a.docx").skipped
+    assert len(notes) == 1 and notes[0]["kind"] == "table" and "compatibility mode 11" in notes[0]["error"]
+
+
+def test_tables_in_a_modern_document_are_described(tmp_path, fake_ollama, monkeypatch):
+    config = docx_config(tmp_path, fake_ollama, monkeypatch)
+    set_mode(make_docx(config.input_dir / "a.docx"), 15)
+    run(config)
+    assert "tblDescription" in zipfile.ZipFile(config.output_dir / "a.docx").read("word/document.xml").decode()
+
+
 def test_the_decorative_flag_uses_the_standard_prefix(tmp_path, fake_ollama, monkeypatch):
     config = docx_config(tmp_path, fake_ollama, monkeypatch)
     make_docx(config.input_dir / "a.docx", tiny=True)
@@ -165,43 +199,6 @@ def test_table_description_goes_in_schema_order(tmp_path):
     set_table_alt_text(table, "x")
     tags = [etree.QName(c).localname for c in pr]
     assert tags.index("tblDescription") < tags.index("tblPrChange")
-
-
-def bare_table(tmp_path, style=False):
-    """A table the way LibreOffice writes it: no tblLook, and no style unless asked."""
-    doc = Document(str(make_docx(tmp_path / "a.docx")))
-    table = extract_tables(doc)[0].table
-    pr = table._tbl.tblPr
-    for tag in ("tblLook", "tblStyle"):
-        for el in pr.findall(f"{W}{tag}"):
-            pr.remove(el)
-    if style:
-        etree.SubElement(pr, f"{W}tblStyle").set(f"{W}val", "TableGrid")
-    return table, pr
-
-
-def test_a_table_description_comes_with_an_all_off_table_look(tmp_path):
-    """Word refuses a file that has tblDescription but no tblLook."""
-    table, pr = bare_table(tmp_path)
-    set_table_alt_text(table, "x")
-    tags = [etree.QName(c).localname for c in pr]
-    assert tags[-2:] == ["tblLook", "tblDescription"]
-    look = pr.find(f"{W}tblLook")
-    assert look.get(f"{W}val") == "0000" and look.get(f"{W}firstRow") == "0" and look.get(f"{W}noHBand") == "0"
-
-
-def test_an_existing_table_look_is_left_alone(tmp_path):
-    table, pr = bare_table(tmp_path)
-    etree.SubElement(pr, f"{W}tblLook").set(f"{W}val", "04A0")
-    set_table_alt_text(table, "x")
-    assert [c.get(f"{W}val") for c in pr.findall(f"{W}tblLook")] == ["04A0"]
-
-
-def test_a_styled_table_without_a_look_is_skipped_not_restyled(tmp_path):
-    table, pr = bare_table(tmp_path, style=True)
-    with pytest.raises(ValueError):
-        set_table_alt_text(table, "x")
-    assert pr.find(f"{W}tblLook") is None and pr.find(f"{W}tblDescription") is None
 
 
 def test_decorative_marking_is_not_added_twice(tmp_path):

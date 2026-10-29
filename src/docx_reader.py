@@ -116,6 +116,26 @@ def mark_decorative(doc_pr) -> None:
     etree.SubElement(ext, f"{{{_ADEC_NS}}}decorative", {"val": "1"}, nsmap={"adec": _ADEC_NS})
 
 
+_FIRST_MODE_WITH_TABLE_ALT_TEXT = 14  # Word 2010
+
+
+def table_alt_text_unsupported(doc) -> str | None:
+    """Word refuses to open a file that has a table title or description while it is in
+    compatibility mode 11 or 12 (what LibreOffice and old Word write); tested on real files.
+    Raising the mode would re-lay-out the pages, so such documents get no table alt text."""
+    mode = 12  # no setting means Word 2007 behaviour
+    for el in doc.settings.element.iter(qn("w:compatSetting")):
+        if el.get(qn("w:name")) == "compatibilityMode":
+            try:
+                mode = int(el.get(qn("w:val")))
+            except (TypeError, ValueError):
+                pass
+    if mode >= _FIRST_MODE_WITH_TABLE_ALT_TEXT:
+        return None
+    return (f"this document is saved in Word compatibility mode {mode}, where Word cannot open a file "
+            "that has table alt text; open it in Word and use Save As to bring it up to date, then run again")
+
+
 def get_table_alt_text(table: Table) -> str:
     pr = table._tbl.tblPr
     el = pr.find(qn("w:tblDescription")) if pr is not None else None
@@ -124,29 +144,12 @@ def get_table_alt_text(table: Table) -> str:
 
 def set_table_alt_text(table: Table, text: str) -> None:
     """Writes w:tblDescription, the field behind Word's table Alt Text 'Description'.
-    The table's title (w:tblCaption) is the author's and is left alone.
-
-    Word refuses a file whose table has a description but no w:tblLook (checked on real
-    documents saved by LibreOffice). An all-off tblLook changes nothing you can see on a table
-    without a style, so it is added then; with a style attached it could switch on that style's
-    first-row or banding formatting, so the table is skipped instead."""
+    The table's title (w:tblCaption) is the author's and is left alone."""
     pr = table._tbl.tblPr  # python-docx adds it when missing
     el = pr.find(qn("w:tblDescription"))
     if el is None:
-        if pr.find(qn("w:tblLook")) is None:
-            if pr.find(qn("w:tblStyle")) is not None:
-                raise ValueError("the table has a style but no table-look setting, and adding one could change how it looks")
-            look = etree.Element(qn("w:tblLook"))
-            for name, value in (("val", "0000"), ("firstRow", "0"), ("lastRow", "0"), ("firstColumn", "0"),
-                                ("lastColumn", "0"), ("noHBand", "0"), ("noVBand", "0")):
-                look.set(qn(f"w:{name}"), value)
-            # schema order: tblLook, tblCaption, tblDescription, then tblPrChange last
-            anchor = next((a for a in (pr.find(qn("w:tblCaption")), pr.find(qn("w:tblPrChange"))) if a is not None), None)
-            if anchor is not None:
-                anchor.addprevious(look)
-            else:
-                pr.append(look)
         el = etree.Element(qn("w:tblDescription"))
+        # schema order: tblCaption, tblDescription, then tblPrChange last
         anchor = pr.find(qn("w:tblPrChange"))
         if anchor is not None:
             anchor.addprevious(el)

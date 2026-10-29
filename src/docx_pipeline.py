@@ -17,6 +17,7 @@ from src.docx_reader import (
     mark_decorative,
     open_document,
     save_document,
+    table_alt_text_unsupported,
     set_alt_text,
     set_table_alt_text,
     table_to_text,
@@ -52,6 +53,10 @@ async def run_docx_file(
             into.extend(find(doc))
         except Exception as exc:  # unreadable parts of the document are noted, the rest still gets done
             record_skip(state, filename, 0, "the document", kind, exc)
+    reason = table_alt_text_unsupported(doc)
+    if tables and reason:
+        record_skip(state, filename, 0, f"the {len(tables)} table(s) of the document", "table", ValueError(reason))
+        tables = []
     events.emit("file_open", filename=filename, kind="document", total_slides=1, items=len(pictures) + len(tables),
                 resumed=len(state.completed_slide_indices))
     events.emit("slide_start", filename=filename, slide=0, total=1,
