@@ -1,19 +1,21 @@
-<!-- title="How it works" nav="how-it-works" layout="app" description="What cappv1 reads, what it writes, and what happens when you run it." -->
-<h1>How it works</h1>
-<div class="prose">
-<p class="lede">cappv1 reads a PowerPoint deck or Word document, asks an AI model to describe each picture, chart and table, and writes the answer into that item's alt text. Nothing else in the file changes.</p>
-
-<h2>What happens when you run it</h2>
-<ol>
+<!-- title="How it works" nav="how-it-works" layout="app" width="wide" description="What cappv1 reads, what it writes, and what happens when you run it." -->
+<header class="page-head"><h1>How it works</h1>
+<p class="lede">cappv1 reads a PowerPoint deck or Word document, asks an AI model to describe each picture, chart and table, and writes the answer into that item's alt text. Nothing else in the file changes.</p></header>
+<section aria-labelledby="h-flow">
+<h2 id="h-flow">What happens when you run it</h2>
+<ol class="flow">
   <li><b>You add a deck.</b> cappv1 keeps a copy in its own folder. Your original stays where it is.</li>
   <li><b>It reads each slide.</b> For every picture, table, chart, diagram and embedded object it gathers the item itself, plus the slide's title, section, text and speaker notes as context.</li>
   <li><b>The AI model writes a description.</b> That is the one step that can send content to a cloud service, and only if you chose one. <a href="/privacy">See what is sent</a>.</li>
   <li><b>cappv1 saves a finished copy.</b> The description goes into the item's alt text field. You download the copy from <a href="/files">Files</a>.</li>
 </ol>
-
+</section>
+<div class="cards">
+<section class="panelbox">
 <h2>What it changes, and what it doesn't</h2>
 <p>The only thing cappv1 ever writes is a shape's alt text, the same field PowerPoint's own <i>Edit Alt Text</i> panel changes. Layout, positions, formatting, pictures, text, notes and slide order are left exactly as they were. It also marks invisible, empty shapes as decorative, which is a pure label and changes nothing you can see.</p>
-
+</section>
+<section class="panelbox">
 <h2>If someone already wrote alt text</h2>
 <ul>
   <li>Text under 30 characters is treated as unfinished, so cappv1 improves it.</li>
@@ -21,7 +23,8 @@
   <li>A bare file name like <code>image1.png</code> counts as no alt text, because some tools fill that in automatically.</li>
   <li>To replace everything, tick <i>Replace alt text that people already wrote</i> under <i>More options</i> on the Files page.</li>
 </ul>
-
+</section>
+<section class="panelbox">
 <h2>Stopping, resuming and repeating</h2>
 <ul>
   <li><b>Stop</b> any time. Finished slides are saved, and the next run continues from there.</li>
@@ -29,10 +32,13 @@
   <li><b>Edit a deck</b> and add it again. Only new or changed items are described. The rest reuse their saved alt text.</li>
   <li>If the computer crashes mid-run, saved work survives and the finished copy is never left half-written.</li>
 </ul>
-
+</section>
+<section class="panelbox">
 <h2>Always review the results</h2>
 <p>AI descriptions are good starting points, not guarantees. They can miss context or get details wrong. Open the finished deck, check the alt text in PowerPoint, and edit anything that is off, particularly for charts with exact numbers and for public or legally required material.</p>
-
+</section>
+<section class="panelbox">
 <h2>Terminal or browser</h2>
 <p>cappv1 can be used from the terminal (type <code>cappv1</code>) or from this web page (<code>/web</code> in the terminal, or <code>cappv1 --web</code>). Both do the same work, share the same settings, and see the same run.</p>
+</section>
 </div>

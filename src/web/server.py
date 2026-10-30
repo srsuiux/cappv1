@@ -25,7 +25,7 @@ from src.version import VERSION
 from src.services.errors import ServiceError
 from src.services.runs import RunManager
 from src.services.workspace import Workspace
-from src.web import api
+from src.web import api, changelog
 
 logger = logging.getLogger("pptx_alt_text")
 
@@ -62,7 +62,10 @@ def render_page(slug: str) -> bytes | None:
     meta = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1))) if m else {}
     page = (TEMPLATES / f"{meta.get('layout', 'app')}.html").read_text(encoding="utf-8")
     script = f'<script type="module" src="/{meta["script"]}"></script>' if meta.get("script") else ""
-    page = page.replace("{{content}}", text[m.end():] if m else text)
+    content = text[m.end():] if m else text
+    if "{{changelog}}" in content:
+        content = content.replace("{{changelog}}", changelog.render())
+    page = page.replace("{{content}}", content)
     for key, value in (("title", html.escape(meta.get("title", "cappv1"))), ("description", html.escape(meta.get("description", ""))),
                        ("version", VERSION), ("script", script), ("width", meta.get("width", "narrow"))):
         page = page.replace("{{" + key + "}}", value)

@@ -1,17 +1,22 @@
-<!-- title="Services" nav="services" layout="app" script="services.js" description="Choose which AI service describes your slides, and see what each one does with them." -->
-<h1>Services</h1>
-<p class="muted">Choose which AI service describes your slides. They handle your slides differently, so each one says what it does before you pick. <a href="/privacy">More on privacy</a></p>
+<!-- title="Services" nav="services" layout="app" width="wide" script="services.js" description="Choose which AI service describes your slides, and see what each one does with them." -->
+<header class="page-head"><h1>Services</h1>
+<p class="muted">Choose which AI service describes your slides. They handle your slides differently, so each one says what it does before you pick. <a href="/privacy">More on privacy</a></p></header>
 <div id="problem"></div>
-<form id="form">
-  <fieldset><legend>AI service</legend><div id="services"></div></fieldset>
-  <label class="f" for="model">Model</label>
-  <select id="model"></select>
-  <div id="other" hidden><label class="f" for="othername">Model name</label><input id="othername" type="text" autocomplete="off" spellcheck="false"></div>
-  <div id="keybox" hidden>
-    <label class="f" for="key">API key</label>
-    <input id="key" type="password" autocomplete="off" aria-describedby="keyhelp">
-    <p id="keyhelp" class="muted"></p>
-  </div>
-  <div class="actions"><button type="submit" id="save">Save</button></div>
-  <div id="result"></div>
+<form id="form" class="split-layout">
+  <section class="panelbox" aria-labelledby="h-service">
+    <fieldset><legend id="h-service">AI service</legend><div id="services"></div></fieldset>
+  </section>
+  <section class="panelbox" aria-labelledby="h-model">
+    <h2 id="h-model">Model and key</h2>
+    <label class="f" for="model">Model</label>
+    <select id="model"></select>
+    <div id="other" hidden><label class="f" for="othername">Model name</label><input id="othername" type="text" autocomplete="off" spellcheck="false"></div>
+    <div id="keybox" hidden>
+      <label class="f" for="key">API key</label>
+      <input id="key" type="password" autocomplete="off" aria-describedby="keyhelp">
+      <p id="keyhelp" class="muted"></p>
+    </div>
+    <div class="actions"><button type="submit" id="save">Save</button></div>
+    <div id="result"></div>
+  </section>
 </form>

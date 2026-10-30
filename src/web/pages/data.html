@@ -1,15 +1,19 @@
-<!-- title="Your data" nav="data" layout="app" script="data.js" description="What cappv1 keeps on this computer, where, and how to erase it." -->
-<h1>Your data</h1>
-<p class="lede">Everything cappv1 keeps is in one folder on this computer. Nothing is stored anywhere else, and nothing is sent to us. <a href="/privacy">Read the privacy page</a></p>
+<!-- title="Your data" nav="data" layout="app" width="wide" script="data.js" description="What cappv1 keeps on this computer, where, and how to erase it." -->
+<header class="page-head"><h1>Your data</h1>
+<p class="muted">Everything cappv1 keeps is in one folder on this computer. Nothing is stored anywhere else, and nothing is sent to us. <a href="/privacy">Read the privacy page</a></p></header>
 <div id="problem"></div>
-<p class="muted">Folder: <code id="workspace">…</code></p>
-<ul class="places" id="places" aria-label="What is kept"></ul>
-
-<section class="panel" aria-labelledby="h-erase">
-  <h2 id="h-erase">Erase your slides and progress</h2>
-  <p>This deletes the decks you added, the finished copies, saved progress and run logs. It keeps your settings and keys. It can't be undone. Your original files elsewhere are not affected.</p>
-  <label class="check"><input type="checkbox" id="sure"><span>I understand this can't be undone</span></label>
-  <div class="actions"><button type="button" id="erase" disabled>Erase everything above</button></div>
-  <div id="result"></div>
-</section>
-<p class="muted">To remove an API key, open <a href="/services">Services</a>.</p>
+<div class="split-layout">
+  <section class="panelbox" aria-labelledby="h-kept">
+    <h2 id="h-kept">What is kept</h2>
+    <p class="muted">Folder: <code id="workspace">…</code></p>
+    <ul class="places" id="places" aria-label="What is kept"></ul>
+    <p class="muted">To remove an API key, open <a href="/services">Services</a>. Finished copies can be deleted one by one on <a href="/files">Files</a>.</p>
+  </section>
+  <section class="panelbox" aria-labelledby="h-erase">
+    <h2 id="h-erase">Erase your slides and progress</h2>
+    <p>This deletes the decks you added, the finished copies, saved progress and run logs. It keeps your settings and keys. It can't be undone. Your original files elsewhere are not affected.</p>
+    <label class="check"><input type="checkbox" id="sure"><span>I understand this can't be undone</span></label>
+    <div class="actions"><button type="button" id="erase" disabled>Erase everything above</button></div>
+    <div id="result"></div>
+  </section>
+</div>

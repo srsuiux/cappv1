@@ -156,10 +156,36 @@ def test_every_page_has_the_theme_switch_and_applies_it_before_painting(slug):
         assert f'data-theme-set="{choice}"' in html
 
 
-def test_the_front_page_is_wide_and_other_pages_are_not():
-    assert 'class="main-col w-wide"' in render_page("index").decode()
-    assert 'class="main-col w-narrow"' in render_page("faq").decode()
-    assert 'class="main-col w-wide"' in render_page("files").decode()  # the Files page uses the whole width
+@pytest.mark.parametrize("slug", [s for s in SLUGS])
+def test_every_page_uses_the_full_width(slug):
+    assert 'class="main-col w-wide"' in render_page(slug).decode()
+
+
+@pytest.mark.parametrize("slug", [s for s in SLUGS if s not in ("index", "404")])
+def test_every_page_starts_with_the_same_header(slug):
+    assert '<header class="page-head"><h1>' in render_page(slug).decode()
+
+
+def test_the_changelog_lists_every_release_in_the_changelog_file():
+    from src.web import changelog
+    from src.version import VERSION
+
+    text = (STATIC.parents[2] / "CHANGELOG.md").read_text()
+    versions = [r["version"] for r in changelog.parse(text)]
+    assert VERSION in versions and "1.0.0" in versions
+    html = render_page("changelog").decode()
+    for v in versions:
+        assert f'id="v-{v}"' in html
+    assert html.count('class="chip">Latest release') == 1
+
+
+def test_the_changelog_groups_changes_and_escapes_what_it_shows():
+    from src.web import changelog
+
+    out = changelog.render("## 2.0.0 - 2026-01-02\n\n### New\n\n- A `code` <b>tag</b> and **bold**\n\n### Fixed\n\n- One thing\n\n## Unreleased\n\n- Later\n")
+    assert 'class="kind new"' in out and 'class="kind fixed"' in out and "<code>code</code>" in out
+    assert "&lt;b&gt;tag&lt;/b&gt;" in out and "<b>bold</b>" in out
+    assert '<time datetime="2026-01-02">2 January 2026</time>' in out and "Not released yet" in out
 
 
 @pytest.mark.parametrize("slug", [s for s in SLUGS])

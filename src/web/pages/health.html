@@ -1,7 +1,15 @@
-<!-- title="Health" nav="health" layout="app" script="health.js" description="Checks that everything cappv1 needs is working." -->
-<h1>Health</h1>
-<p class="muted">Checks that everything cappv1 needs is working: your settings, the AI service, and the folders it uses. It changes nothing.</p>
+<!-- title="Health" nav="health" layout="app" width="wide" script="health.js" description="Checks that everything cappv1 needs is working." -->
+<header class="page-head"><h1>Health</h1>
+<p class="muted">Checks that everything cappv1 needs is working: your settings, the AI service, and the folders it uses. It changes nothing.</p></header>
 <div id="problem"></div>
-<ul class="checks" id="checks" aria-label="Checks"></ul>
-<div id="summary"></div>
-<div class="actions"><button id="again" type="button">Check again</button></div>
+<div class="split-layout">
+  <section class="panelbox" aria-labelledby="h-checks">
+    <h2 id="h-checks">Checks</h2>
+    <ul class="checks" id="checks" aria-label="Checks"></ul>
+  </section>
+  <section class="panelbox" aria-labelledby="h-result">
+    <h2 id="h-result">Result</h2>
+    <div id="summary"></div>
+    <div class="actions"><button id="again" type="button">Check again</button></div>
+  </section>
+</div>
