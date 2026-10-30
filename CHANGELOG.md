@@ -4,6 +4,7 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
+- Word: a table's first row is now marked as its header (the Header Row box and Repeat as header row), which Blackboard Ally needs: a test file scored 100% with both and 68% with the box alone. Only plain tables: no table style, two or more rows and columns, text in every first-row cell, nothing merged. One visible effect, which the owner accepted: a table that runs onto a second page repeats its header row there. Applied even in documents where table descriptions are skipped.
 - Word: finished copies open in Word and preview in Blackboard. The output is now the original file with only `word/document.xml` replaced, instead of a python-docx re-save. Documents saved in Word compatibility mode 11 or 12 (what LibreOffice writes) get no table alt text, because Word refuses to open them with it; picture alt text is unaffected, and one note says to use Save As in Word first.
 - Word: embedded objects (for example Visio drawings) now get alt text, so an accessibility checker no longer sees them as undescribed pictures. The Privacy page now lists the text read from an embedded object.
 - Files page: every file has a checkbox, with Select all and a count. "Improve accessibility" runs only the ticked files (`POST /runs` takes `files`). New files are ticked for you; previous files can be ticked too. "Remove all" empties the Current files list after an inline confirmation.

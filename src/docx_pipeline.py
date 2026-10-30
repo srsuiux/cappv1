@@ -17,6 +17,7 @@ from src.docx_reader import (
     get_object_alt_text,
     get_table_alt_text,
     mark_decorative,
+    mark_table_header,
     open_document,
     save_document,
     table_alt_text_unsupported,
@@ -62,13 +63,13 @@ async def run_docx_file(
     if tables and reason:
         count = f"{len(tables)} table" + ("" if len(tables) == 1 else "s")
         record_skip(state, filename, 0, "the document", "tables", PlainNote(f"{count} not described: {reason}"))
-        tables = []
     events.emit("file_open", filename=filename, kind="document", total_slides=1, items=len(pictures) + len(tables) + len(objects),
                 resumed=len(state.completed_slide_indices))
     events.emit("slide_start", filename=filename, slide=0, total=1,
                 counts={"picture": len(pictures), "table": len(tables), "chart": 0,
                         "object": len(objects), "diagram": 0, "invisible": 0})
 
+    headers = {"set": 0, "already": 0, "skipped": 0}
     n = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0, "skipped": 0}
     skipped = 0  # pictures that can't be sent to a model; left as they were
 
@@ -151,6 +152,12 @@ async def run_docx_file(
         remember(key, settle(write, caption, author))
 
     async def handle_table(tbl):
+        result = mark_table_header(tbl.table)
+        headers[result.split(":")[0]] += 1
+        if result.startswith("skipped"):
+            logger.info("[file: %s] table header row: %s", filename, result)
+        if reason:
+            return  # Word cannot open this document with table descriptions in it
         author = author_text(get_table_alt_text(tbl.table))
         text_repr = table_to_text(tbl.table)
         key = key_for("table:" + hashlib.sha256(text_repr.encode()).hexdigest(), author)
@@ -201,6 +208,8 @@ async def run_docx_file(
     )
 
     failed = n["failed"]
+    logger.info("[file: %s] table header rows: %d marked, %d already, %d left alone", filename,
+                headers["set"], headers["already"], headers["skipped"])
     logger.info(
         "[file: %s] captioned %d, enhanced %d, kept author's %d, decorative %d, cached %d, failed %d, "
         "left as is %d, skipped %d (of %d elements: %d images, %d tables, %d objects)",

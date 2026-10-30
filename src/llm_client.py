@@ -275,7 +275,10 @@ def _build_request(config: Config, model: str, messages: list[dict]) -> tuple[st
 def _parse_completion(config: Config, data: dict) -> str:
     if config.provider == "anthropic":
         return "".join(b.get("text", "") for b in data["content"] if b.get("type") == "text").strip()
-    return data["choices"][0]["message"]["content"].strip()
+    content = data["choices"][0]["message"]["content"]
+    if content is None:  # some free models answer with null; try the fallback model instead of crashing
+        raise _ModelUnavailable("the model sent an empty reply")
+    return content.strip()
 
 
 class _ModelUnavailable(Exception):

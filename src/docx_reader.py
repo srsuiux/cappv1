@@ -182,6 +182,55 @@ def table_alt_text_unsupported(doc) -> str | None:
             "To describe the tables: open the file in Word, choose Save As, save a .docx, then run it again")
 
 
+def mark_table_header(table: Table) -> str:
+    """Flags a table's first row as its header: the Header Row box (w:tblLook firstRow) and
+    Repeat as header row (w:tblHeader), which Blackboard Ally reads (it scored 100% with both and
+    68% with the box alone). Returns "set", "already" or "skipped: <reason>".
+
+    The box only changes how a table style paints row 1, so it is added only when no style is
+    attached. Repeat as header row shows only when a table runs onto a second page, where the
+    header row is repeated at the top of it; that is the one visible effect, and it is accepted."""
+    tbl = table._tbl
+    rows = tbl.findall(qn("w:tr"))
+    if len(rows) < 2:
+        return "skipped: only one row"
+    first = rows[0]
+    cells = first.findall(qn("w:tc"))
+    if len(cells) < 2:
+        return "skipped: one column, so it is a listing rather than a table with column names"
+    if first.find(f"{qn('w:trPr')}/{qn('w:tblHeader')}") is not None:
+        return "already"
+    pr = tbl.tblPr
+    if pr.find(qn("w:tblStyle")) is not None:
+        return "skipped: a table style would restyle row 1"
+    if any(c.find(f"{qn('w:tcPr')}/{qn('w:gridSpan')}") is not None or c.find(f"{qn('w:tcPr')}/{qn('w:vMerge')}") is not None
+           for c in cells):
+        return "skipped: first row has merged cells"
+    if not all("".join(c.itertext()).strip() for c in cells):
+        return "skipped: first row has empty cells"
+    if pr.find(qn("w:tblLook")) is None:
+        look = etree.Element(qn("w:tblLook"))
+        anchor = next((a for a in (pr.find(qn(t)) for t in ("w:tblCaption", "w:tblDescription", "w:tblPrChange"))
+                       if a is not None), None)
+        if anchor is not None:
+            anchor.addprevious(look)  # schema order: tblLook comes before the title and description
+        else:
+            pr.append(look)
+        for name, value in (("val", "0020"), ("firstRow", "1"), ("lastRow", "0"), ("firstColumn", "0"),
+                            ("lastColumn", "0"), ("noHBand", "0"), ("noVBand", "0")):
+            look.set(qn(f"w:{name}"), value)
+    trpr = first.find(qn("w:trPr"))
+    if trpr is None:
+        trpr = etree.Element(qn("w:trPr"))
+        ex = first.find(qn("w:tblPrEx"))
+        if ex is not None:
+            ex.addnext(trpr)
+        else:
+            first.insert(0, trpr)
+    etree.SubElement(trpr, qn("w:tblHeader"))
+    return "set"
+
+
 def get_table_alt_text(table: Table) -> str:
     pr = table._tbl.tblPr
     el = pr.find(qn("w:tblDescription")) if pr is not None else None

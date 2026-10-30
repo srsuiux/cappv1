@@ -92,8 +92,12 @@ def test_only_alt_text_changes_in_the_document(tmp_path, fake_ollama, monkeypatc
         root = etree.fromstring(zf.read(name))
         for el in root.iter():
             el.attrib.pop("descr", None)
-        for el in list(root.iter("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tblDescription")):
-            el.getparent().remove(el)
+        for tag in ("tblDescription", "tblHeader", "tblLook"):  # the fields the tool is allowed to write
+            for el in list(root.iter("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}" + tag)):
+                el.getparent().remove(el)
+        for el in list(root.iter("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}trPr")):
+            if len(el) == 0:
+                el.getparent().remove(el)
         return etree.tostring(root, method="c14n")
 
     with zipfile.ZipFile(src) as a, zipfile.ZipFile(config.output_dir / "a.docx") as b:
@@ -209,6 +213,79 @@ def test_an_authors_object_alt_text_is_kept(tmp_path, fake_ollama, monkeypatch):
     fake_ollama.reply = "KEEP"
     run(config)
     assert object_alts(config) == ["ER diagram drawn by the author"]
+
+
+W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+
+def listing_free_doc(tmp_path, rows):
+    """A document holding one table made of `rows`, the way LibreOffice writes it: no style, no look."""
+    doc = Document()
+    table = doc.add_table(rows=len(rows), cols=len(rows[0]))
+    for r, row in enumerate(rows):
+        for c, text in enumerate(row):
+            table.cell(r, c).text = text
+    pr = table._tbl.tblPr
+    for tag in ("tblStyle", "tblLook"):
+        for el in pr.findall(W + tag):
+            pr.remove(el)
+    return table, pr
+
+
+def test_a_plain_table_gets_its_first_row_marked_as_the_header(tmp_path):
+    from src.docx_reader import mark_table_header
+
+    table, pr = listing_free_doc(tmp_path, [["Tool", "Vendor"], ["Erwin", "Quest"]])
+    assert mark_table_header(table) == "set"
+    assert pr.find(W + "tblLook").get(W + "firstRow") == "1"
+    first = table._tbl.findall(W + "tr")[0]
+    assert first.find(f"{W}trPr/{W}tblHeader") is not None
+    assert table._tbl.findall(W + "tr")[1].find(f"{W}trPr") is None
+    assert mark_table_header(table) == "already"
+
+
+def test_header_look_goes_before_an_existing_description(tmp_path):
+    from src.docx_reader import mark_table_header
+
+    table, pr = listing_free_doc(tmp_path, [["A", "B"], ["1", "2"]])
+    etree.SubElement(pr, W + "tblDescription").set(W + "val", "x")
+    mark_table_header(table)
+    tags = [etree.QName(c).localname for c in pr]
+    assert tags.index("tblLook") < tags.index("tblDescription")
+
+
+@pytest.mark.parametrize("rows, why", [
+    ([["Only", "row"]], "only one row"),
+    ([["A"], ["1"]], "one column"),
+    ([["A", ""], ["1", "2"]], "empty cells"),
+])
+def test_tables_that_are_not_plainly_headed_are_left_alone(tmp_path, rows, why):
+    from src.docx_reader import mark_table_header
+
+    table, pr = listing_free_doc(tmp_path, rows)
+    assert mark_table_header(table).startswith("skipped"), why
+    assert pr.find(W + "tblLook") is None and table._tbl.find(f".//{W}tblHeader") is None
+
+
+def test_a_styled_or_merged_table_is_left_alone(tmp_path):
+    from src.docx_reader import mark_table_header
+
+    table, pr = listing_free_doc(tmp_path, [["A", "B"], ["1", "2"]])
+    etree.SubElement(pr, W + "tblStyle").set(W + "val", "Grid")
+    assert "style" in mark_table_header(table)
+    table, pr = listing_free_doc(tmp_path, [["A", "B"], ["1", "2"]])
+    tcpr = table._tbl.findall(W + "tr")[0].findall(W + "tc")[0].get_or_add_tcPr()
+    etree.SubElement(tcpr, W + "gridSpan").set(W + "val", "2")
+    assert "merged" in mark_table_header(table)
+
+
+def test_header_rows_are_marked_even_when_table_descriptions_are_skipped(tmp_path, fake_ollama, monkeypatch):
+    config = docx_config(tmp_path, fake_ollama, monkeypatch)
+    src = make_docx(config.input_dir / "a.docx")
+    set_mode(src, 11)
+    run(config)
+    xml = zipfile.ZipFile(config.output_dir / "a.docx").read("word/document.xml").decode()
+    assert "tblDescription" not in xml and "<w:tblHeader" in xml
 
 
 def test_the_decorative_flag_uses_the_standard_prefix(tmp_path, fake_ollama, monkeypatch):
@@ -363,3 +440,16 @@ def test_run_events_say_what_kind_of_file_it_is(configured, tmp_path):
     assert opened["talk.pptx"]["kind"] == "slides" and opened["talk.pptx"]["total_slides"] == 3
     written = [e for e in events if e["event"] == "alt_written" and e["filename"] == "paper.docx"]
     assert len(written) == 2
+
+
+def test_an_embedded_excel_sheet_is_read_not_mistaken_for_a_word_file():
+    from src.pptx_reader import ole_object_to_text
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("xl/workbook.xml", "<workbook/>")
+        z.writestr("xl/sharedStrings.xml", '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                   "<si><t>Quarter</t></si><si><r><t>Revenue</t></r></si></sst>")
+    text = ole_object_to_text(buf.getvalue())
+    assert "Quarter" in text and "Revenue" in text
+    assert ole_object_to_text(b"PK\x03\x04 not really a zip") == ""

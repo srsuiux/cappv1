@@ -111,3 +111,16 @@ def test_errors_are_explained_in_plain_words():
     assert "broken link" in explain_error(KeyError(BROKEN))
     assert explain_error(ValueError("bad value")) == "ValueError: bad value"
     assert explain_error(RuntimeError()) == "RuntimeError"
+
+
+def test_a_null_model_reply_means_try_the_fallback_not_crash():
+    import types
+
+    import pytest
+
+    from src.llm_client import _ModelUnavailable, _parse_completion
+
+    config = types.SimpleNamespace(provider="openrouter")
+    with pytest.raises(_ModelUnavailable):
+        _parse_completion(config, {"choices": [{"message": {"content": None}}]})
+    assert _parse_completion(config, {"choices": [{"message": {"content": " hi "}}]}) == "hi"
