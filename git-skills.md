@@ -81,6 +81,7 @@ Slash commands live inside the session. The shell exposes only `cappv1`, `--batc
 | Security reporting | `SECURITY.md` |
 | Settings variables | `.env.example` |
 | Release notes | `CHANGELOG.md` |
+| README screenshots | `docs/images/` (descriptive names, under about 300 KB, no keys, tokens or private paths) |
 
 ## 8. Status (update when it changes)
 

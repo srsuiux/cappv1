@@ -1,10 +1,71 @@
-# cappv1: Accessibility for PowerPoint and Word
+<div align="center">
 
-cappv1 looks at the pictures, tables, charts, and other embedded content (like a pasted-in Word document or diagram) in your PowerPoint files and writes a short description for each one. These descriptions are called "alt text," and screen readers read them aloud to people who can't see the slide.
+# cappv1
 
-You drop in `.pptx` or Word `.docx` files and get the same files back with the descriptions added. Nothing you can see changes: no layout, text, fonts, or colors. (It also marks a table's top row as its header, which screen readers and checkers like Blackboard Ally need. In a Word table that runs onto a second page, that header row repeats at the top of the next page.) Your originals are never modified.
+**Accessible PowerPoint and Word files, with less effort.**
 
-**Example:** an instructor preparing lecture slides for a blind or low-vision student can use this to make sure every chart, photo, and diagram has a description before sharing the deck.
+cappv1 writes alt text for the pictures, charts and tables in your `.pptx` and `.docx` files, so people who use a screen reader aren't left with silence. Nothing you can see changes, and your originals are never touched.
+
+[![CI](https://github.com/srsuiux/cappv1/actions/workflows/ci.yml/badge.svg)](https://github.com/srsuiux/cappv1/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
+![Mac and Linux](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
+
+<img src="docs/images/web-overview.png" alt="The cappv1 Overview page in dark theme: a status bar showing OpenAI and gpt-4o-mini, a card saying all files are finished, counts of files in the list, finished and waiting, and cards for the AI service, health and your data." width="900">
+
+</div>
+
+## What it does
+
+A screen reader reads a chart as just "Chart." cappv1 asks an AI model to describe each picture, chart, table, diagram and embedded object, using the slide's title and notes as context, and writes the answer into that item's alt text. This is the same field PowerPoint's and Word's own **Edit Alt Text** panel edits.
+
+| Without alt text, a screen reader says | With cappv1 |
+|---|---|
+| "Chart." | "Bar chart of enrolment by year, rising from 410 in 2021 to 640 in 2025." |
+
+- **Safe by design.** Layout, text, fonts, colors and pictures stay exactly as they were. It works on a copy and saves a finished file. The only extras it does are listed in [`skills.md`](skills.md), such as marking a table's top row as its header.
+- **Builds on what's there.** Alt text a person already wrote is kept or improved, never silently replaced.
+- **Picks up where it stopped.** Progress is saved. A crash, a closed laptop or `Ctrl+C` doesn't cost finished work, and nothing is paid for twice.
+- **Private if you want it.** Run a vision model on your own computer with Ollama and nothing leaves it. No accounts, no analytics, no tracking.
+- **Terminal or browser.** The same engine runs from a terminal session or a small local web page, and they share one run.
+- **Word too.** Pictures, tables and embedded objects in `.docx` files, with repairs for [Blackboard Ally](https://www.anthology.com/products/teaching-and-learning/learning-effectiveness/blackboard-ally) scoring.
+
+**Example:** an instructor preparing lecture slides for a blind or low-vision student can make sure every chart, photo and diagram has a description before sharing the deck.
+
+## See it
+
+### In the terminal
+
+Type `cappv1` and a session opens. Drag files in, type `/run`, and watch it work. Type `/` to see every command.
+
+<img src="docs/images/terminal-welcome.png" alt="Terminal showing the cappv1 welcome box with version 1.6.0, the chosen service OpenAI gpt-4o-mini, a warning that slide content is sent to OpenAI, and the /init command opening the local web page." width="760">
+
+<img src="docs/images/terminal-commands.png" alt="Typing a slash in cappv1 lists the commands with a short description each: run, files, init, models, doctor, audit, web, status, history, remove, open, clean, clear, help and exit." width="760">
+
+### In the browser
+
+Type `/web` (or run `cappv1 --web`) to open the same tool as a local web page, on this computer only.
+
+<img src="docs/images/terminal-web-launch.png" alt="Terminal output after /init: the web page is running on this computer only, with its local address, opened in your browser." width="620">
+
+| | |
+|---|---|
+| **Files.** Add files, tick the ones to run, watch progress, and download or delete finished copies kept per run.<br><img src="docs/images/web-files.png" alt="The Files page with a drop area, Current files, Past files and Finished copies grouped by run with download and delete buttons." width="420"> | **Services.** Choose the AI service and model, and see exactly what each one does with your slides before you pick.<br><img src="docs/images/web-services.png" alt="The Services page listing Ollama, OpenRouter, OpenAI and Anthropic with what each does with slide content, and a panel for the model and API key." width="420"> |
+| **Health.** One page that checks your settings, key and folders, and says how to fix anything that fails.<br><img src="docs/images/web-health.png" alt="The Health page with five green checks: settings file found, API key set, service accepts the key, Python packages installed, and input and output folders ready." width="420"> | **Your data.** Everything cappv1 keeps, where it is, and one button to erase it.<br><img src="docs/images/web-your-data.png" alt="The Your data page listing what is kept: decks, finished decks, saved progress, run logs and settings, each with its folder, plus an erase panel." width="420"> |
+
+The web pages also have How it works, Privacy, FAQ, Changelog, Appearance (theme and accent color) and About. The API behind them is in [`docs/API.md`](docs/API.md).
+
+## Quick start
+
+```
+git clone https://github.com/srsuiux/cappv1.git
+cd cappv1
+cp .env.example .env        # then set PROVIDER and your key
+mkdir -p ~/.local/bin && ln -sf "$(pwd)/bin/cappv1" ~/.local/bin/cappv1
+cappv1                      # then type /doctor, drag in a file, and type /run
+```
+
+The full walkthrough is below.
 
 ## What you need
 
@@ -90,6 +151,8 @@ Type `/` at any time to see the available commands. Animations can be turned off
 ## Commands
 
 Inside the session (type `/` to see them as you type):
+
+<img src="docs/images/terminal-help.png" alt="The /help output: each command with its aliases and a one-line description." width="760">
 
 | Type this | What it does |
 |---|---|
@@ -180,7 +243,7 @@ Open `.env` and change `PROVIDER=` to another service (make sure that service's 
 
 For each file, the tool goes through the slides one at a time. For each picture, table, chart, or embedded object (a pasted-in Word, Excel, or Visio file, or a SmartArt diagram) it sends the content to the AI along with the slide's title and notes, so the description fits its context. Pictures are sent as images; everything else is sent as text. The AI's answer is written into that shape's alt-text field, the same one PowerPoint's **Edit Alt Text** uses.
 
-**Word documents (`.docx`)** are handled the same way for pictures and tables: the description goes into the picture's or table's alt-text field (the one Word's **Edit Alt Text** pane uses), and the AI sees the nearest heading and the paragraphs around the item as context. Tiny pictures are marked decorative. Charts, SmartArt, embedded objects, and headers, footers or footnotes are not handled in Word yet, and the accessibility check (`/audit`) reads decks only.
+**Word documents (`.docx`)** are handled the same way for pictures and tables: the description goes into the picture's or table's alt-text field (the one Word's **Edit Alt Text** pane uses), and the AI sees the nearest heading and the paragraphs around the item as context. Tiny pictures are marked decorative. Embedded objects (such as a Visio drawing) get a description too. Charts, SmartArt, and headers, footers or footnotes are not handled in Word yet, and the accessibility check (`/audit`) reads decks only.
 
 Shapes that are completely invisible (no fill, no outline, no text) are marked as decorative, like PowerPoint's own "Mark as decorative" button, so screen readers skip them. Everything else in the file stays exactly as it was.
 
@@ -197,15 +260,24 @@ The run summary counts these separately ("improved", "kept as written"), so you 
 
 ## For developers
 
-cappv1 is built in three layers that only depend downward:
+cappv1 is built in layers that only depend downward:
 
-- `src/pipeline.py`, `pptx_reader.py`, `llm_client.py` and friends are the **engine**. They know nothing about screens. `skills.md` documents the one rule any change must follow: this tool writes alt text, plus only the few fixes it lists (today: marking a table's header row).
+- `src/pipeline.py`, `pptx_reader.py`, `docx_reader.py`, `llm_client.py` and friends are the **engine**. They know nothing about screens. [`skills.md`](skills.md) documents the one rule any change must follow: this tool writes alt text, plus only the few fixes it lists.
 - `src/services/` is the **service layer**: settings, models, files, health checks and runs, as plain functions that return data and raise `ServiceError` with a plain-language message.
-- `src/tui/` is the terminal session. It only asks and draws. A web UI will be a second front end over the same services.
+- `src/tui/` (the terminal session) and `src/web/` (the local web server and pages) are the two **front ends**. They only ask and draw.
 
 Settings live in `.env`; see `.env.example` for the full list. Set `CAPPV1_HOME` to keep `.env`, `input/`, `output/` and saved progress in another folder instead of the project folder.
 
 Run the tests with `pip install -r requirements-dev.txt` and then `python -m pytest`. They use a temporary workspace and a fake local model, never your real settings or keys.
+
+| Read | For |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | How the code is laid out |
+| [`docs/API.md`](docs/API.md) | The local web API |
+| [`skills.md`](skills.md) | The one product rule |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to contribute and release |
+| [`SECURITY.md`](SECURITY.md) | Reporting a security problem |
+| [`CHANGELOG.md`](CHANGELOG.md) | What changed in each version |
 
 ## License and contributing
 
