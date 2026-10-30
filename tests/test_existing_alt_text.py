@@ -1,3 +1,4 @@
+from src import outputs
 from pptx import Presentation
 
 from src.pptx_reader import get_alt_text, set_alt_text
@@ -23,7 +24,7 @@ def run_and_get_picture_alt(ws):
     runs.start()
     assert runs.wait(30)
     slide_one = next(e for e in runs.events_since(0) if e["event"] == "slide_end" and e["slide"] == 0)
-    pic = next(s for s in Presentation(ws.output_dir / "a.pptx").slides[0].shapes if s.shape_type == 13)
+    pic = next(s for s in Presentation(outputs.latest(ws.output_dir, "a.pptx")).slides[0].shapes if s.shape_type == 13)
     return get_alt_text(pic), slide_one
 
 
@@ -53,7 +54,7 @@ def test_force_replaces_the_authors_text(configured, fake_ollama, tmp_path):
     runs = RunManager(configured)
     runs.start(force=True)
     assert runs.wait(30)
-    pic = next(s for s in Presentation(configured.output_dir / "a.pptx").slides[0].shapes if s.shape_type == 13)
+    pic = next(s for s in Presentation(outputs.latest(configured.output_dir, "a.pptx")).slides[0].shapes if s.shape_type == 13)
     assert get_alt_text(pic) == "A fresh description."
 
 
@@ -127,7 +128,7 @@ def test_the_deck_keeps_every_part_except_the_slides_it_wrote_to(configured, tmp
     runs = RunManager(configured)
     runs.start()
     assert runs.wait(30)
-    with zipfile.ZipFile(src) as before, zipfile.ZipFile(configured.output_dir / "a.pptx") as after:
+    with zipfile.ZipFile(src) as before, zipfile.ZipFile(outputs.latest(configured.output_dir, "a.pptx")) as after:
         assert after.namelist() == before.namelist()
         assert b'Id="rId99"' in after.read("ppt/slides/_rels/slide1.xml.rels")
         changed = [n for n in before.namelist() if before.read(n) != after.read(n)]

@@ -1,3 +1,4 @@
+from src import outputs
 import asyncio
 import io
 import types
@@ -58,7 +59,7 @@ def run(config, **kw):
 
 
 def out_doc(config, name="a.docx"):
-    return Document(str(config.output_dir / name))
+    return Document(str(outputs.latest(config.output_dir, name)))
 
 
 def test_finds_pictures_and_tables_with_their_context(tmp_path):
@@ -101,7 +102,7 @@ def test_only_alt_text_changes_in_the_document(tmp_path, fake_ollama, monkeypatc
                 el.getparent().remove(el)
         return etree.tostring(root, method="c14n")
 
-    with zipfile.ZipFile(src) as a, zipfile.ZipFile(config.output_dir / "a.docx") as b:
+    with zipfile.ZipFile(src) as a, zipfile.ZipFile(outputs.latest(config.output_dir, "a.docx")) as b:
         assert sorted(a.namelist()) == sorted(b.namelist())
         for name in a.namelist():
             if name == "docProps/core.xml":
@@ -118,7 +119,7 @@ def test_the_package_keeps_the_originals_order_and_bytes(tmp_path, fake_ollama, 
     src = make_docx(config.input_dir / "a.docx")
     run(config)
 
-    with zipfile.ZipFile(src) as a, zipfile.ZipFile(config.output_dir / "a.docx") as b:
+    with zipfile.ZipFile(src) as a, zipfile.ZipFile(outputs.latest(config.output_dir, "a.docx")) as b:
         assert a.namelist() == b.namelist()
         for name in a.namelist():
             if name not in ("word/document.xml", "docProps/core.xml"):  # the Title is filled in when it is wrong
@@ -148,7 +149,7 @@ def test_tables_in_an_old_compatibility_mode_document_are_left_alone(tmp_path, f
     config = docx_config(tmp_path, fake_ollama, monkeypatch)
     set_mode(make_docx(config.input_dir / "a.docx"), 11)
     run(config)
-    xml = zipfile.ZipFile(config.output_dir / "a.docx").read("word/document.xml").decode()
+    xml = zipfile.ZipFile(outputs.latest(config.output_dir, "a.docx")).read("word/document.xml").decode()
     assert "tblDescription" not in xml and "tblCaption" not in xml
     assert 'descr="' in xml and 'descr=""' not in xml  # the picture still got its text
     from src.state import load_state
@@ -162,7 +163,7 @@ def test_tables_in_a_modern_document_are_described(tmp_path, fake_ollama, monkey
     config = docx_config(tmp_path, fake_ollama, monkeypatch)
     set_mode(make_docx(config.input_dir / "a.docx"), 15)
     run(config)
-    assert "tblDescription" in zipfile.ZipFile(config.output_dir / "a.docx").read("word/document.xml").decode()
+    assert "tblDescription" in zipfile.ZipFile(outputs.latest(config.output_dir, "a.docx")).read("word/document.xml").decode()
 
 
 def add_object(path, *, alt=None):
@@ -196,7 +197,7 @@ def add_object(path, *, alt=None):
 
 
 def object_alts(config, name="a.docx"):
-    xml = etree.fromstring(zipfile.ZipFile(config.output_dir / name).read("word/document.xml"))
+    xml = etree.fromstring(zipfile.ZipFile(outputs.latest(config.output_dir, name)).read("word/document.xml"))
     return [v.get("alt") for v in xml.iter("{urn:schemas-microsoft-com:vml}shape")]
 
 
@@ -206,7 +207,7 @@ def test_an_embedded_object_gets_alt_text_on_its_preview_shape(tmp_path, fake_ol
     add_object(src)
     run(config)
     assert [a for a in object_alts(config) if a]  # described, not left bare
-    assert "ProgID" in zipfile.ZipFile(config.output_dir / "a.docx").read("word/document.xml").decode()
+    assert "ProgID" in zipfile.ZipFile(outputs.latest(config.output_dir, "a.docx")).read("word/document.xml").decode()
 
 
 def test_an_authors_object_alt_text_is_kept(tmp_path, fake_ollama, monkeypatch):
@@ -286,7 +287,7 @@ def test_header_rows_are_marked_even_when_table_descriptions_are_skipped(tmp_pat
     src = make_docx(config.input_dir / "a.docx")
     set_mode(src, 11)
     run(config)
-    xml = zipfile.ZipFile(config.output_dir / "a.docx").read("word/document.xml").decode()
+    xml = zipfile.ZipFile(outputs.latest(config.output_dir, "a.docx")).read("word/document.xml").decode()
     assert "tblDescription" not in xml and "<w:tblHeader" in xml
 
 
@@ -294,7 +295,7 @@ def test_the_decorative_flag_uses_the_standard_prefix(tmp_path, fake_ollama, mon
     config = docx_config(tmp_path, fake_ollama, monkeypatch)
     make_docx(config.input_dir / "a.docx", tiny=True)
     run(config)
-    with zipfile.ZipFile(config.output_dir / "a.docx") as z:
+    with zipfile.ZipFile(outputs.latest(config.output_dir, "a.docx")) as z:
         xml = z.read("word/document.xml").decode()
     assert "<a:extLst" in xml and "ns0:" not in xml
 
@@ -357,7 +358,7 @@ def test_a_failed_model_call_leaves_the_file_to_retry(tmp_path, fake_ollama, mon
 
     state = load_state(config.state_dir, "a.docx")
     assert state.status == "in_progress" and state.completed_slide_indices == []
-    assert (config.output_dir / "a.docx").exists()  # saved as far as it got
+    assert (outputs.latest(config.output_dir, "a.docx")).exists()  # saved as far as it got
 
 
 # ---- services, runs and the web server --------------------------------------------
@@ -398,7 +399,7 @@ def test_a_run_through_the_service_captions_a_docx(configured, tmp_path):
     assert runs.status().state == "done" and runs.status().failed_files == []
     assert files.list_files(configured)[0].state == "done"
     assert files.output_file(configured, "paper.docx").is_file()
-    assert get_alt_text(extract_pictures(out_doc_at(configured.output_dir / "paper.docx"))[0].doc_pr)
+    assert get_alt_text(extract_pictures(out_doc_at(outputs.latest(configured.output_dir, "paper.docx")))[0].doc_pr)
 
 
 def out_doc_at(path):
@@ -582,7 +583,7 @@ def test_the_finished_file_passes_the_ally_self_check(tmp_path, fake_ollama, mon
     config = docx_config(tmp_path, fake_ollama, monkeypatch)
     make_docx(config.input_dir / "a.docx")
     run(config)
-    blocking = [i for i in check(config.output_dir / "a.docx") if i.severity in ("severe", "major")]
+    blocking = [i for i in check(outputs.latest(config.output_dir, "a.docx")) if i.severity in ("severe", "major")]
     assert blocking == [], [str(i) for i in blocking]
 
 
@@ -653,7 +654,7 @@ def test_a_picture_no_model_can_read_is_described_by_its_caption(tmp_path, fake_
         for n, d in parts.items():
             z.writestr(n, d)
     run(config)
-    root = etree.fromstring(zipfile.ZipFile(config.output_dir / "a.docx").read("word/document.xml"))
+    root = etree.fromstring(zipfile.ZipFile(outputs.latest(config.output_dir, "a.docx")).read("word/document.xml"))
     descrs = [d.get("descr") for d in root.iter("{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}docPr")]
     assert descrs == ["Figure 7.3: Hospital layout"], descrs
 

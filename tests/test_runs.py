@@ -1,3 +1,4 @@
+from src import outputs
 import time
 
 import pytest
@@ -34,7 +35,7 @@ def test_a_run_captions_the_deck_and_reports_progress(configured, tmp_path):
     assert status.state == "done" and status.failed_files == []
     names = [e["event"] for e in runs.events_since(0)]
     assert names[0] == "file_start" and "slide_end" in names and names[-1] == "run_finished"
-    assert len(alt_texts(configured.output_dir / "a.pptx")) == 3  # picture, table, chart
+    assert len(alt_texts(outputs.latest(configured.output_dir, "a.pptx"))) == 3  # picture, table, chart
     assert files.list_files(configured)[0].state == "done"
 
 
@@ -95,7 +96,7 @@ def test_cancel_stops_promptly_and_work_can_resume(configured, fake_ollama, tmp_
     fake_ollama.delay = 0
     runs.start()
     assert runs.wait(30) and runs.status().state == "done"
-    assert len(alt_texts(configured.output_dir / "a.pptx")) == 3
+    assert len(alt_texts(outputs.latest(configured.output_dir, "a.pptx"))) == 3
 
 
 def test_missing_local_model_is_explained_before_starting(configured, tmp_path):
@@ -115,7 +116,7 @@ def test_a_run_can_be_limited_to_chosen_files(configured, tmp_path):
     plan = runs.start(only=["b.pptx"])
     assert plan.pending == ["b.pptx"]
     assert runs.wait(30)
-    assert (configured.output_dir / "b.pptx").exists() and not (configured.output_dir / "a.pptx").exists()
+    assert outputs.latest(configured.output_dir, "b.pptx") and not outputs.latest(configured.output_dir, "a.pptx")
     states = {f.name: f.state for f in files.list_files(configured)}
     assert states == {"a.pptx": "new", "b.pptx": "done"}  # the other file was left alone
 

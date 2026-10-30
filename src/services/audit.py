@@ -1,4 +1,5 @@
 """Accessibility report for one deck: what cappv1 noticed but will not change."""
+from src import outputs
 from src.audit import audit_deck
 from src.services.errors import ServiceError
 from src.services import files
@@ -11,8 +12,8 @@ def report(ws: Workspace, name: str) -> dict:
     if not name.lower().endswith(".pptx"):
         raise ServiceError("audit_unsupported", "The accessibility check only reads PowerPoint decks for now.",
                            "Word documents get alt text, but are not checked yet.")
-    finished = ws.output_dir / name
-    path = finished if finished.is_file() else ws.input_dir / name
+    finished = outputs.latest(ws.output_dir, name)
+    path = finished if finished is not None else ws.input_dir / name
     if not path.is_file():
         raise ServiceError("not_found", f"{name} isn't in your list.", "Add it first, or check the name.")
     try:

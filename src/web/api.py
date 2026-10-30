@@ -107,18 +107,36 @@ def put_file(req):
 
 
 def delete_file(req):
-    name = files.safe_name(req.groups[0])
     if req.runs.running:
         raise ServiceError("busy", "Wait for the run to finish first.")
-    path = req.ws.input_dir / name
-    if not path.is_file():
-        raise ServiceError("not_found", f"{name} isn't in your list.")
-    path.unlink()
-    req.h.send_json(200, {"removed": name})
+    req.h.send_json(200, {"removed": files.remove(req.ws, req.groups[0])})
+
+
+def list_history(req):
+    req.h.send_json(200, {"runs": files.history(req.ws)})
+
+
+def delete_history(req):
+    if req.runs.running:
+        raise ServiceError("busy", "Wait for the run to finish first.")
+    run, name = req.groups[0], (req.groups[1] if len(req.groups) > 1 else None)
+    req.h.send_json(200, {"deleted": files.delete_copy(req.ws, _run_id(run), name)})
+
+
+def _run_id(run: str) -> str:
+    return "" if run == "earlier" else run  # "earlier" stands for loose files older versions left in output/
 
 
 def download_file(req):
     path = files.output_file(req.ws, req.groups[0])
+    _send_file(req, path)
+
+
+def download_history(req):
+    _send_file(req, files.output_file(req.ws, req.groups[1], _run_id(req.groups[0])))
+
+
+def _send_file(req, path):
     size = path.stat().st_size
     kind = "wordprocessingml.document" if path.suffix.lower() == ".docx" else "presentationml.presentation"
     req.h._headers(200, f"application/vnd.openxmlformats-officedocument.{kind}", size,
@@ -207,6 +225,10 @@ ROUTES = [
     ("PUT", f"{PREFIX}/files/{_NAME}", put_file),
     ("DELETE", f"{PREFIX}/files/{_NAME}", delete_file),
     ("GET", f"{PREFIX}/files/{_NAME}/download", download_file),
+    ("GET", f"{PREFIX}/history", list_history),
+    ("DELETE", f"{PREFIX}/history/{_NAME}", delete_history),
+    ("DELETE", f"{PREFIX}/history/{_NAME}/{_NAME}", delete_history),
+    ("GET", f"{PREFIX}/history/{_NAME}/{_NAME}/download", download_history),
     ("GET", f"{PREFIX}/files/{_NAME}/audit", audit_file),
     ("POST", f"{PREFIX}/runs", start_run),
     ("GET", f"{PREFIX}/runs/current", current_run),

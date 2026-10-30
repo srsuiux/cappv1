@@ -5,11 +5,12 @@ import os
 import re
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import httpx
 
-from src import events
+from src import events, outputs
 from src.config import Config
 from src.image_filter import is_too_small
 from src.llm_client import (
@@ -141,7 +142,7 @@ def inspect_file(config: Config, path: Path) -> tuple[str, FileState, str]:
     """
     digest = file_sha256(path)
     state = load_state(config.state_dir, path.name)
-    output_exists = (config.output_dir / path.name).exists()
+    output_exists = outputs.latest(config.output_dir, path.name) is not None
 
     if state.content_hash and state.content_hash != digest:
         # the deck was edited: its slides may differ, but captions are keyed by
@@ -489,8 +490,9 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
         )
     save_state(config.state_dir, state)
 
-    config.output_dir.mkdir(parents=True, exist_ok=True)
-    out_path = config.output_dir / filename
+    save_dir = config.run_dir or config.output_dir
+    save_dir.mkdir(parents=True, exist_ok=True)
+    out_path = save_dir / filename
     events.emit("file_saving", filename=filename)
     # save beside the target, then rename: a crash never leaves a half-written deck in output/
     part_path = out_path.with_name(out_path.name + ".part")
@@ -508,8 +510,9 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
 
 
 async def run(config: Config, resume_only: bool = False, force: bool = False, only: list[str] | None = None) -> list[str]:
-    for leftover in config.output_dir.glob("*.part"):
+    for leftover in config.output_dir.glob("**/*.part"):
         leftover.unlink(missing_ok=True)  # from a run that was killed mid-save
+    config = replace(config, run_dir=outputs.new_run_dir(config.output_dir))
     files = discover_files(config, resume_only, force, only)
     if not files:
         logger.info("nothing to process")

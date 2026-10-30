@@ -54,11 +54,12 @@ class Config:
     min_image_size_px: int
     max_alt_text_chars: int
     input_dir: Path
-    output_dir: Path
+    output_dir: Path  # the output/ folder; each run writes into a folder of its own inside it (src/outputs.py)
     state_dir: Path
     logs_dir: Path
     min_existing_alt_chars: int = 30
     overwrite_existing: bool = False
+    run_dir: Path | None = None  # where this run saves; set when the run starts
 
 
 def load_config(root: Path | None = None) -> Config:

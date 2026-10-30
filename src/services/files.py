@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterable
 
+from src import outputs
 from src.config import load_config
 from src.pipeline import SUPPORTED_EXTENSIONS, inspect_file
 from src.services.errors import ServiceError
@@ -19,6 +20,10 @@ class FileInfo:
     size: int
     state: str  # new | partial | changed | done
     has_output: bool
+    modified: float = 0.0  # when the file was added (seconds since 1970)
+    output_size: int = 0  # the newest finished copy
+    output_modified: float = 0.0
+    output_run: str = ""  # which run folder that copy is in
     skipped: list[dict] = field(default_factory=list)  # items it could not read, to look at later: {where, kind, error}
 
     def as_dict(self) -> dict:
@@ -106,27 +111,74 @@ def describe(ws: Workspace, name: str) -> FileInfo:
             skipped = list(saved.skipped)
     except Exception:
         state = "new"  # not configured yet: it simply hasn't been processed
-    return FileInfo(name, path.stat().st_size, state, (ws.output_dir / name).exists(), skipped)
+    stat = path.stat()
+    done = outputs.latest(ws.output_dir, name)
+    info = FileInfo(name, stat.st_size, state, done is not None, stat.st_mtime, skipped=skipped)
+    if done is not None:
+        info.output_size, info.output_modified = done.stat().st_size, done.stat().st_mtime
+        info.output_run = done.parent.name if done.parent != ws.output_dir else ""
+    return info
 
 
 def list_files(ws: Workspace) -> list[FileInfo]:
     return [describe(ws, p.name) for p in input_paths(ws)]
 
 
-def output_file(ws: Workspace, name: str) -> Path:
-    """The finished copy of a file, for download."""
-    path = ws.output_dir / safe_name(name)
-    if not path.is_file() or path.resolve().parent != ws.output_dir.resolve():
+def output_file(ws: Workspace, name: str, run: str | None = None) -> Path:
+    """A finished copy, for download: the newest one, or the one from a given run."""
+    name = safe_name(name)
+    try:
+        path = outputs.latest(ws.output_dir, name) if run is None else outputs.run_path(ws.output_dir, run) / name
+    except ValueError:
+        path = None
+    if path is None or not path.is_file():
         raise ServiceError("no_output", f"There is no finished copy of {name} yet.", "Run it first.")
     return path
+
+
+def remove(ws: Workspace, name: str) -> str:
+    """Takes a file out of the input list (the web page and the terminal both call this). Finished copies stay."""
+    name = safe_name(name)
+    path = ws.input_dir / name
+    if not path.is_file():
+        raise ServiceError("not_found", f"{name} isn't in your list.", "Reload the page, or type /files to see what is there.")
+    path.unlink()
+    return name
+
+
+def history(ws: Workspace) -> list[dict]:
+    """Finished copies by run, newest run first: {run, when, files: [{name, size, modified}], bytes}."""
+    out = []
+    for run in outputs.run_ids(ws.output_dir):
+        items = [{"name": p.name, "size": p.stat().st_size, "modified": p.stat().st_mtime} for p in outputs.files_in(ws.output_dir, run)]
+        if items:
+            out.append({"run": run, "legacy": run == outputs.LEGACY, "files": items, "bytes": sum(i["size"] for i in items)})
+    return out
+
+
+def delete_copy(ws: Workspace, run: str, name: str | None = None) -> int:
+    """Deletes one finished copy, or the whole run when no name is given. Returns how many files went."""
+    try:
+        if name is None:
+            n = outputs.delete_run(ws.output_dir, run)
+        else:
+            n = int(outputs.delete_copy(ws.output_dir, run, safe_name(name)))
+    except ValueError:
+        n = 0
+    if not n:
+        raise ServiceError("not_found", "That finished copy isn't there any more.", "Reload the page, or type /history to see what is kept.")
+    return n
 
 
 def clean(ws: Workspace, dry_run: bool = False) -> dict[str, int]:
     """Deletes decks in input/ and output/ and all saved progress. No undo.
     With dry_run it only counts what would go."""
     counts = {"input": 0, "output": 0, "progress": 0}
-    for key, folder, patterns in (("input", ws.input_dir, ("*.pptx", "*.docx")), ("output", ws.output_dir, ("*.pptx", "*.docx")),
-                                  ("progress", ws.state_dir, ("*.json*",))):
+    for run in outputs.run_ids(ws.output_dir):
+        counts["output"] += len(outputs.files_in(ws.output_dir, run))
+        if not dry_run:
+            outputs.delete_run(ws.output_dir, run)
+    for key, folder, patterns in (("input", ws.input_dir, ("*.pptx", "*.docx")), ("progress", ws.state_dir, ("*.json*",))):
         for f in (f for pattern in patterns for f in folder.glob(pattern)):
             if not dry_run:
                 f.unlink(missing_ok=True)

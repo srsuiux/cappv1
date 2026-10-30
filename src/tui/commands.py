@@ -6,6 +6,7 @@ import platform
 import shutil
 import subprocess
 import time
+from datetime import datetime
 from dataclasses import dataclass
 from typing import Callable
 
@@ -13,7 +14,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from src import doctor
+from src import doctor, outputs
 from src.services import audit, files, health, settings
 from src.services import models as model_service
 from src.services.errors import ServiceError
@@ -97,13 +98,70 @@ def cmd_files(session, args: str) -> None:
         return
     table = Table(box=None, padding=(0, 2), show_edge=False)
     table.add_column("File", overflow="fold")
+    table.add_column("Size", justify="right")
+    table.add_column("Added")
     table.add_column("Status")
     for f in listing:
         text, style = _STATE_TEXT[f.state]
-        table.add_row(f.name, Text(text, style=style))
+        table.add_row(f.name, _size(f.size), _when(f.modified), Text(text, style=style))
     session.console.print()
     session.console.print(table)
     session.console.print()
+
+
+def _size(n: int) -> str:
+    return f"{n / 1048576:.1f} MB" if n >= 104858 else f"{max(1, round(n / 1024))} KB"
+
+
+def _when(ts: float) -> str:
+    return datetime.fromtimestamp(ts).strftime("%d %b %Y %H:%M")
+
+
+def _run_label(run: str) -> str:
+    if not run:
+        return "earlier versions"
+    return _when(datetime.strptime(run[:19], "%Y-%m-%d_%H-%M-%S").timestamp())
+
+
+# ---------------------------------------------------------------- /history, /remove
+def cmd_history(session, args: str) -> None:
+    runs = files.history(session.ws)
+    if not runs:
+        session.console.print(Text("\n No finished copies yet. Type /run to make some.\n", style=MUTED))
+        return
+    table = Table(box=None, padding=(0, 2), show_edge=False)
+    for col in ("Run", "Folder", "Files", "Size"):
+        table.add_column(col, justify="right" if col == "Size" else "left", overflow="fold")
+    for r in runs:
+        names = ", ".join(f["name"] for f in r["files"])
+        table.add_row(_run_label(r["run"]), r["run"] or "output/", names, _size(r["bytes"]))
+    session.console.print()
+    session.console.print(table)
+    session.console.print(Text("\n /remove <run folder> deletes a run; /remove <run folder>/<file> deletes one copy.\n", style=MUTED))
+
+
+def cmd_remove(session, args: str) -> None:
+    """Removes a file from the list, or a finished copy / whole run from the history. The web page shows the change too."""
+    target = args.strip().strip("/")
+    if not target:
+        session.console.print(Text("\n Type /remove <file name> to take a file off the list, or /remove <run folder> for a run (see /history).\n", style=MUTED))
+        return
+    run, _, name = target.partition("/")
+    try:
+        if session.runs.running:
+            raise ServiceError("busy", "A run is in progress.", "Wait for it to finish, or stop it first.")
+        if outputs.RUN_NAME.fullmatch(run):
+            what = f"the copy {name} in run {run}" if name else f"every finished copy in run {run}"
+            if select(f"Delete {what}?", [("No, keep it", ""), ("Yes, delete", "no undo")]) != 1:
+                _nothing_changed(session)
+                return
+            files.delete_copy(session.ws, run, name or None)
+            _ok(session, f"Deleted {what}")
+        else:
+            files.remove(session.ws, target)
+            _ok(session, f"Removed {target} from the list. Finished copies are kept.")
+    except ServiceError as err:
+        _service_error(session, err)
 
 
 # ---------------------------------------------------------------- /audit
@@ -495,6 +553,8 @@ def build_commands() -> list[Command]:
         Command("audit", "Report low contrast and reading-order problems (changes nothing)", cmd_audit),
         Command("web", "Open cappv1 in your browser (/web stop turns it off)", cmd_web),
         Command("status", "Show the current settings", cmd_status),
+        Command("history", "List the finished copies kept from each run", cmd_history),
+        Command("remove", "Take a file off the list, or delete a finished copy or run", cmd_remove, ("rm", "delete")),
         Command("open", "Open the output folder", cmd_open),
         Command("clean", "Delete input, output and saved progress", cmd_clean),
         Command("clear", "Clear the screen", cmd_clear),

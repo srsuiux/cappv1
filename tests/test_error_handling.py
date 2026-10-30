@@ -1,3 +1,4 @@
+from src import outputs
 """One unreadable item must never stop a file: it is skipped, noted, and the rest finishes."""
 import asyncio
 import logging
@@ -43,7 +44,7 @@ def test_a_broken_picture_is_skipped_and_the_file_still_finishes(tmp_path, fake_
     assert state.status == "complete"
     assert [(s["where"], s["kind"]) for s in state.skipped] == [("slide 1", "picture")]
     assert state.skipped[0]["error"]
-    assert alt_texts(config.output_dir / "a.pptx").count(fake_ollama.reply) == 2  # the table and chart on slide 2 were still done
+    assert alt_texts(outputs.latest(config.output_dir, "a.pptx")).count(fake_ollama.reply) == 2  # the table and chart on slide 2 were still done
     assert [d["where"] for n, d in seen if n == "element_skipped"] == ["slide 1"]
     saved = next(d for n, d in seen if n == "file_saved")
     assert saved["skipped"] == 1 and not saved["incomplete"]
@@ -62,7 +63,7 @@ def test_an_unreadable_slide_is_skipped_as_a_whole(tmp_path, fake_ollama, monkey
     assert [s["where"] for s in state.skipped] == ["slide 1", "slide 2", "slide 3"]
     assert all(s["kind"] == "whole slide" for s in state.skipped)
     assert "broken link" in state.skipped[0]["error"]  # plain words, not a bare KeyError
-    assert (config.output_dir / "a.pptx").exists() and state.status == "complete"
+    assert (outputs.latest(config.output_dir, "a.pptx")).exists() and state.status == "complete"
 
 
 def test_a_broken_picture_in_a_word_document_is_skipped_too(tmp_path, fake_ollama, monkeypatch):
@@ -76,7 +77,7 @@ def test_a_broken_picture_in_a_word_document_is_skipped_too(tmp_path, fake_ollam
     state = load_state(config.state_dir, "a.docx")
     assert state.status == "complete"
     assert [s["kind"] for s in state.skipped] == ["picture"] and "missing" in state.skipped[0]["error"]
-    out = Document(str(config.output_dir / "a.docx"))
+    out = Document(str(outputs.latest(config.output_dir, "a.docx")))
     assert get_table_alt_text(extract_tables(out)[0].table) == fake_ollama.reply  # the table was still done
 
 

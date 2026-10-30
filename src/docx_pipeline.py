@@ -249,8 +249,9 @@ async def run_docx_file(
     except Exception as exc:  # a structure fix that fails leaves the file as it was; it never stops it
         record_skip(state, filename, 0, "the document", "structure", exc)
 
-    config.output_dir.mkdir(parents=True, exist_ok=True)
-    out_path = config.output_dir / filename
+    save_dir = config.run_dir or config.output_dir
+    save_dir.mkdir(parents=True, exist_ok=True)
+    out_path = save_dir / filename
     events.emit("file_saving", filename=filename)
     part_path = out_path.with_name(out_path.name + ".part")
     save_document(doc, path, part_path)
