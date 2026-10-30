@@ -49,9 +49,6 @@ def render(text: str | None = None) -> str:
     if not releases:
         return "<p class=\"muted\">No release notes yet.</p>"
     latest = next((r["version"] for r in releases if r["version"] != "Unreleased"), "")
-    nav = "".join(
-        f'<li><a href="#v-{r["version"]}">{html.escape(r["version"])}'
-        f'<span class="muted">{_nice_date(r["date"]) if r["date"] else "Next release"}</span></a></li>' for r in releases)
     body = []
     for r in releases:
         v = r["version"]
@@ -64,5 +61,4 @@ def render(text: str | None = None) -> str:
         label = "Unreleased" if v == "Unreleased" else f"Version {v}"
         body.append(f'<section class="panelbox release" id="v-{v}" aria-labelledby="h-{v}"><div class="relhead">'
                     f'<h2 id="h-{v}">{html.escape(label)}{chip}</h2><span class="meta">{when}{note}</span></div>{groups}</section>')
-    return (f'<div class="changelog"><nav class="relnav" aria-label="Versions"><h2 class="group">Versions</h2><ul>{nav}</ul></nav>'
-            f'<div class="releases">{"".join(body)}</div></div>')
+    return f'<div class="cards releases">{"".join(body)}</div>'

@@ -195,13 +195,6 @@ html[data-used="1"] .front #overview{order:-1}
 .trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(19rem,1fr));gap:16px}
 .trio .panel p{margin-bottom:10px}
 
-/* ---- theme switch ---- */
-.theme{margin:18px 8px 0}
-.theme .group{margin:0 0 6px}
-.seg{display:flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.seg button{flex:1;display:grid;place-items:center;background:var(--paper);color:var(--ink);border:0;border-radius:0;font-weight:400;padding:6px;min-height:44px;min-width:44px}
-.seg{gap:1px;background:var(--line)}
-.seg button[aria-pressed=true]{background:var(--blue);color:var(--blue-ink)}
 
 
 /* ---- accent color: --blue is the call-to-action color (the name is historic); the person picks it in the sidebar ---- */
@@ -220,11 +213,13 @@ html[data-used="1"] .front #overview{order:-1}
 :root[data-theme=dark][data-accent=purple]{--blue:#b99bff}
 :root[data-theme=dark][data-accent=rose]{--blue:#ff8fb5}
 :root[data-theme=dark][data-accent=amber]{--blue:#ffb454}
-.swatches{display:flex;flex-wrap:wrap;gap:6px}
-.sw{width:44px;height:44px;min-height:44px;padding:0;border-radius:99px;border:2px solid var(--line);background:var(--sw,var(--blue))}
-.sw[aria-pressed=true]{border-color:var(--paper);outline:3px solid var(--ink);outline-offset:0}
-.sw[data-accent-set=blue]{--sw:#1b4fd6}.sw[data-accent-set=teal]{--sw:#0b6b66}.sw[data-accent-set=green]{--sw:#1f6b2a}
-.sw[data-accent-set=purple]{--sw:#6b3fb8}.sw[data-accent-set=rose]{--sw:#b0245a}.sw[data-accent-set=amber]{--sw:#8a4b00}
+.choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.choice{display:inline-flex;align-items:center;gap:10px;background:var(--paper);color:var(--ink);border:1px solid var(--line);font-weight:400;padding:8px 16px}
+.choice:hover{background:var(--tint)}
+.choice[aria-pressed=true]{border-color:var(--blue);background:var(--tint);font-weight:700;outline:2px solid var(--blue);outline-offset:-2px}
+.choice .sw{width:20px;height:20px;border-radius:99px;border:1px solid var(--muted);background:var(--sw)}
+[data-accent-set=blue] .sw{--sw:#1b4fd6}[data-accent-set=teal] .sw{--sw:#0b6b66}[data-accent-set=green] .sw{--sw:#1f6b2a}
+[data-accent-set=purple] .sw{--sw:#6b3fb8}[data-accent-set=rose] .sw{--sw:#b0245a}[data-accent-set=amber] .sw{--sw:#8a4b00}
 
 /* ---- the Files page: use the whole width, one panel per kind of file ---- */
 .files-layout,.split-layout{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:0 32px;align-items:start}
@@ -281,14 +276,7 @@ section[aria-labelledby=h-flow]{margin:0 0 20px}section[aria-labelledby=h-flow] 
 .panelbox .group{margin:0}
 
 /* ---- changelog ---- */
-.changelog{display:grid;grid-template-columns:13rem minmax(0,1fr);gap:24px;align-items:start}
-.relnav{position:sticky;top:8px}
-.relnav h2{margin:0 0 6px}
-.relnav ul{list-style:none;margin:0;padding:0}
-.relnav a{display:flex;flex-direction:column;padding:6px 10px;min-height:44px;justify-content:center;color:var(--ink);text-decoration:none;border-radius:var(--r)}
-.relnav a:hover{background:var(--tint)}
-.relnav a span{font-size:.88rem}
-.releases>.panelbox{margin:0 0 16px;padding-bottom:14px;scroll-margin-top:8px}
+.releases>.panelbox{padding-bottom:14px}
 .relhead{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:baseline;justify-content:space-between;margin-top:12px}
 .relhead h2{margin:0;font-size:1.3rem}
 .chip{display:inline-block;margin-left:8px;border:1px solid var(--ok);color:var(--ok);border-radius:99px;padding:0 10px;font-size:.85rem;font-weight:400;vertical-align:middle}
@@ -296,7 +284,4 @@ section[aria-labelledby=h-flow]{margin:0 0 20px}section[aria-labelledby=h-flow] 
 .release h3.kind{display:inline-block;margin:16px 0 4px;padding:0 10px;border:1px solid currentColor;border-radius:99px;font-size:.88rem}
 .kind.new{color:var(--ok)}.kind.improved{color:var(--blue)}.kind.fixed{color:var(--warn)}
 .release ul{margin:6px 0 4px;padding-left:1.2rem}.release li{margin:6px 0;max-width:80ch}
-@media (max-width:60rem){
-  .changelog{grid-template-columns:minmax(0,1fr)}
-  .relnav{position:static}.relnav ul{display:flex;flex-wrap:wrap;gap:4px}.relnav a{border:1px solid var(--line)}
-}
+.cards.even{align-items:stretch}

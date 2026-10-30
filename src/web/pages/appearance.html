@@ -1,0 +1,31 @@
+<!-- title="Appearance" nav="appearance" layout="app" width="wide" script="appearance.js" description="Choose the theme and the accent color of cappv1. Both are kept in this browser." -->
+<header class="page-head"><h1>Appearance</h1>
+<p class="muted">Choose how cappv1 looks. Both choices are kept in this browser only, and nothing is sent anywhere.</p></header>
+<div class="cards even">
+  <section class="panelbox" aria-labelledby="h-theme">
+    <h2 id="h-theme">Theme</h2>
+    <p class="muted">System follows your device's light or dark setting.</p>
+    <div class="choices" role="group" aria-labelledby="h-theme">
+      <button type="button" class="choice" data-theme-set="system" aria-pressed="true"><svg class="ic" aria-hidden="true"><use href="#i-system"/></svg><span>System</span></button>
+      <button type="button" class="choice" data-theme-set="light" aria-pressed="false"><svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg><span>Light</span></button>
+      <button type="button" class="choice" data-theme-set="dark" aria-pressed="false"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg><span>Dark</span></button>
+    </div>
+  </section>
+  <section class="panelbox" aria-labelledby="h-accent">
+    <h2 id="h-accent">Accent color</h2>
+    <p class="muted">The color of buttons, links and highlights. Every choice stays easy to read in both themes.</p>
+    <div class="choices" role="group" aria-labelledby="h-accent">
+      <button type="button" class="choice" data-accent-set="blue" aria-pressed="true"><span class="sw" aria-hidden="true"></span><span>Blue</span></button>
+      <button type="button" class="choice" data-accent-set="teal" aria-pressed="false"><span class="sw" aria-hidden="true"></span><span>Teal</span></button>
+      <button type="button" class="choice" data-accent-set="green" aria-pressed="false"><span class="sw" aria-hidden="true"></span><span>Green</span></button>
+      <button type="button" class="choice" data-accent-set="purple" aria-pressed="false"><span class="sw" aria-hidden="true"></span><span>Purple</span></button>
+      <button type="button" class="choice" data-accent-set="rose" aria-pressed="false"><span class="sw" aria-hidden="true"></span><span>Rose</span></button>
+      <button type="button" class="choice" data-accent-set="amber" aria-pressed="false"><span class="sw" aria-hidden="true"></span><span>Amber</span></button>
+    </div>
+  </section>
+  <section class="panelbox span" aria-labelledby="h-preview">
+    <h2 id="h-preview">Preview</h2>
+    <p>This is how text, a <a href="/appearance">link</a> and buttons look with your choices.</p>
+    <div class="actions"><button type="button">Main button</button><button type="button" class="quiet">Quiet button</button></div>
+  </section>
+</div>

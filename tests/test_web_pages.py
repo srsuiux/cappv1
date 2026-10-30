@@ -149,9 +149,14 @@ def test_text_and_controls_have_enough_contrast_in_both_themes(which):
 
 
 @pytest.mark.parametrize("slug", [s for s in SLUGS])
-def test_every_page_has_the_theme_switch_and_applies_it_before_painting(slug):
+def test_every_page_applies_the_theme_before_painting_and_links_to_appearance(slug):
     html = render_page(slug).decode()
     assert html.index('src="/theme.js"') < html.index('href="/app.css"'), "the theme must be set before styles load"
+    assert 'href="/appearance"' in html and "data-theme-set" not in html.split("</aside>")[0]  # the choices live on their own page
+
+
+def test_the_appearance_page_offers_every_theme_and_accent():
+    html = render_page("appearance").decode()
     for choice in ("system", "light", "dark"):
         assert f'data-theme-set="{choice}"' in html
 
@@ -179,6 +184,11 @@ def test_the_changelog_lists_every_release_in_the_changelog_file():
     assert html.count('class="chip">Latest release') == 1
 
 
+def test_the_changelog_is_only_cards():
+    html = render_page("changelog").decode()
+    assert "relnav" not in html and 'class="cards releases"' in html
+
+
 def test_the_changelog_groups_changes_and_escapes_what_it_shows():
     from src.web import changelog
 
@@ -195,7 +205,7 @@ def test_every_page_has_a_sidebar_with_icons_and_no_collapse_toggle(slug):
     assert html.count('<use href="#i-') >= 9  # one icon per link, drawn from the inline sprite (nothing loads from outside)
     assert 'src="http' not in html and "style=" not in html
     # every icon-only control still has a name for screen readers
-    assert '<span class="sr">Dark</span>' in html
+    assert "<nav" in html and html.count("<li><a href=") >= 10
 
 
 def test_the_files_page_can_select_files_and_remove_all():
@@ -223,7 +233,7 @@ def test_every_accent_color_is_readable_as_text_and_under_button_ink(accent):
 
 
 def test_the_accent_choice_is_offered_everywhere_and_applied_before_painting():
-    html = render_page("files").decode()
+    html = render_page("appearance").decode()
     for name in ["blue"] + ACCENTS:
         assert f'data-accent-set="{name}"' in html
     assert "cappv1.accent" in (STATIC / "theme.js").read_text()
