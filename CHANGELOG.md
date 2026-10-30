@@ -2,6 +2,19 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
+## Unreleased
+
+- Word: Blackboard Ally structure fixes. Heading levels are renumbered to start at Heading 1 with no gaps, using copies of the existing heading styles so nothing looks different; captions become Heading 1 in a document with no headings; empty headings stop being headings; every table gets a header row, including one-row boxes; the Title property is filled when empty or wrong; text that fails the 4.5:1 contrast check is darkened to 7:1 and noted (the one visible change). `python -m src.docx_check` checks a file against these rules.
+- Word: a table's first row is now marked as its header (the Header Row box and Repeat as header row), which Blackboard Ally needs: a test file scored 100% with both and 68% with the box alone. Only plain tables: no table style, two or more rows and columns, text in every first-row cell, nothing merged. One visible effect, which the owner accepted: a table that runs onto a second page repeats its header row there. Applied even in documents where table descriptions are skipped.
+- Word: finished copies open in Word and preview in Blackboard. The output is now the original file with only `word/document.xml` replaced, instead of a python-docx re-save. Documents saved in Word compatibility mode 11 or 12 (what LibreOffice writes) get no table alt text, because Word refuses to open them with it; picture alt text is unaffected, and one note says to use Save As in Word first.
+- Word: embedded objects (for example Visio drawings) now get alt text, so an accessibility checker no longer sees them as undescribed pictures. The Privacy page now lists the text read from an embedded object.
+- Files page: every file has a checkbox, with Select all and a count. "Improve accessibility" runs only the ticked files (`POST /runs` takes `files`). New files are ticked for you; previous files can be ticked too. "Remove all" empties the Current files list after an inline confirmation.
+- Sidebar: an icon beside every link, and a button that folds it to an icon rail (remembered in this browser). The theme choice is now three icon buttons (System, Light, Dark) with tooltips and screen-reader names.
+- Fixes a stray "null" shown on the finished-run card.
+
+- A damaged item no longer stops a file. A slide or document item that cannot be read (for example an embedded object whose part is missing, which used to end the file with "no relationship with key 'rId4'") is skipped, noted in the file's saved progress and the log, and the rest finishes. The Files page lists what was skipped under each file and marks the slide, and the terminal run view prints it. Applies to decks and Word documents.
+- A run started from the browser now prints its log in the terminal that started cappv1 (`--web`, or `/web` in the terminal session).
+
 ## 1.5.0
 
 - Word documents (`.docx`): pictures and tables get alt text (`wp:docPr` description and `w:tblDescription`), through the terminal, the batch command and the web UI. Charts, SmartArt, embedded objects and headers/footers are not handled yet, and `/audit` stays decks-only.

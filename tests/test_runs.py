@@ -106,3 +106,36 @@ def test_missing_local_model_is_explained_before_starting(configured, tmp_path):
     with pytest.raises(ServiceError) as err:
         RunManager(configured).prepare()
     assert err.value.code == "model_missing" and "ollama pull" in err.value.fix
+
+
+def test_a_run_can_be_limited_to_chosen_files(configured, tmp_path):
+    add_deck(configured, tmp_path, "a.pptx")
+    add_deck(configured, tmp_path, "b.pptx", (10, 200, 10))
+    runs = RunManager(configured)
+    plan = runs.start(only=["b.pptx"])
+    assert plan.pending == ["b.pptx"]
+    assert runs.wait(30)
+    assert (configured.output_dir / "b.pptx").exists() and not (configured.output_dir / "a.pptx").exists()
+    states = {f.name: f.state for f in files.list_files(configured)}
+    assert states == {"a.pptx": "new", "b.pptx": "done"}  # the other file was left alone
+
+
+def test_choosing_no_files_or_an_unknown_file_is_refused(configured, tmp_path):
+    add_deck(configured, tmp_path)
+    runs = RunManager(configured)
+    with pytest.raises(ServiceError) as err:
+        runs.prepare(only=[])
+    assert err.value.code == "no_files"
+    with pytest.raises(ServiceError) as err:
+        runs.prepare(only=["nope.pptx"])
+    assert err.value.code == "not_found"
+
+
+def test_force_with_chosen_files_only_replaces_those(configured, tmp_path):
+    add_deck(configured, tmp_path, "a.pptx")
+    add_deck(configured, tmp_path, "b.pptx", (10, 200, 10))
+    runs = RunManager(configured)
+    runs.start()
+    assert runs.wait(30)
+    plan = runs.prepare(force=True, only=["a.pptx"])
+    assert plan.pending == ["a.pptx"]

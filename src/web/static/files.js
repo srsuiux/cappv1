@@ -1,12 +1,15 @@
 import { api, getJson, h, problem, announce, plural, ApiError } from "/app.js";
 
 const $ = (id) => document.getElementById(id);
+const rmBtn = document.getElementById("rm"); // kept by reference: "Remove all" swaps it out and back
 const STATE = {
   new: ["New", ""], partial: ["Unfinished, will continue", "warn"], changed: ["Edited since last run", "warn"], done: ["✔ Done", "ok"],
 };
 let files = [];
 let busy = false;
 const fresh = new Set(); // finished in the latest run
+const selected = new Set(); // names ticked for the next run
+const known = new Set(); // names already seen, so only new arrivals are ticked automatically
 const session = new Set(); // added or run on this page, so they stay under Current files
 
 const isWord = (name) => name.toLowerCase().endsWith(".docx");
@@ -19,7 +22,10 @@ const noun = (names, n = 1) => {
   return n === 1 ? w[0] : w[1];
 };
 
-function showProblem(err) { $("problem").replaceChildren(err ? problem(err) : ""); }
+function showProblem(err) {
+  $("problem").replaceChildren(err ? problem(err) : "");
+  if (err) $("problem").scrollIntoView({ block: "center" }); // the page can be long: an error up top must not go unseen
+}
 const mb = (n) => (n / 1048576 >= 0.1 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
 
 async function download(name) {
@@ -36,6 +42,7 @@ async function download(name) {
 async function remove(name) {
   try {
     await api("DELETE", `/files/${encodeURIComponent(name)}`);
+    selected.delete(name);
     announce(`${name} removed`);
     await loadFiles();
   } catch (err) { showProblem(err); }
@@ -61,12 +68,24 @@ async function audit(name) {
   } catch (err) { showProblem(err); }
 }
 
+// What could not be read in a file, so someone can look at it later
+function skipNotes(list) {
+  return h("span", { class: "skips" }, h("span", { class: "warn" }, `${plural(list.length, "item was", "items were")} skipped. Check ${list.length === 1 ? "it" : "them"} in the original:`),
+    h("ul", {}, ...list.slice(0, 10).map((s) => h("li", {}, `${s.where}, ${s.kind}: ${s.error}`)),
+      list.length > 10 ? h("li", {}, `and ${list.length - 10} more (see the run log)`) : null));
+}
+
 function row(f) {
   const [label, tone] = STATE[f.state] || [f.state, ""];
   const ready = fresh.has(f.name);
   return h("li", { class: ready ? "fresh" : "" },
+    h("label", { class: "pick" }, h("input", {
+      type: "checkbox", checked: selected.has(f.name), disabled: busy, "aria-label": "Select " + f.name,
+      onchange: (e) => { e.target.checked ? selected.add(f.name) : selected.delete(f.name); summary(); },
+    })),
     h("span", {}, h("span", { class: "name" }, f.name), h("br"), h("span", { class: "muted" }, `${KIND_LABEL[kindOf(f.name)]} · ${mb(f.size)}`),
-      isWord(f.name) ? h("span", { class: "muted" }, " · pictures and tables") : null),
+      isWord(f.name) ? h("span", { class: "muted" }, " · pictures and tables") : null,
+      f.skipped && f.skipped.length ? skipNotes(f.skipped) : null),
     h("span", { class: "state" },
       h("span", { class: ready ? "ok" : tone }, ready ? "✔ Finished copy ready" : label), " ",
       !isWord(f.name) ? h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)) : null, " ",
@@ -74,25 +93,78 @@ function row(f) {
       h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => remove(f.name) }, "Remove", h("span", { class: "sr" }, " " + f.name))));
 }
 
-function render() {
+const split = () => {
   // Current: waiting to be done, or touched on this page. Previous: finished earlier.
   const current = files.filter((f) => f.state !== "done" || session.has(f.name));
-  const previous = files.filter((f) => !current.includes(f));
+  return { current, previous: files.filter((f) => !current.includes(f)) };
+};
+
+function render() {
+  const { current, previous } = split();
   $("empty").hidden = current.length > 0;
   $("files").replaceChildren(...current.map(row));
   $("prevwrap").hidden = previous.length === 0;
   $("prev").replaceChildren(...previous.map(row));
+  summary();
+}
+
+// Everything that depends on what is ticked: the toolbar, the run button and its help.
+function summary() {
+  const { current } = split();
   const force = $("force").checked;
-  const n = force ? files.length : files.filter((f) => f.state !== "done").length;
+  const picked = files.filter((f) => selected.has(f.name));
+  const inCurrent = current.filter((f) => selected.has(f.name)).length;
+  $("tools").hidden = current.length === 0;
+  $("all").checked = current.length > 0 && inCurrent === current.length;
+  $("all").indeterminate = inCurrent > 0 && inCurrent < current.length;
+  $("all").disabled = busy;
+  $("picked").textContent = `${inCurrent} of ${current.length} selected`;
+  if (!$("removeall").querySelector("#confirm")) rmBtn.disabled = busy;
+  const todo = picked.filter((f) => force || f.state !== "done");
+  const n = todo.length;
   $("run").disabled = busy || n === 0;
-  $("run").textContent = n === 0 ? "Improve accessibility" : `${force ? "Replace and improve" : "Improve"} accessibility for ${plural(n, "file", "files")}`;
-  $("runhelp").textContent = force
-    ? "This replaces alt text people wrote, in the finished copies, and includes previous files. Your originals are not changed."
-    : "Items already described are reused, not paid for twice.";
+  $("run").textContent = n === 0 ? "Improve accessibility" : `${force ? "Replace and improve" : "Improve"} accessibility for ${plural(n, "selected file", "selected files")}`;
+  $("runhelp").textContent = n === 0
+    ? (picked.length ? "The selected files are already done. Tick the replace option to redo them." : "Tick the files you want to improve.")
+    : force
+      ? "This replaces alt text people wrote, in the finished copies, for the selected files. Your originals are not changed."
+      : "Items already described are reused, not paid for twice.";
+}
+
+// "Remove all" empties the Current files list. It asks first, in place, and only touches the copies cappv1 holds.
+function askRemoveAll() {
+  const { current } = split();
+  const box = $("removeall");
+  const cancel = h("button", { class: "quiet small", type: "button", onclick: () => resetRemove() }, "Cancel");
+  box.replaceChildren(
+    h("span", { id: "confirm", role: "group", "aria-label": "Confirm removing all" }, `Remove ${plural(current.length, "file", "files")} from this list? Your originals aren't affected. `),
+    h("button", { class: "danger small", type: "button", onclick: () => removeAll(current.map((f) => f.name)) }, "Yes, remove"), cancel);
+  cancel.focus();
+}
+function resetRemove() {
+  $("removeall").replaceChildren(rmBtn);
+  rmBtn.disabled = busy;
+  rmBtn.focus();
+}
+async function removeAll(names) {
+  let gone = 0;
+  try {
+    for (const name of names) { await api("DELETE", `/files/${encodeURIComponent(name)}`); selected.delete(name); gone++; }
+  } catch (err) { showProblem(err); }
+  announce(`${plural(gone, "file", "files")} removed`);
+  $("removeall").replaceChildren(rmBtn);
+  await loadFiles();
+  $("pick").focus();
 }
 
 async function loadFiles() {
-  try { files = (await getJson("/files")).files; showProblem(null); } catch (err) { showProblem(err); }
+  try {
+    files = (await getJson("/files")).files;
+    showProblem(null);
+    const names = new Set(files.map((f) => f.name));
+    for (const n of [...selected]) if (!names.has(n)) selected.delete(n);
+    for (const f of files) if (!known.has(f.name)) { known.add(f.name); if (f.state !== "done") selected.add(f.name); } // new arrivals are ticked
+  } catch (err) { showProblem(err); }
   render();
 }
 
@@ -104,6 +176,7 @@ async function upload(list) {
       await api("PUT", `/files/${encodeURIComponent(file.name)}`, file, true);
     } catch (err) { showProblem(new ApiError({ code: err.code, message: `${file.name}: ${err.message}`, fix: err.fix })); continue; }
     session.add(file.name);
+    selected.add(file.name);
     announce(`${file.name} added`);
   }
   await loadFiles();
@@ -153,12 +226,14 @@ let kind = "slides", items = { total: 0, done: 0 };
 // one chip per picture or table instead, filled in as each is described.
 function buildDeck(total) {
   tiles = Array.from({ length: total }, (_, i) => h("span", { class: "tile" }, String(i + 1)));
+  skippedTiles.clear();
   $("deck").classList.toggle("items", kind === "document");
   $("deck").replaceChildren(...tiles);
 }
+const skippedTiles = new Set(); // slides that had something it could not read
 function mark(i, state) {
   const t = tiles[i];
-  if (t) t.className = "tile " + state;
+  if (t) t.className = "tile " + (state === "done" && skippedTiles.has(i) ? "skip" : state);
 }
 
 function watch(id) {
@@ -183,7 +258,7 @@ function watch(id) {
   stage.scrollIntoView({ block: "start" });
   stage.focus({ preventScroll: true });
   let fileNo = 1, fileCount = 1, name = "";
-  const saved = [], tally = { written: 0, kept: 0 };
+  const saved = [], tally = { written: 0, kept: 0, skipped: 0 };
   $("stop").onclick = async () => {
     $("stop").disabled = true;
     announce("Stopping after this slide");
@@ -260,11 +335,17 @@ function watch(id) {
         feed(where(ev), ev.outcome === "kept" ? "Kept the alt text you wrote." : clip(ev.text), say && say[0]);
         break;
       }
+      case "element_skipped":
+        tally.skipped++;
+        if (kind === "slides") skippedTiles.add(ev.slide);
+        feed(where(ev), `${ev.kind}: ${ev.error}`, "Skipped, and noted so you can check it later");
+        announce(`Skipped a ${ev.kind} on ${ev.where}`);
+        break;
       case "file_saving":
         $("now").textContent = "Saving the finished copy…";
         break;
       case "file_saved":
-        saved.push({ name: ev.filename, path: ev.path, incomplete: ev.incomplete, kind });
+        saved.push({ name: ev.filename, path: ev.path, incomplete: ev.incomplete, kind, skipped: ev.skipped || 0 });
         fresh.add(ev.filename);
         announce(ev.incomplete ? `${ev.filename} saved, some items could not be described` : `${ev.filename} finished`);
         break;
@@ -295,6 +376,7 @@ function doneList(saved, tally) {
         h("button", { type: "button", onclick: () => download(f.name) }, "Download finished copy", h("span", { class: "sr" }, " " + f.name)),
         !isWord(f.name) ? h("button", { class: "quiet", type: "button", onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)) : null)))),
     h("p", { class: "muted" }, `${plural(tally.written, "description", "descriptions")} written` + (tally.kept ? `, ${tally.kept} kept as the author wrote them.` : ".") + " It's also in your list below, marked as ready."),
+    tally.skipped ? h("p", { class: "note" }, `${plural(tally.skipped, "item", "items")} could not be read and ${tally.skipped === 1 ? "was" : "were"} skipped, so the rest could finish. The list below says which, so you can check ${tally.skipped === 1 ? "it" : "them"} in the original.`) : null,
   ];
 }
 
@@ -323,7 +405,7 @@ async function finish(state, saved, tally) {
   $("pdetail").textContent = "";
   if (state === "done" && !failed.length) { setBar(100); tiles.forEach((_, i) => mark(i, "done")); }
   $("deck").hidden = !tiles.length || !ok && state === "failed";
-  $("done").replaceChildren(...(ok ? doneList(saved, tally) : []));
+  $("done").replaceChildren(...(ok ? doneList(saved, tally).filter(Boolean) : []));
   $("done").hidden = !ok;
   $("log").open = !ok;
   announce(title);
@@ -335,8 +417,9 @@ async function finish(state, saved, tally) {
 async function start() {
   showProblem(null);
   const force = $("force").checked;
+  const names = files.filter((f) => selected.has(f.name) && (force || f.state !== "done")).map((f) => f.name);
   try {
-    const run = await (await api("POST", "/runs", { force, confirm: force })).json();
+    const run = await (await api("POST", "/runs", { force, confirm: force, files: names })).json();
     await watch(run.id);
   } catch (err) { busy = false; showProblem(err); render(); }
 }
@@ -347,7 +430,14 @@ const drop = $("drop");
 for (const t of ["dragenter", "dragover"]) drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); });
 for (const t of ["dragleave", "drop"]) drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); });
 drop.addEventListener("drop", (e) => upload(e.dataTransfer.files));
-$("force").addEventListener("change", render);
+$("force").addEventListener("change", summary);
+$("all").addEventListener("change", () => {
+  const { current } = split();
+  for (const f of current) $("all").checked ? selected.add(f.name) : selected.delete(f.name);
+  render();
+  $("all").focus();
+});
+rmBtn.addEventListener("click", askRemoveAll);
 $("run").addEventListener("click", start);
 $("dismiss").addEventListener("click", () => { $("stage").hidden = true; fresh.clear(); render(); $("pick").focus(); });
 $("aclose").addEventListener("click", () => { $("audit").hidden = true; $("pick").focus(); });

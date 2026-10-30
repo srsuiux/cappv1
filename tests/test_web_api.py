@@ -258,3 +258,18 @@ def test_a_word_document_goes_through_the_whole_web_api(web, tmp_path):
     assert web.call("GET", "/api/v1/files")[1]["files"][0]["state"] == "done"
     status, _, headers = web.call("GET", "/api/v1/files/paper.docx/download")
     assert status == 200 and "wordprocessingml" in headers.getheader("Content-Type")
+
+
+def test_a_run_over_the_api_can_name_the_files(web, deck, tmp_path):
+    from tests.helpers import make_deck
+
+    upload(web, "a.pptx", deck)
+    upload(web, "b.pptx", make_deck(tmp_path / "b.pptx", (10, 200, 10)).read_bytes())
+    assert web.call("POST", "/api/v1/runs", {"files": "a.pptx"})[1]["error"]["code"] == "bad_request"
+    assert web.call("POST", "/api/v1/runs", {"files": []})[1]["error"]["code"] == "no_files"
+    assert web.call("POST", "/api/v1/runs", {"files": ["zzz.pptx"]})[1]["error"]["code"] == "not_found"
+    status, run, _ = web.call("POST", "/api/v1/runs", {"files": ["b.pptx"]})
+    assert status == 202 and run["pending"] == ["b.pptx"]
+    assert wait_done(web)["state"] == "done"
+    states = {f["name"]: f["state"] for f in web.call("GET", "/api/v1/files")[1]["files"]}
+    assert states == {"a.pptx": "new", "b.pptx": "done"}

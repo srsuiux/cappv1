@@ -8,7 +8,7 @@ cappv1 writes alt text into PowerPoint decks using vision models (OpenRouter, Op
 
 ## 2. Hard rules (never break these, even if asked in passing)
 
-1. **Visually inert output.** The tool writes alt text (`descr` on `cNvPr`) and, from a short named list in `skills.md`, fixes that change nothing you can see. Never change colors, fonts, sizes, layout, text or table styles. Report problems like low contrast; do not fix them.
+1. **Visually inert output.** The tool writes alt text (`descr` on `cNvPr`) and, from a short named list in `skills.md`, fixes that change nothing you can see. Never change fonts, sizes, layout, text or table styles. Colors are changed in one case only: Word text that fails the 4.5:1 contrast check is darkened (`src/docx_structure.py`, owner-approved, always noted in the file's skip notes). Report every other problem; do not fix it.
 2. **No secrets in the repo.** Never commit `.env`, keys, decks, or anything under `input/`, `output/`, `logs/`, `.state/`. Never print a key.
 3. **Privacy is a feature.** If a change affects what is sent to an AI service or stored on disk, update in the same change: `src/web/pages/privacy.html`, `src/services/storage.py`, `src/services/settings.py` (service notes). Tests tie the Privacy page to the code.
 4. **No tracking.** No analytics, telemetry, cookies, update checks, or third-party requests.
@@ -84,7 +84,7 @@ Slash commands live inside the session. The shell exposes only `cappv1`, `--batc
 
 ## 8. Status (update when it changes)
 
-Stable: engine, services, terminal, batch CLI, web server and API, web UI (v1.3.0). Added in v1.4.0: read-only `/audit` (contrast, reading order; `src/audit.py`). Its web UI page is not built yet. Planned: file health check, screen-reader audit. Not started: npm launcher, PyPI/Homebrew, Windows. Added in v1.5.0: Word (.docx) through the engine, services, terminal and web server/UI (pictures and tables only; the accessibility check `/audit` is decks only). Do not describe anything unstarted as available.
+Stable: engine, services, terminal, batch CLI, web server and API, web UI (v1.3.0). Added in v1.4.0: read-only `/audit` (contrast, reading order; `src/audit.py`). Its web UI page is not built yet. Planned: file health check, screen-reader audit. Not started: npm launcher, PyPI/Homebrew, Windows. Added in v1.5.0: Word (.docx) through the engine, services, terminal and web server/UI (pictures and tables only; the accessibility check `/audit` is decks only). Unreleased, on `main`: Word files are repaired for Blackboard Ally (`src/docx_structure.py`, checked by `src/docx_check.py`), embedded objects get alt text, files are selectable on the Files page, and each unreadable item is skipped with a note instead of stopping the file. Do not describe anything unstarted as available.
 
 ## 9. Keep this file honest
 

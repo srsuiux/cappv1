@@ -15,6 +15,7 @@ class FileState:
     completed_slide_indices: list[int] = field(default_factory=list)
     caption_cache: dict[str, str] = field(default_factory=dict)  # element hash -> caption
     content_hash: str = ""  # sha256 of the input file this progress belongs to
+    skipped: list[dict] = field(default_factory=list)  # items it could not read: {where, kind, error}
 
     def is_slide_done(self, slide_index: int) -> bool:
         return slide_index in self.completed_slide_indices

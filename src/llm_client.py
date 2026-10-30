@@ -275,7 +275,10 @@ def _build_request(config: Config, model: str, messages: list[dict]) -> tuple[st
 def _parse_completion(config: Config, data: dict) -> str:
     if config.provider == "anthropic":
         return "".join(b.get("text", "") for b in data["content"] if b.get("type") == "text").strip()
-    return data["choices"][0]["message"]["content"].strip()
+    content = data["choices"][0]["message"]["content"]
+    if content is None:  # some free models answer with null; try the fallback model instead of crashing
+        raise _ModelUnavailable("the model sent an empty reply")
+    return content.strip()
 
 
 class _ModelUnavailable(Exception):
@@ -308,7 +311,16 @@ async def _request_completion(
             continue
 
         if resp.status_code == 200:
-            return _parse_completion(config, resp.json())
+            try:
+                return _parse_completion(config, resp.json())
+            except _ModelUnavailable as exc:  # an empty reply is usually momentary: ask the same model again
+                if attempt == max_retries:
+                    raise
+                backoff = 2 ** attempt
+                logger.warning("caption attempt %d/%d on '%s' failed (%s), retrying in %ds",
+                               attempt, max_retries, model, exc, backoff)
+                await asyncio.sleep(backoff)
+                continue
 
         if resp.status_code == 402:
             raise _ModelUnavailable(f"billing error (402) - '{model}' needs credits: {_error_detail(resp)}")

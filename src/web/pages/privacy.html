@@ -15,6 +15,7 @@
   <tbody>
     <tr><th scope="row">A picture</th><td>The picture itself</td></tr>
     <tr><th scope="row">A table</th><td>The table's text</td></tr>
+    <tr><th scope="row">An embedded object, such as a Visio drawing</th><td>Text read out of the object's file (rough and out of order), never its picture</td></tr>
     <tr><th scope="row">A chart</th><td>The chart's text and numbers</td></tr>
     <tr><th scope="row">Every item</th><td>The slide's title, section name, text and speaker notes, any alt text already there, and cappv1's instructions. For a Word document: the nearest heading above the item, the paragraphs just before and after it, any alt text already there, and cappv1's instructions</td></tr>
   </tbody>
@@ -41,7 +42,7 @@
   <tbody>
     <tr><th scope="row"><code>input/</code></th><td>Copies of the decks and Word documents you added</td></tr>
     <tr><th scope="row"><code>output/</code></th><td>The finished decks and documents</td></tr>
-    <tr><th scope="row"><code>.state/</code></th><td>Progress, and the alt text already written, so repeat runs cost nothing</td></tr>
+    <tr><th scope="row"><code>.state/</code></th><td>Progress, the alt text already written, and notes on items it could not read (where they are and why), so repeat runs cost nothing</td></tr>
     <tr><th scope="row"><code>logs/</code></th><td>File names, slide counts and error messages, not slide content</td></tr>
     <tr><th scope="row"><code>.env</code></th><td>Your chosen service and model, and any API keys, readable only by your account</td></tr>
   </tbody>

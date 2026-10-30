@@ -159,3 +159,21 @@ def test_every_page_has_the_theme_switch_and_applies_it_before_painting(slug):
 def test_the_front_page_is_wide_and_other_pages_are_not():
     assert 'class="main-col w-wide"' in render_page("index").decode()
     assert 'class="main-col w-narrow"' in render_page("files").decode()
+
+
+@pytest.mark.parametrize("slug", [s for s in SLUGS])
+def test_every_page_has_a_collapsible_sidebar_with_icons(slug):
+    html = render_page(slug).decode()
+    assert 'id="collapse"' in html and 'aria-expanded="true"' in html and 'aria-controls="side"' in html
+    assert html.count('<use href="#i-') >= 9  # one icon per link, drawn from the inline sprite (nothing loads from outside)
+    assert 'src="http' not in html and "style=" not in html
+    # every icon-only control still has a name for screen readers
+    assert 'aria-label="Collapse sidebar"' in html and '<span class="sr">Dark</span>' in html
+
+
+def test_the_files_page_can_select_files_and_remove_all():
+    html = render_page("files").decode()
+    for hook in ('id="all"', 'id="picked"', 'id="rm"', 'id="removeall"'):
+        assert hook in html
+    js = (STATIC / "files.js").read_text()
+    assert "files: names" in js  # a run names the ticked files

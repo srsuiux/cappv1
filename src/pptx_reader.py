@@ -1,5 +1,6 @@
 import io
 import re
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -167,6 +168,30 @@ def _docx_to_text(blob: bytes) -> str:
     return "\n".join(parts)[:_MAX_OLE_TEXT_CHARS]
 
 
+def _xlsx_to_text(zf: zipfile.ZipFile) -> str:
+    """The text cells of an embedded Excel sheet (its shared strings), which is what names its columns."""
+    if "xl/sharedStrings.xml" not in zf.namelist():
+        return ""
+    root = etree.fromstring(zf.read("xl/sharedStrings.xml"))
+    strings = ["".join(si.itertext()).strip() for si in root]
+    return "\n".join(t for t in strings if t)[:_MAX_OLE_TEXT_CHARS]
+
+
+def _ooxml_to_text(blob: bytes) -> str:
+    """An embedded Office Open XML file: a Word document or an Excel workbook is read, anything
+    else (a zip that is neither) gives no text rather than an error."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(blob)) as zf:
+            names = zf.namelist()
+            if "word/document.xml" in names:
+                return _docx_to_text(blob)
+            if "xl/workbook.xml" in names:
+                return _xlsx_to_text(zf)
+    except zipfile.BadZipFile:
+        pass
+    return ""
+
+
 def _ole2_binary_to_text(blob: bytes) -> str:
     """Scrapes plausible text runs out of every stream in a legacy OLE2
     container (Word 97-2003 .doc, Visio .vsd, etc.). This does NOT parse
@@ -199,7 +224,7 @@ def ole_object_to_text(blob: bytes) -> str:
     are read properly; legacy OLE2-binary embeds get the heuristic scrape.
     """
     if blob[:2] == b"PK":
-        return _docx_to_text(blob)
+        return _ooxml_to_text(blob)
     if blob[:4] == b"\xd0\xcf\x11\xe0":
         return _ole2_binary_to_text(blob)
     return ""
