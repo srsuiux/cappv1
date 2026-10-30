@@ -9,9 +9,9 @@ import re
 from docx.oxml.ns import qn
 from lxml import etree
 
+from src.docx_reader import CAPTION as _CAPTION
 from src.docx_check import CONTRAST_AA, CONTRAST_AAA, _HEX, contrast, run_background
 
-_CAPTION = re.compile(r"(figure|fig\.|table|exhibit|chart)\s*\d", re.I)
 _MAX_TITLE_CHARS = 120
 
 
@@ -70,19 +70,29 @@ def _rename(style: etree._Element, style_id: str, name: str) -> None:
             style.remove(el)
 
 
+def _in_flow(p) -> bool:
+    """A paragraph in the body text. Ally ignores headings inside table cells and text boxes (a column
+    label styled Heading 4 is not a heading of the document), so only these count."""
+    return not any(a.tag in (qn("w:tc"), qn("w:txbxContent")) for a in p.iterancestors())
+
+
 def normalize_headings(doc) -> str:
-    """Makes the heading structure start at Heading 1 with no gaps and no empty headings, without
-    changing how anything looks. Returns a short description of what was done, or "" if nothing."""
+    """Gives the body text real headings that start at Heading 1 with no gaps and no empty ones,
+    without changing how anything looks. Returns a short description of what was done, or ""."""
     styles_el = doc.styles.element
     body = doc.element.body
     by_id = {s.get(qn("w:styleId")): s for s in styles_el.iter(qn("w:style"))}
     paragraphs = list(body.iter(qn("w:p")))
+    flow = [p for p in paragraphs if _in_flow(p)]
     done = []
 
+    def is_heading(p) -> bool:
+        return _style_of(p) in by_id and _level(by_id[_style_of(p)]) is not None
+
     # empty headings read as noise to a screen reader: keep their spacing, drop their heading-ness
-    for p in paragraphs:
+    for p in flow:
         sid = _style_of(p)
-        if sid in by_id and _level(by_id[sid]) and not _text(p):
+        if is_heading(p) and not _text(p):
             plain_id = sid + "Plain"
             if plain_id not in by_id:
                 plain = copy.deepcopy(by_id[sid])
@@ -93,29 +103,29 @@ def normalize_headings(doc) -> str:
             _set_style(p, plain_id)
             done.append("empty heading made plain")
 
-    headings = [(p, _style_of(p)) for p in paragraphs if _style_of(p) in by_id and _level(by_id[_style_of(p)]) and _text(p)]
+    headings = [(p, _style_of(p)) for p in flow if is_heading(p) and _text(p)]
     if headings:
         used = sorted({_level(by_id[sid]) for _, sid in headings})
-        rank = {lvl: i + 1 for i, lvl in enumerate(used)}
         if len(used) > 6 or _level(by_id[headings[0][1]]) != used[0]:
             return "; ".join(done)  # the first heading is deeper than a later one: can't fix without moving text
         if used == list(range(1, len(used) + 1)):
             return "; ".join(done)  # already starts at Heading 1 with no gaps
+        rank = {lvl: i + 1 for i, lvl in enumerate(used)}
         used_ids = {sid for _, sid in headings}
         targets = {sid: rank[_level(by_id[sid])] for sid in used_ids}
         new_ids = {f"Heading{n}" for n in targets.values()}
-        # a style that stays in place and is not one of the ones being replaced must not be overwritten
-        referenced = set()
+        affected = new_ids & set(by_id)  # existing styles a new heading style would overwrite
+        remapped = {id(p) for p, _ in headings}
+        pointed_at = set()
         for st in styles_el.iter(qn("w:style")):
             for tag in ("w:basedOn", "w:next"):
                 el = st.find(qn(tag))
                 if el is not None:
-                    referenced.add(el.get(qn("w:val")))
-        for nid in new_ids - used_ids:
-            if nid in by_id and (nid in referenced or any(_style_of(p) == nid for p in paragraphs)):
-                return "; ".join(done)  # renumbering would restyle something else; leave the document alone
+                    pointed_at.add(el.get(qn("w:val")))
+        if affected & pointed_at or any(_style_of(p) in affected for p in paragraphs if id(p) not in remapped):
+            return "; ".join(done)  # renumbering would restyle something else; leave the document alone
         snapshots = {sid: copy.deepcopy(by_id[sid]) for sid in used_ids}
-        for sid in used_ids | (new_ids & set(by_id)):
+        for sid in affected:
             styles_el.remove(by_id[sid])
         id_map = {}
         for sid, snap in snapshots.items():
@@ -124,18 +134,14 @@ def normalize_headings(doc) -> str:
             _outline(snap, n - 1)
             styles_el.append(snap)
             id_map[sid] = f"Heading{n}"
-        for st in styles_el.iter(qn("w:style")):  # styles that pointed at the old ones follow them
-            for tag in ("w:basedOn", "w:next"):
-                el = st.find(qn(tag))
-                if el is not None and el.get(qn("w:val")) in id_map:
-                    el.set(qn("w:val"), id_map[el.get(qn("w:val"))])
         for p, sid in headings:
             _set_style(p, id_map[sid])
         done.append("heading styles renumbered: " + ", ".join(f"{s} to {v}" for s, v in sorted(id_map.items())))
         return "; ".join(done)
 
-    # no headings at all: the figure and table captions are what a reader navigates by
-    captions = [p for p in paragraphs if _CAPTION.match(_text(p)) and len(_text(p)) <= 200 and p.getparent() is body]
+    # no headings in the body text (a column label in a table does not count): the figure and table
+    # captions are what a reader navigates by
+    captions = [p for p in flow if _CAPTION.match(_text(p)) and len(_text(p)) <= 200 and p.getparent() is body]
     if len(captions) >= 2:
         counts = {}
         for p in captions:

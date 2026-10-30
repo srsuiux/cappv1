@@ -1,3 +1,4 @@
+import re
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -157,6 +158,34 @@ def set_object_alt_text(shape, text: str) -> None:
 def extract_tables(doc) -> list[DocTable]:
     body = doc.element.body
     return [DocTable(Table(tbl, doc._body), _top_block(tbl, body)) for tbl in body.iter(qn("w:tbl"))]
+
+
+# "Figure 7.3: Title", "Table 2-1. Title" or "Figure 2.9 ER Modeler Window", but not the sentence "Figure 1 shows the trend."
+CAPTION = re.compile(r"(?i:figure|fig\.|table|exhibit|chart)\s*\d+(?:[.\-]\d+)*(?:\s*[:.\u2013\u2014-]\s*\S|\s+(?=[A-Z0-9]))")
+
+
+def _plain_text(el) -> str:
+    # not itertext(): python-docx overrides .text on its element classes, which makes it repeat text
+    return "".join(t.text or "" for t in el.iter(qn("w:t"))).strip()
+
+
+def nearby_caption(block, max_chars: int) -> str:
+    """The caption next to a picture ("Figure 7.3: ..."), used as its description when the picture
+    itself can't be read. Looks at the closest paragraphs below, then above. "" if there is none."""
+    for step in ("getnext", "getprevious"):
+        el, seen = block, 0
+        while seen < 2:
+            el = getattr(el, step)()
+            if el is None or el.tag != qn("w:p"):
+                break
+            text = _plain_text(el)
+            if not text:
+                continue
+            seen += 1
+            if CAPTION.match(text):
+                text = re.sub(r"\s+", " ", text)
+                return text if len(text) <= max_chars else text[:max_chars - 1].rstrip() + "…"
+    return ""
 
 
 def get_alt_text(doc_pr) -> str:

@@ -311,7 +311,16 @@ async def _request_completion(
             continue
 
         if resp.status_code == 200:
-            return _parse_completion(config, resp.json())
+            try:
+                return _parse_completion(config, resp.json())
+            except _ModelUnavailable as exc:  # an empty reply is usually momentary: ask the same model again
+                if attempt == max_retries:
+                    raise
+                backoff = 2 ** attempt
+                logger.warning("caption attempt %d/%d on '%s' failed (%s), retrying in %ds",
+                               attempt, max_retries, model, exc, backoff)
+                await asyncio.sleep(backoff)
+                continue
 
         if resp.status_code == 402:
             raise _ModelUnavailable(f"billing error (402) - '{model}' needs credits: {_error_detail(resp)}")

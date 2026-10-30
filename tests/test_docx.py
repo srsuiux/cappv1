@@ -584,3 +584,84 @@ def test_the_finished_file_passes_the_ally_self_check(tmp_path, fake_ollama, mon
     run(config)
     blocking = [i for i in check(config.output_dir / "a.docx") if i.severity in ("severe", "major")]
     assert blocking == [], [str(i) for i in blocking]
+
+
+def table_with_heading_cells(doc, style="Heading 4"):
+    table = doc.add_table(rows=2, cols=2)
+    for c, text in enumerate(["Data Type", "Description"]):
+        table.cell(0, c).paragraphs[0].text = text
+        table.cell(0, c).paragraphs[0].style = doc.styles[style]
+    table.cell(1, 0).text, table.cell(1, 1).text = "CHAR", "text"
+    return table
+
+
+def test_heading_styled_table_labels_do_not_count_as_headings_so_captions_are_promoted():
+    """Ally ignores headings inside table cells; in four real chapters that was the only 'heading'."""
+    from src.docx_structure import normalize_headings
+
+    doc = bare(Document())
+    styled(doc, "Table 3-1: Data types", "Normal")
+    table_with_heading_cells(doc)
+    styled(doc, "Figure 3.2: Layout", "Normal")
+    assert "captions" in normalize_headings(doc)
+    body_styles = [p.style.style_id for p in doc.paragraphs]
+    assert body_styles == ["Heading1", "Heading1"]
+    cells = [c.paragraphs[0].style.style_id for c in doc.tables[0].rows[0].cells]
+    assert cells == ["Heading4", "Heading4"]  # the labels keep their style and look
+
+
+def test_body_headings_are_renumbered_while_table_labels_keep_their_old_style():
+    from src.docx_structure import normalize_headings
+
+    doc = bare(Document())
+    styled(doc, "Intro", "Heading 4")
+    table_with_heading_cells(doc, "Heading 4")
+    assert "renumbered" in normalize_headings(doc)
+    assert doc.paragraphs[0].style.style_id == "Heading1"
+    assert [c.paragraphs[0].style.style_id for c in doc.tables[0].rows[0].cells] == ["Heading4", "Heading4"]
+    assert any(s.get(W + "styleId") == "Heading4" for s in doc.styles.element.iter(W + "style"))
+
+
+def test_the_self_check_reports_headings_that_exist_only_inside_tables(tmp_path):
+    from src.docx_check import check
+
+    doc = Document()
+    for i in range(14):
+        doc.add_paragraph(f"body paragraph {i}")
+    table_with_heading_cells(doc)
+    doc.save(tmp_path / "t.docx")
+    headings = [i for i in check(tmp_path / "t.docx") if i.item == "headings"]
+    assert len(headings) == 1 and "inside table cells" in headings[0].message
+
+
+def test_a_picture_no_model_can_read_is_described_by_its_caption(tmp_path, fake_ollama, monkeypatch):
+    config = docx_config(tmp_path, fake_ollama, monkeypatch)
+    src = make_docx(config.input_dir / "a.docx")
+    with zipfile.ZipFile(src) as z:
+        parts = {n: z.read(n) for n in z.namelist()}
+    media = next(n for n in parts if n.startswith("word/media/"))
+    renamed = media.rsplit(".", 1)[0] + ".wmf"
+    parts[renamed] = parts.pop(media)
+    parts["word/_rels/document.xml.rels"] = parts["word/_rels/document.xml.rels"].replace(
+        media.encode()[len("word/"):], renamed.encode()[len("word/"):])
+    parts["[Content_Types].xml"] = parts["[Content_Types].xml"].replace(
+        b"<Default", b'<Default Extension="wmf" ContentType="image/x-wmf"/><Default', 1)
+    doc_xml = parts["word/document.xml"].decode().replace("Figure 1 shows the trend.", "Figure 7.3: Hospital layout")
+    caption = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:r><w:t>Figure 7.3: Hospital layout</w:t></w:r></w:p>'
+    parts["word/document.xml"] = doc_xml.encode()
+    with zipfile.ZipFile(src, "w") as z:
+        for n, d in parts.items():
+            z.writestr(n, d)
+    run(config)
+    root = etree.fromstring(zipfile.ZipFile(config.output_dir / "a.docx").read("word/document.xml"))
+    descrs = [d.get("descr") for d in root.iter("{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}docPr")]
+    assert descrs == ["Figure 7.3: Hospital layout"], descrs
+
+
+def test_what_counts_as_a_caption():
+    from src.docx_reader import CAPTION
+
+    for yes in ("Figure 7.3: Hospital layout", "Table 2-1. Quality", "Figure 2.9 ER Modeler Window", "Fig. 4 - Plan"):
+        assert CAPTION.match(yes), yes
+    for no in ("Figure 1 shows the trend.", "Table of contents", "The figure 3 above", "Table 5 is wide"):
+        assert not CAPTION.match(no), no

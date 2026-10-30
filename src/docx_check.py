@@ -135,20 +135,27 @@ def check(path: Path) -> list[Issue]:
         for st in styles_xml.iter(_w("style")):
             n = st.find(_w("name"))
             names[st.get(_w("styleId"))] = n.get(_w("val")) if n is not None else st.get(_w("styleId"))
-    paragraphs = [p for p in body.iter(_w("p")) if "".join(p.itertext()).strip()]
-    levels = []
+    def in_tables_or_boxes(p) -> bool:
+        return any(a.tag in (_w("tc"), _w("txbxContent")) for a in p.iterancestors())
+
+    paragraphs = [p for p in body.iter(_w("p")) if "".join(t.text or "" for t in p.iter(_w("t"))).strip()]
+    levels, in_table = [], 0
     for p in paragraphs:
         ps = p.find(f"{_w('pPr')}/{_w('pStyle')}")
         lvl = _heading_level(ps.get(_w("val")), names) if ps is not None else None
-        if lvl:
+        if lvl and in_tables_or_boxes(p):
+            in_table += 1
+        elif lvl:
             levels.append(lvl)
     for p in body.iter(_w("p")):
         ps = p.find(f"{_w('pPr')}/{_w('pStyle')}")
-        if ps is not None and _heading_level(ps.get(_w("val")), names) and not "".join(p.itertext()).strip():
+        if (ps is not None and _heading_level(ps.get(_w("val")), names) and not in_tables_or_boxes(p)
+                and not "".join(t.text or "" for t in p.iter(_w("t"))).strip()):
             issues.append(Issue("minor", "headings", "a heading is empty"))
     if not levels:
         if len(paragraphs) >= MIN_PARAGRAPHS_FOR_HEADINGS:
-            issues.append(Issue("major", "headings", f"no Heading styles in a document of {len(paragraphs)} paragraphs"))
+            extra = f" ({in_table} heading-styled paragraph(s) are inside table cells, which Ally ignores)" if in_table else ""
+            issues.append(Issue("major", "headings", f"no Heading styles in the body text of a document of {len(paragraphs)} paragraphs{extra}"))
     else:
         if levels[0] != 1:
             issues.append(Issue("major", "headings", f"the first heading is Heading {levels[0]}, not Heading 1"))

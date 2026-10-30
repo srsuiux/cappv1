@@ -124,3 +124,31 @@ def test_a_null_model_reply_means_try_the_fallback_not_crash():
     with pytest.raises(_ModelUnavailable):
         _parse_completion(config, {"choices": [{"message": {"content": None}}]})
     assert _parse_completion(config, {"choices": [{"message": {"content": " hi "}}]}) == "hi"
+
+
+def test_an_empty_model_reply_is_asked_again_before_giving_up(monkeypatch):
+    import asyncio
+    import types
+
+    import httpx
+
+    from src import llm_client
+
+    replies = iter([None, "A diagram."])
+
+    def handler(request):
+        return httpx.Response(200, json={"choices": [{"message": {"content": next(replies)}}]})
+
+    async def no_wait(_):
+        return None
+
+    monkeypatch.setattr(llm_client.asyncio, "sleep", no_wait)
+    config = types.SimpleNamespace(provider="openrouter", base_url="http://x", api_key="k", request_timeout=5,
+                                   max_alt_text_chars=125, ollama_base_url="", model="m")
+    monkeypatch.setattr(llm_client, "_build_request", lambda c, m, msgs: ("http://x/v1", {}, {}))
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await llm_client._request_completion(client, config, "m", [], max_retries=3)
+
+    assert asyncio.run(go()) == "A diagram."

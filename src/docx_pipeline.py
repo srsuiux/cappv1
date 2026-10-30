@@ -18,6 +18,7 @@ from src.docx_reader import (
     get_table_alt_text,
     mark_decorative,
     mark_table_header,
+    nearby_caption,
     open_document,
     save_document,
     table_alt_text_unsupported,
@@ -122,8 +123,17 @@ async def run_docx_file(
             raise ValueError("the picture's image is missing from the file (a broken link in the original)")
         author = author_text(get_alt_text(pic.doc_pr))
         if pic.ext.lower() in _UNSENDABLE_EXTS:
-            logger.warning("[file: %s] a .%s picture can't be sent to a vision model - left as it is", filename, pic.ext)
-            skipped += 1
+            if author:
+                n["kept"] += 1
+                return
+            # no model can read this format, but the document names it: its own caption is a true description
+            text = nearby_caption(pic.block, config.max_alt_text_chars)
+            logger.info("[file: %s] a .%s picture can't be sent to a vision model - %s", filename, pic.ext,
+                        "described by its caption" if text else "no caption beside it")
+            n["captioned"] += 1
+            set_alt_text(pic.doc_pr, text or "Picture (automatic description unavailable)")
+            events.emit("alt_written", filename=filename, slide=0, outcome="captioned",
+                        text=pic.doc_pr.get("descr"))
             return
         if is_too_small(pic.image_bytes, config.min_image_size_px):
             if author:
