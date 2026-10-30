@@ -273,3 +273,29 @@ def test_a_run_over_the_api_can_name_the_files(web, deck, tmp_path):
     assert wait_done(web)["state"] == "done"
     states = {f["name"]: f["state"] for f in web.call("GET", "/api/v1/files")[1]["files"]}
     assert states == {"a.pptx": "new", "b.pptx": "done"}
+
+
+def test_history_lists_downloads_and_deletes_finished_copies(web, deck):
+    upload(web, "talk.pptx", deck)
+    status, run, _ = web.call("POST", "/api/v1/runs", {})
+    assert status == 202
+    for _ in range(100):
+        if web.call("GET", "/api/v1/runs/current")[1]["state"] != "running":
+            break
+        time.sleep(0.2)
+    status, body, _ = web.call("GET", "/api/v1/history")
+    runs = body["runs"]
+    assert status == 200 and len(runs) == 1 and runs[0]["files"][0]["name"] == "talk.pptx"
+    info = web.call("GET", "/api/v1/files")[1]["files"][0]
+    assert info["output_run"] == runs[0]["run"] and info["output_size"] > 0 and info["modified"] > 0
+    status, data, resp = web.call("GET", f"/api/v1/history/{runs[0]['run']}/talk.pptx/download")
+    assert status == 200 and data[:2] == b"PK"
+    assert web.call("GET", "/api/v1/history/..%2f..%2finput/talk.pptx/download")[0] in (400, 404)
+    assert web.call("DELETE", f"/api/v1/history/{runs[0]['run']}/talk.pptx")[0] == 200
+    assert web.call("GET", "/api/v1/history")[1]["runs"] == []
+    assert web.call("DELETE", f"/api/v1/history/{runs[0]['run']}")[0] == 404
+
+
+def test_the_manifest_is_served_with_its_own_type(web):
+    status, _, resp = web.call("GET", "/manifest.webmanifest", token=False)
+    assert status == 200 and "manifest+json" in resp.getheader("Content-Type")

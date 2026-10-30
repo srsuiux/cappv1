@@ -47,14 +47,18 @@ All paths start with `/api/v1`. Bodies are JSON unless noted.
 | `GET /storage` | What cappv1 keeps and where: `places` with `label`, `path`, `what`, `files`, `bytes` and `has_slides`. |
 | `POST /storage/clear` | `{confirm: true}`: erase decks, finished copies, saved progress and logs. Keeps settings and keys. Refused during a run. |
 | `GET /services/<id>/models` | Models to choose from. OpenAI and Anthropic: a short list. Ollama: installed vision models. OpenRouter: `free`, `cheapest`, and `makers`. |
-| `GET /files` | Files in the input list: `name`, `size`, `state` (`new`, `partial`, `changed`, `done`), `has_output`. |
+| `GET /files` | Files in the input list: `name`, `size`, `modified` (when added), `state` (`new`, `partial`, `changed`, `done`), `has_output`, `output_size`, `output_modified`, `output_run` (the run folder of the newest finished copy), `skipped`. |
 | `PUT /files/<name>` | Upload a `.pptx` or `.docx`. The body is the raw file (not multipart) and `Content-Length` is required. Up to 200 MB. It is checked to be a real file of that type before it is kept. |
 | `DELETE /files/<name>` | Remove a file from the input list (not while a run is going). |
-| `GET /files/<name>/download` | The finished copy. |
+| `GET /files/<name>/download` | The newest finished copy. |
 | `POST /runs` | `{resume?, force?, confirm?, files?}` → `202` with the run and `pending` files. `files` is a list of file names to process; leave it out to process every file. An unknown name is `not_found`; an empty list is `no_files`. `force` replaces alt text the author wrote, so it also needs `confirm: true`. |
 | `GET /runs/current` | The latest run: `id`, `state` (`idle`, `running`, `done`, `cancelled`, `failed`), `failed_files`, `error`. |
 | `POST /runs/<id>/cancel` | Stop after the item in flight; finished slides stay saved. |
 | `GET /runs/<id>/events` | Server-Sent Events (see below). |
+| `GET /history` | Finished copies by run, newest first: `runs: [{run, legacy, bytes, files: [{name, size, modified}]}]`. `run` is the folder name (`2026-10-29_21-28-38`); copies older versions left loose in `output/` are the run `earlier`. |
+| `GET /history/<run>/<name>/download` | One finished copy from that run. |
+| `DELETE /history/<run>` | Delete every finished copy in a run (not while a run is going). |
+| `DELETE /history/<run>/<name>` | Delete one finished copy. |
 | `GET /files/<name>/audit` | Read-only accessibility report on the finished copy (or the original): `{file, checked, problems, groups: [{kind, message, detail, slides}], checked_text, unmeasured_text}`. `kind` is `contrast` or `reading_order`. |
 | `GET /doctor` | `{ok, checks: [{label, ok, detail}]}`. |
 

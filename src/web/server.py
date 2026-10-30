@@ -204,8 +204,8 @@ class Handler(BaseHTTPRequestHandler):
         target = (STATIC / unquote(path).lstrip("/")).resolve()
         if STATIC.resolve() not in target.parents or not target.is_file():
             return self.send_bytes(404, "text/html; charset=utf-8", render_page("404") or b"Not found")
-        ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
-        if ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
+        ctype = "application/manifest+json" if target.suffix == ".webmanifest" else mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+        if ctype.startswith("text/") or ctype in ("application/javascript", "application/json", "application/manifest+json"):
             ctype += "; charset=utf-8"
         self.send_bytes(200, ctype, target.read_bytes())
 

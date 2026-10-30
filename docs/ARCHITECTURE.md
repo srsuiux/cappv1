@@ -31,4 +31,4 @@ To add a page: create `pages/<name>.html` with a metadata comment on the first l
 
 ## Where data lives
 
-Everything is in one folder (the project folder, or `CAPPV1_HOME`): `input/`, `output/`, `.state/`, `logs/`, `.env`. The Your data page and `docs/PRIVACY` content (the in-app Privacy page) describe it; change them together with any change to what is sent or stored.
+Everything is in one folder (the project folder, or `CAPPV1_HOME`): `input/`, `output/` (one `<date>_<time>/` folder per run, see `src/outputs.py`), `.state/`, `logs/`, `.env`. The Your data page and `docs/PRIVACY` content (the in-app Privacy page) describe it; change them together with any change to what is sent or stored.

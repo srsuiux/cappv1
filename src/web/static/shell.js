@@ -11,25 +11,6 @@ if (menu) {
   wide.addEventListener("change", sync);
 }
 
-// Sidebar: collapses to an icon rail on wide screens; the choice is remembered in this browser.
-const collapse = document.getElementById("collapse");
-if (collapse) {
-  const apply = (collapsed) => {
-    document.documentElement.dataset.nav = collapsed ? "collapsed" : "expanded";
-    collapse.setAttribute("aria-expanded", String(!collapsed));
-    const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
-    collapse.setAttribute("aria-label", label);
-    collapse.title = label;
-  };
-  apply(document.documentElement.dataset.nav === "collapsed");
-  collapse.addEventListener("click", () => {
-    const collapsed = document.documentElement.dataset.nav !== "collapsed";
-    apply(collapsed);
-    try { localStorage.setItem("cappv1.nav", collapsed ? "collapsed" : "expanded"); } catch { /* not remembered */ }
-    document.getElementById("live").textContent = collapsed ? "Sidebar collapsed" : "Sidebar expanded";
-  });
-}
-
 // Theme: System follows the device; Light and Dark are remembered in this browser.
 const root = document.documentElement;
 const buttons = [...document.querySelectorAll("[data-theme-set]")];
@@ -48,3 +29,20 @@ for (const b of buttons) {
   });
 }
 setPressed();
+
+// Accent color: the color of buttons and links. Remembered in this browser.
+const accents = [...document.querySelectorAll("[data-accent-set]")];
+const markAccent = () => {
+  const chosen = root.dataset.accent || "blue";
+  for (const b of accents) b.setAttribute("aria-pressed", String(b.dataset.accentSet === chosen));
+};
+for (const b of accents) {
+  b.addEventListener("click", () => {
+    const value = b.dataset.accentSet;
+    if (value === "blue") delete root.dataset.accent; else root.dataset.accent = value;
+    try { value === "blue" ? localStorage.removeItem("cappv1.accent") : localStorage.setItem("cappv1.accent", value); } catch { /* not remembered */ }
+    markAccent();
+    document.getElementById("live").textContent = `Accent color: ${b.title}`;
+  });
+}
+markAccent();

@@ -30,7 +30,7 @@ def _measure(path: Path) -> tuple[int, int]:
 def describe(ws: Workspace) -> list[Place]:
     rows = [
         ("input", "Your decks", ws.input_dir, "Copies of the decks you added. Your originals are never touched.", True),
-        ("output", "Finished decks", ws.output_dir, "The same decks with alt text added.", True),
+        ("output", "Finished decks", ws.output_dir, "The same decks with alt text added, one folder for each run until you delete it.", True),
         ("state", "Saved progress", ws.state_dir, "Which slides are done, the alt text already written, and notes on items it could not read, so a repeat run costs nothing.", True),
         ("logs", "Run logs", ws.logs_dir, "File names, slide counts and error messages. Not slide content.", False),
         ("settings", "Settings and keys", ws.env_path, "Your chosen service and model, and any API keys. Readable only by you.", False),

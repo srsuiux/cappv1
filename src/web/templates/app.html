@@ -6,6 +6,8 @@
 <title>{{title}} · cappv1</title>
 <meta name="description" content="{{description}}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#1b4fd6">
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/app.css">
 </head>
@@ -13,7 +15,6 @@
 <a class="skip" href="#main">Skip to content</a>
 <svg class="sprite" hidden aria-hidden="true" focusable="false">
   <symbol id="i-logo" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12.5l3 3 5-6"/></symbol>
-  <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
   <symbol id="i-files" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/></symbol>
   <symbol id="i-services" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
@@ -32,7 +33,6 @@
     <div class="side-top">
       <div class="brandrow">
         <a class="brand" href="/" title="cappv1"><svg class="ic" aria-hidden="true"><use href="#i-logo"/></svg><span class="label">cappv1</span></a>
-        <button type="button" class="side-toggle" id="collapse" aria-controls="side" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg class="ic" aria-hidden="true"><use href="#i-panel"/></svg></button>
       </div>
       <details class="menu" id="menu" open>
         <summary>Menu</summary>
@@ -59,6 +59,17 @@
             <button type="button" data-theme-set="system" aria-pressed="true" title="Match this device"><svg class="ic" aria-hidden="true"><use href="#i-system"/></svg><span class="sr">System</span></button>
             <button type="button" data-theme-set="light" aria-pressed="false" title="Light"><svg class="ic" aria-hidden="true"><use href="#i-sun"/></svg><span class="sr">Light</span></button>
             <button type="button" data-theme-set="dark" aria-pressed="false" title="Dark"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg><span class="sr">Dark</span></button>
+          </div>
+        </div>
+        <div class="theme" role="group" aria-labelledby="g-accent">
+          <p class="group" id="g-accent"><span>Accent color</span></p>
+          <div class="swatches">
+            <button type="button" class="sw" data-accent-set="blue" aria-pressed="true" title="Blue"><span class="sr">Blue</span></button>
+            <button type="button" class="sw" data-accent-set="teal" aria-pressed="false" title="Teal"><span class="sr">Teal</span></button>
+            <button type="button" class="sw" data-accent-set="green" aria-pressed="false" title="Green"><span class="sr">Green</span></button>
+            <button type="button" class="sw" data-accent-set="purple" aria-pressed="false" title="Purple"><span class="sr">Purple</span></button>
+            <button type="button" class="sw" data-accent-set="rose" aria-pressed="false" title="Rose"><span class="sr">Rose</span></button>
+            <button type="button" class="sw" data-accent-set="amber" aria-pressed="false" title="Amber"><span class="sr">Amber</span></button>
           </div>
         </div>
       </details>

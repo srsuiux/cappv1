@@ -1,4 +1,4 @@
-"""The decks and Word documents in input/ and output/. Deliberately small: add, list, fetch, clean."""
+"""The decks and Word documents in input/ and output/. Add, list, fetch, remove, clean. Finished copies are kept per run (src/outputs.py) until deleted."""
 import os
 import zipfile
 from dataclasses import asdict, dataclass, field

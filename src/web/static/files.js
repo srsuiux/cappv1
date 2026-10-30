@@ -28,9 +28,18 @@ function showProblem(err) {
 }
 const mb = (n) => (n / 1048576 >= 0.1 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
 
-async function download(name) {
+const when = (secs) => new Date(secs * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+// A run folder is named for the local time it started: 2026-10-29_21-28-38
+const runLabel = (run) => {
+  const m = run.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})/);
+  return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "Made by an earlier version";
+};
+const runKey = (run) => run || "earlier"; // the API's name for loose copies from older versions
+
+async function download(name, run) {
   try {
-    const blob = await (await api("GET", `/files/${encodeURIComponent(name)}/download`)).blob();
+    const path = run === undefined ? `/files/${encodeURIComponent(name)}/download` : `/history/${encodeURIComponent(runKey(run))}/${encodeURIComponent(name)}/download`;
+    const blob = await (await api("GET", path)).blob();
     const a = h("a", { href: URL.createObjectURL(blob), download: name });
     document.body.append(a);
     a.click();
@@ -68,12 +77,28 @@ async function audit(name) {
   } catch (err) { showProblem(err); }
 }
 
-// What could not be read in a file, so someone can look at it later
-function skipNotes(list) {
-  return h("span", { class: "skips" }, h("span", { class: "warn" }, `${plural(list.length, "item was", "items were")} skipped. Check ${list.length === 1 ? "it" : "them"} in the original:`),
+// The ? on a card: what could not be read, shown on hover, focus or tap so the card stays clean
+let tips = 0;
+function tip(f) {
+  const list = f.skipped, id = "tip-" + ++tips;
+  const btn = h("button", {
+    type: "button", "aria-expanded": "false", "aria-describedby": id, title: "Processing notes",
+    "aria-label": `Processing notes for ${f.name}`,
+    onclick: () => btn.setAttribute("aria-expanded", String(btn.getAttribute("aria-expanded") !== "true")),
+  }, "?");
+  const box = h("span", { class: "tipbox", role: "tooltip", id },
+    h("p", {}, h("b", {}, `${plural(list.length, "item was", "items were")} skipped.`), ` Check ${list.length === 1 ? "it" : "them"} in the original:`),
     h("ul", {}, ...list.slice(0, 10).map((s) => h("li", {}, `${s.where}, ${s.kind}: ${s.error}`)),
       list.length > 10 ? h("li", {}, `and ${list.length - 10} more (see the run log)`) : null));
+  return h("span", { class: "tip" }, btn, box);
 }
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  for (const b of document.querySelectorAll(".tip>button[aria-expanded=true]")) { b.setAttribute("aria-expanded", "false"); b.focus(); }
+});
+document.addEventListener("click", (e) => {
+  for (const b of document.querySelectorAll(".tip>button[aria-expanded=true]")) if (!b.parentElement.contains(e.target)) b.setAttribute("aria-expanded", "false");
+});
 
 function row(f) {
   const [label, tone] = STATE[f.state] || [f.state, ""];
@@ -83,14 +108,43 @@ function row(f) {
       type: "checkbox", checked: selected.has(f.name), disabled: busy, "aria-label": "Select " + f.name,
       onchange: (e) => { e.target.checked ? selected.add(f.name) : selected.delete(f.name); summary(); },
     })),
-    h("span", {}, h("span", { class: "name" }, f.name), h("br"), h("span", { class: "muted" }, `${KIND_LABEL[kindOf(f.name)]} · ${mb(f.size)}`),
-      isWord(f.name) ? h("span", { class: "muted" }, " · pictures and tables") : null,
-      f.skipped && f.skipped.length ? skipNotes(f.skipped) : null),
-    h("span", { class: "state" },
-      h("span", { class: ready ? "ok" : tone }, ready ? "✔ Finished copy ready" : label), " ",
-      !isWord(f.name) ? h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)) : null, " ",
-      f.has_output ? h("button", { class: "quiet small", type: "button", onclick: () => download(f.name) }, "Download", h("span", { class: "sr" }, " " + f.name)) : null, " ",
+    h("span", {}, h("span", { class: "card-top" }, h("span", { class: "name" }, f.name), f.skipped && f.skipped.length ? tip(f) : null),
+      h("span", { class: "meta" }, h("span", {}, KIND_LABEL[kindOf(f.name)]), h("span", {}, mb(f.size)), f.modified ? h("span", {}, "Added " + when(f.modified)) : null,
+        f.has_output ? h("span", {}, `Latest copy ${mb(f.output_size)}, ${when(f.output_modified)}`) : null)),
+    h("span", { class: "card-act" },
+      h("span", { class: "state " + (ready ? "ok" : tone) }, ready ? "✔ Finished copy ready" : label),
+      !isWord(f.name) ? h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => audit(f.name) }, "Check accessibility", h("span", { class: "sr" }, " " + f.name)) : null,
+      f.has_output ? h("button", { class: "quiet small", type: "button", onclick: () => download(f.name) }, "Download", h("span", { class: "sr" }, " " + f.name)) : null,
       h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => remove(f.name) }, "Remove", h("span", { class: "sr" }, " " + f.name))));
+}
+
+// ---- finished copies, one group per run ----------------------------------------
+// Deleting a finished copy cannot be undone, so the button turns into a question first.
+function confirmDelete(btn, what, action) {
+  const cancel = h("button", { class: "quiet small", type: "button" }, "Cancel");
+  const yes = h("button", { class: "danger small", type: "button", onclick: async () => {
+    try { await action(); announce(`${what} deleted`); } catch (err) { showProblem(err); }
+    await loadFiles();
+  } }, "Yes, delete");
+  const box = h("span", { class: "confirm", role: "group", "aria-label": `Confirm deleting ${what}` }, h("span", {}, "Delete? No undo."), yes, cancel);
+  cancel.addEventListener("click", () => { box.replaceWith(btn); btn.focus(); });
+  btn.replaceWith(box);
+  cancel.focus();
+}
+
+const deleteCopy = (run, name) => api("DELETE", `/history/${encodeURIComponent(runKey(run))}` + (name ? `/${encodeURIComponent(name)}` : ""));
+
+function renderHistory(runs) {
+  $("hist").replaceChildren(...(runs.length ? runs.map((r) => {
+    const del = h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => confirmDelete(del, "this run's finished copies", () => deleteCopy(r.run)) }, "Delete run", h("span", { class: "sr" }, " " + runLabel(r.run)));
+    return h("li", {},
+      h("div", { class: "runhead" }, h("span", {}, h("b", {}, runLabel(r.run)), h("span", { class: "meta" }, h("span", {}, plural(r.files.length, "file", "files")), h("span", {}, mb(r.bytes)), r.legacy ? null : h("span", {}, r.run))), del),
+      h("ul", { class: "runfiles" }, ...r.files.map((f) => {
+        const rm = h("button", { class: "quiet small", type: "button", disabled: busy, onclick: () => confirmDelete(rm, f.name, () => deleteCopy(r.run, f.name)) }, "Delete", h("span", { class: "sr" }, " " + f.name));
+        return h("li", {}, h("span", { class: "name" }, f.name, h("span", { class: "meta" }, h("span", {}, mb(f.size)), h("span", {}, when(f.modified)))),
+          h("span", { class: "card-act" }, h("button", { class: "quiet small", type: "button", onclick: () => download(f.name, r.run) }, "Download", h("span", { class: "sr" }, " " + f.name)), rm));
+      })));
+  }) : [h("li", { class: "muted" }, "No finished copies yet. They appear here after a run.")]));
 }
 
 const split = () => {
@@ -164,6 +218,7 @@ async function loadFiles() {
     const names = new Set(files.map((f) => f.name));
     for (const n of [...selected]) if (!names.has(n)) selected.delete(n);
     for (const f of files) if (!known.has(f.name)) { known.add(f.name); if (f.state !== "done") selected.add(f.name); } // new arrivals are ticked
+    renderHistory((await getJson("/history")).runs);
   } catch (err) { showProblem(err); }
   render();
 }
@@ -440,6 +495,8 @@ $("all").addEventListener("change", () => {
 rmBtn.addEventListener("click", askRemoveAll);
 $("run").addEventListener("click", start);
 $("dismiss").addEventListener("click", () => { $("stage").hidden = true; fresh.clear(); render(); $("pick").focus(); });
+// the terminal can add, remove and delete too: look again when this window is back in front
+addEventListener("focus", () => { if (!busy) loadFiles(); });
 $("aclose").addEventListener("click", () => { $("audit").hidden = true; $("pick").focus(); });
 
 await loadFiles();

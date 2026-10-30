@@ -158,17 +158,18 @@ def test_every_page_has_the_theme_switch_and_applies_it_before_painting(slug):
 
 def test_the_front_page_is_wide_and_other_pages_are_not():
     assert 'class="main-col w-wide"' in render_page("index").decode()
-    assert 'class="main-col w-narrow"' in render_page("files").decode()
+    assert 'class="main-col w-narrow"' in render_page("faq").decode()
+    assert 'class="main-col w-wide"' in render_page("files").decode()  # the Files page uses the whole width
 
 
 @pytest.mark.parametrize("slug", [s for s in SLUGS])
-def test_every_page_has_a_collapsible_sidebar_with_icons(slug):
+def test_every_page_has_a_sidebar_with_icons_and_no_collapse_toggle(slug):
     html = render_page(slug).decode()
-    assert 'id="collapse"' in html and 'aria-expanded="true"' in html and 'aria-controls="side"' in html
+    assert 'id="collapse"' not in html and "Collapse sidebar" not in html  # a desktop-style app has a fixed sidebar
     assert html.count('<use href="#i-') >= 9  # one icon per link, drawn from the inline sprite (nothing loads from outside)
     assert 'src="http' not in html and "style=" not in html
     # every icon-only control still has a name for screen readers
-    assert 'aria-label="Collapse sidebar"' in html and '<span class="sr">Dark</span>' in html
+    assert '<span class="sr">Dark</span>' in html
 
 
 def test_the_files_page_can_select_files_and_remove_all():
@@ -177,3 +178,46 @@ def test_the_files_page_can_select_files_and_remove_all():
         assert hook in html
     js = (STATIC / "files.js").read_text()
     assert "files: names" in js  # a run names the ticked files
+
+
+ACCENTS = ["teal", "green", "purple", "rose", "amber"]
+
+
+@pytest.mark.parametrize("accent", ACCENTS)
+def test_every_accent_color_is_readable_as_text_and_under_button_ink(accent):
+    light, dark, _ = _themes()
+    light_accent = _tokens(re.search(rf"^:root\[data-accent={accent}\]\{{(.*?)\}}", CSS, re.M).group(1))["blue"]
+    dark_accent = _tokens(re.search(rf"^:root\[data-theme=dark\]\[data-accent={accent}\]\{{(.*?)\}}", CSS, re.M).group(1))["blue"]
+    system_dark = _tokens(re.search(rf"\(prefers-color-scheme:dark\)\{{:root:not\(\[data-theme=light\]\)\[data-accent={accent}\]\{{(.*?)\}}", CSS).group(1))["blue"]
+    assert dark_accent == system_dark
+    for t, color in ((light, light_accent), (dark, dark_accent)):
+        for bg in ("paper", "tint"):
+            assert _contrast(color, t[bg]) >= 4.5, f"{accent} on {bg}"
+        assert _contrast(t["blue-ink"], color) >= 4.5, f"button text on {accent}"
+
+
+def test_the_accent_choice_is_offered_everywhere_and_applied_before_painting():
+    html = render_page("files").decode()
+    for name in ["blue"] + ACCENTS:
+        assert f'data-accent-set="{name}"' in html
+    assert "cappv1.accent" in (STATIC / "theme.js").read_text()
+
+
+def test_the_app_fills_the_window_and_scrolls_inside():
+    assert re.search(r"\.shell\{[^}]*height:100vh", CSS) and re.search(r"\.main-col\{[^}]*overflow:auto", CSS)
+
+
+def test_the_app_can_be_installed():
+    html = render_page("files").decode()
+    assert 'rel="manifest" href="/manifest.webmanifest"' in html
+    import json
+
+    manifest = json.loads((STATIC / "manifest.webmanifest").read_text())
+    assert manifest["display"] == "standalone" and manifest["start_url"].startswith("/")
+    for icon in manifest["icons"]:
+        assert (STATIC / icon["src"].lstrip("/")).is_file()
+
+
+def test_cards_show_only_a_question_mark_for_processing_notes():
+    js = (STATIC / "files.js").read_text()
+    assert 'role: "tooltip"' in js and '"?"' in js and "skipNotes" not in js

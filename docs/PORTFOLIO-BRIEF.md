@@ -283,7 +283,7 @@ Suggested order:
    - *Content-hash identity and a caption cache instead of a database.* Decided a database wasn't needed; exact-bytes hashing, atomic writes and tolerant state files cover resume and "don't pay twice".
    - *Build on the author's alt text.* Short text is improved; adequate text is kept; the model must reply `KEEP` to leave text alone.
    - *Accessibility as a product requirement, not polish:* accessible typeface, keyboard use, tested contrast in light and dark, a user-controlled theme.
-   - *Scope discipline.* The web UI was deliberately not a data manager: no database, history or file manager. "Your data" only shows what is kept and offers one erase action.
+   - *Scope discipline.* The web UI was deliberately not a data manager: no database or file manager (v1.7 adds per-run folders of finished copies, owner-approved). "Your data" only shows what is kept and offers one erase action.
 5. **Real problems found and fixed** (good honest content): resume lost earlier captions after a crash and a corrupt state file blocked everything (found by a before/after test; fixed with atomic writes, tolerant loading, re-walk and cache); a perceptual hash let two flat-color images share a caption (fixed by exact-byte hashing); a bare file name such as `image1.png` was mistaken for author text; the terminal toolbar re-hashed every deck on each keystroke; browser testing found small targets (36px raised to 44px) and a missing favicon.
 6. **Design** (section 9) with screenshots; the before/after demo as the signature idea.
 7. **Outcomes:** what exists and works (section 2), quality numbers (section 7).

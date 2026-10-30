@@ -1,5 +1,6 @@
 """Live display for a processing run, driven by engine events."""
 import time
+from pathlib import Path
 
 from rich.console import Console, Group
 from rich.live import Live
@@ -171,7 +172,7 @@ class RunView:
             else:
                 self.files_ok += 1
             line = Text(f" {'!' if d['incomplete'] else TICK} ", style=WARN if d["incomplete"] else OK)
-            line.append(f"Saved output/{d['filename']}", style="bold")
+            line.append(f"Saved output/{Path(d['path']).parent.name}/{d['filename']}" if d.get("path") else f"Saved {d['filename']}", style="bold")
             line.append("  some items need a retry, run /run again" if d["incomplete"] else "", style=WARN)
             if d.get("skipped"):
                 line.append(f"  {d['skipped']} item(s) skipped, see the notes above", style=WARN)

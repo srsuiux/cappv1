@@ -4,6 +4,9 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
+- App feel: the window is fixed to the screen and only the content scrolls; the sidebar no longer folds. A new Accent color setting (six choices, each checked for contrast in light and dark) changes the color of buttons and links. cappv1 can be installed from the browser as an app (it still needs to be running, and the address it prints, to connect).
+- Files page: uses the whole width, in three panels: Current files, Past files and Finished copies. Cards show size and dates. Long processing notes moved into a ? on the card that shows them on hover, focus or tap.
+- Each run now keeps its finished copies in `output/<date>_<time>/` instead of replacing the last ones. Finished copies can be downloaded and deleted (one copy or a whole run) from the Files page or the terminal (`/history`, `/remove`), and both see the change. Copies left loose in `output/` by older versions show as the oldest run.
 - PowerPoint: finished decks open without the repair prompt and preview in Blackboard. The output is now the original file with only the slides that got alt text replaced, instead of a python-pptx re-save, which dropped embedded-object relationships with `Target="NULL"` and left slides pointing at nothing.
 
 ## 1.6.0
