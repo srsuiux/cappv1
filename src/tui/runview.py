@@ -19,6 +19,7 @@ class RunView:
         self.phase, self.phase_since = "check", self.started
         self.file, self.file_index, self.file_total = "", 0, 0
         self.slide, self.slides = 0, 0
+        self.is_doc = False  # a Word file counts as one document, not slides
         self.in_flight: list[tuple[str, int, float]] = []
         self.first_call_done = False
         self.totals = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0}
@@ -44,13 +45,13 @@ class RunView:
     def _status(self) -> Text:
         if self.in_flight:
             kind, slide, started = self.in_flight[-1]
-            label = f"{anim.phrase(kind, started)} on slide {slide + 1}"
+            label = f"{anim.phrase(kind, started)} {'in the document' if self.is_doc else f'on slide {slide + 1}'}"
             more = f"+{len(self.in_flight) - 1} more at once" if len(self.in_flight) > 1 else ""
             return anim.spinner_line(kind, label, started, more)
         labels = {
             "check": "Getting ready",
             "opening": f"Opening {self.file}" if self.file else "Opening the deck",
-            "slide": f"Preparing slide {self.slide + 1}",
+            "slide": "Reading the document" if self.is_doc else f"Preparing slide {self.slide + 1}",
             "saving": f"Saving {self.file}",
         }
         kind = self.phase if self.phase in ("saving", "opening", "check") else "think"
@@ -64,7 +65,8 @@ class RunView:
         line = Text(" ")
         line.append("━" * filled, style=ACCENT)
         line.append("╌" * (width - filled), style="grey35")
-        line.append(f"  slide {min(done + 1, self.slides) if self.slides else 0} of {self.slides}", style=MUTED)
+        if not self.is_doc:
+            line.append(f"  slide {min(done + 1, self.slides) if self.slides else 0} of {self.slides}", style=MUTED)
         line.append(f"  {int(frac * 100)}%", style=MUTED)
         return line
 
@@ -118,6 +120,7 @@ class RunView:
         if event == "file_start":
             self.file, self.file_index, self.file_total = d["filename"], d["index"], d["total"]
             self.slide, self.slides = 0, 0
+            self.is_doc = False
             self.file_totals = {k: 0 for k in self.totals}
             self.phase, self.phase_since = "opening", now
             if not ANIMATE:
@@ -125,6 +128,7 @@ class RunView:
         elif event == "file_open":
             self.slides = d["total_slides"]
             self.slide = d["resumed"]
+            self.is_doc = d.get("kind") == "document"
             self.phase, self.phase_since = "slide", now
             if d["resumed"]:
                 self._say(Text(f"  {DOT} continuing from an earlier run; saved captions are reused, not redone", style=MUTED))
@@ -157,7 +161,8 @@ class RunView:
                 if d["failed"]:
                     bits.append(f"{d['failed']} failed")
                 mark, style = (CROSS, WARN) if d["failed"] else (TICK, MUTED)
-                self._say(Text(f"  {mark} slide {d['slide'] + 1:<3} {' · '.join(bits)}", style=style))
+                unit = "document " if self.is_doc else f"slide {d['slide'] + 1:<3}"
+                self._say(Text(f"  {mark} {unit} {' · '.join(bits)}", style=style))
         elif event == "file_saving":
             self.phase, self.phase_since = "saving", now
         elif event == "file_saved":

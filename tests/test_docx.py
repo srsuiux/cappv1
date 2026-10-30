@@ -1,5 +1,6 @@
 import asyncio
 import io
+import types
 import zipfile
 
 import pytest
@@ -453,3 +454,19 @@ def test_an_embedded_excel_sheet_is_read_not_mistaken_for_a_word_file():
     text = ole_object_to_text(buf.getvalue())
     assert "Quarter" in text and "Revenue" in text
     assert ole_object_to_text(b"PK\x03\x04 not really a zip") == ""
+
+
+def test_the_terminal_says_document_not_slide_for_a_word_file():
+    import io as _io
+
+    from rich.console import Console
+
+    from src.tui.runview import RunView
+
+    out = _io.StringIO()
+    view = RunView(Console(file=out, width=100, force_terminal=False), types.SimpleNamespace())
+    view.on_event("file_start", {"filename": "a.docx", "index": 1, "total": 1})
+    view.on_event("file_open", {"total_slides": 1, "resumed": 0, "kind": "document"})
+    view.on_event("slide_end", {"slide": 0, "empty": False, "captioned": 4, "enhanced": 0, "kept": 0,
+                                "decorative": 0, "cached": 0, "failed": 0})
+    assert "document" in out.getvalue() and "slide" not in out.getvalue()
