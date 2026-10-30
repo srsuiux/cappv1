@@ -8,7 +8,7 @@ cappv1 writes alt text into PowerPoint decks using vision models (OpenRouter, Op
 
 ## 2. Hard rules (never break these, even if asked in passing)
 
-1. **Visually inert output.** The tool writes alt text (`descr` on `cNvPr`) and, from a short named list in `skills.md`, fixes that change nothing you can see. Never change colors, fonts, sizes, layout, text or table styles. Report problems like low contrast; do not fix them.
+1. **Visually inert output.** The tool writes alt text (`descr` on `cNvPr`) and, from a short named list in `skills.md`, fixes that change nothing you can see. Never change fonts, sizes, layout, text or table styles. Colors are changed in one case only: Word text that fails the 4.5:1 contrast check is darkened (`src/docx_structure.py`, owner-approved, always noted in the file's skip notes). Report every other problem; do not fix it.
 2. **No secrets in the repo.** Never commit `.env`, keys, decks, or anything under `input/`, `output/`, `logs/`, `.state/`. Never print a key.
 3. **Privacy is a feature.** If a change affects what is sent to an AI service or stored on disk, update in the same change: `src/web/pages/privacy.html`, `src/services/storage.py`, `src/services/settings.py` (service notes). Tests tie the Privacy page to the code.
 4. **No tracking.** No analytics, telemetry, cookies, update checks, or third-party requests.

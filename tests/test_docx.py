@@ -104,6 +104,8 @@ def test_only_alt_text_changes_in_the_document(tmp_path, fake_ollama, monkeypatc
     with zipfile.ZipFile(src) as a, zipfile.ZipFile(config.output_dir / "a.docx") as b:
         assert sorted(a.namelist()) == sorted(b.namelist())
         for name in a.namelist():
+            if name == "docProps/core.xml":
+                continue  # the Title is filled in when it is empty or names something else
             if name.endswith((".xml", ".rels")):
                 assert canon(a, name) == canon(b, name), name
             else:
@@ -119,7 +121,7 @@ def test_the_package_keeps_the_originals_order_and_bytes(tmp_path, fake_ollama, 
     with zipfile.ZipFile(src) as a, zipfile.ZipFile(config.output_dir / "a.docx") as b:
         assert a.namelist() == b.namelist()
         for name in a.namelist():
-            if name != "word/document.xml":
+            if name not in ("word/document.xml", "docProps/core.xml"):  # the Title is filled in when it is wrong
                 assert a.read(name) == b.read(name), name
         assert b.read("word/document.xml").startswith(b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
 
@@ -255,29 +257,28 @@ def test_header_look_goes_before_an_existing_description(tmp_path):
     assert tags.index("tblLook") < tags.index("tblDescription")
 
 
-@pytest.mark.parametrize("rows, why", [
-    ([["Only", "row"]], "only one row"),
-    ([["A"], ["1"]], "one column"),
-    ([["A", ""], ["1", "2"]], "empty cells"),
+@pytest.mark.parametrize("rows", [
+    [["Only", "row"]],
+    [["A"], ["1"]],
+    [["A", ""], ["1", "2"]],
 ])
-def test_tables_that_are_not_plainly_headed_are_left_alone(tmp_path, rows, why):
+def test_every_table_gets_a_header_row_whatever_it_holds(tmp_path, rows):
+    """Ally flags a table without a header row, including one-row boxes and one-column listings."""
     from src.docx_reader import mark_table_header
 
     table, pr = listing_free_doc(tmp_path, rows)
-    assert mark_table_header(table).startswith("skipped"), why
-    assert pr.find(W + "tblLook") is None and table._tbl.find(f".//{W}tblHeader") is None
+    assert mark_table_header(table) == "set"
+    assert table._tbl.findall(W + "tr")[0].find(f"{W}trPr/{W}tblHeader") is not None
 
 
-def test_a_styled_or_merged_table_is_left_alone(tmp_path):
+def test_a_styled_table_gets_the_repeat_setting_but_not_the_look_box(tmp_path):
     from src.docx_reader import mark_table_header
 
     table, pr = listing_free_doc(tmp_path, [["A", "B"], ["1", "2"]])
     etree.SubElement(pr, W + "tblStyle").set(W + "val", "Grid")
-    assert "style" in mark_table_header(table)
-    table, pr = listing_free_doc(tmp_path, [["A", "B"], ["1", "2"]])
-    tcpr = table._tbl.findall(W + "tr")[0].findall(W + "tc")[0].get_or_add_tcPr()
-    etree.SubElement(tcpr, W + "gridSpan").set(W + "val", "2")
-    assert "merged" in mark_table_header(table)
+    assert mark_table_header(table) == "set"
+    assert pr.find(W + "tblLook") is None  # the box could switch on the style's first-row formatting
+    assert table._tbl.findall(W + "tr")[0].find(f"{W}trPr/{W}tblHeader") is not None
 
 
 def test_header_rows_are_marked_even_when_table_descriptions_are_skipped(tmp_path, fake_ollama, monkeypatch):
@@ -470,3 +471,116 @@ def test_the_terminal_says_document_not_slide_for_a_word_file():
     view.on_event("slide_end", {"slide": 0, "empty": False, "captioned": 4, "enhanced": 0, "kept": 0,
                                 "decorative": 0, "cached": 0, "failed": 0})
     assert "document" in out.getvalue() and "slide" not in out.getvalue()
+
+
+# ---- structure fixes Ally scores -------------------------------------------------------------
+
+def styled(doc, text, style):
+    return doc.add_paragraph(text, style=style)
+
+
+def bare(doc):
+    """Drops the template styles built on Heading 1-9, as in the converted documents, which have none."""
+    for st in list(doc.styles.element.iter(W + "style")):
+        based = st.find(W + "basedOn")
+        if based is not None and based.get(W + "val").startswith("Heading") and not st.get(W + "styleId").startswith("Heading"):
+            st.getparent().remove(st)
+    return doc
+
+
+def rpr_of(styles_el, style_id):
+    st = next(s for s in styles_el.iter(W + "style") if s.get(W + "styleId") == style_id)
+    rpr = st.find(W + "rPr")
+    return etree.tostring(rpr, method="c14n") if rpr is not None else b""
+
+
+def test_heading_levels_are_renumbered_without_changing_how_they_look():
+    from src.docx_structure import normalize_headings
+
+    doc = bare(Document())
+    before = rpr_of(doc.styles.element, "Heading4"), rpr_of(doc.styles.element, "Heading7")
+    styled(doc, "Chapter", "Heading 4")
+    styled(doc, "Section", "Heading 7")
+    styled(doc, "Another section", "Heading 7")
+    assert normalize_headings(doc)
+    ids = [p.style.style_id for p in doc.paragraphs]
+    assert ids == ["Heading1", "Heading2", "Heading2"]
+    assert (rpr_of(doc.styles.element, "Heading1"), rpr_of(doc.styles.element, "Heading2")) == before
+    outline = next(s for s in doc.styles.element.iter(W + "style") if s.get(W + "styleId") == "Heading2")
+    assert outline.find(f"{W}pPr/{W}outlineLvl").get(W + "val") == "1"
+
+
+def test_a_document_that_already_starts_at_heading_1_is_not_touched():
+    from src.docx_structure import normalize_headings
+
+    doc = Document()
+    styled(doc, "One", "Heading 1")
+    styled(doc, "Two", "Heading 2")
+    assert normalize_headings(doc) == ""
+
+
+def test_an_empty_heading_keeps_its_look_but_stops_being_a_heading():
+    from src.docx_structure import normalize_headings
+
+    doc = bare(Document())
+    styled(doc, "One", "Heading 1")
+    styled(doc, "", "Heading 2")
+    assert "empty heading" in normalize_headings(doc)
+    plain = doc.paragraphs[1].style
+    assert plain.style_id == "Heading2Plain" and not plain.name.lower().startswith("heading")
+    assert rpr_of(doc.styles.element, "Heading2Plain") == rpr_of(doc.styles.element, "Heading2")
+
+
+def test_captions_become_heading_1_in_a_document_with_no_headings():
+    from src.docx_structure import normalize_headings
+
+    doc = Document()
+    styled(doc, "Table 2-1: Quality", "Normal")
+    styled(doc, "body text", "Normal")
+    styled(doc, "Figure 2.3: Phases", "Normal")
+    assert "captions" in normalize_headings(doc)
+    assert [p.style.style_id for p in doc.paragraphs] == ["Heading1", "Normal", "Heading1"]
+    h1 = next(s for s in doc.styles.element.iter(W + "style") if s.get(W + "styleId") == "Heading1")
+    assert h1.find(W + "basedOn").get(W + "val") == "Normal" and h1.find(f"{W}pPr/{W}outlineLvl") is not None
+
+
+def test_low_contrast_text_is_darkened_to_pass_and_keeps_its_hue():
+    from docx.oxml.ns import qn
+
+    from src.docx_check import contrast
+    from src.docx_structure import fix_contrast
+
+    doc = Document()
+    run = doc.add_paragraph().add_run("light green")
+    run._r.get_or_add_rPr()
+    color = etree.SubElement(run._r.rPr, qn("w:color"))
+    color.set(qn("w:val"), "70AD47")
+    ok = doc.add_paragraph().add_run("black")
+    etree.SubElement(ok._r.get_or_add_rPr(), qn("w:color")).set(qn("w:val"), "000000")
+    notes = fix_contrast(doc)
+    assert len(notes) == 1 and "70AD47" in notes[0]
+    now = color.get(qn("w:val"))
+    assert contrast(now, "FFFFFF") >= 7
+    assert int(now[2:4], 16) > int(now[0:2], 16)  # still green
+    assert fix_contrast(doc) == []
+
+
+def test_the_title_is_filled_when_empty_or_wrong_and_left_alone_when_right():
+    from src.docx_structure import set_title
+
+    doc = Document()
+    doc.add_paragraph("Chapter 2 Figures and Tables")
+    doc.core_properties.title = "Table 14-4: from another chapter"
+    assert set_title(doc) == "Chapter 2 Figures and Tables"
+    assert doc.core_properties.title == "Chapter 2 Figures and Tables"
+    assert set_title(doc) is None
+
+
+def test_the_finished_file_passes_the_ally_self_check(tmp_path, fake_ollama, monkeypatch):
+    from src.docx_check import check
+
+    config = docx_config(tmp_path, fake_ollama, monkeypatch)
+    make_docx(config.input_dir / "a.docx")
+    run(config)
+    blocking = [i for i in check(config.output_dir / "a.docx") if i.severity in ("severe", "major")]
+    assert blocking == [], [str(i) for i in blocking]

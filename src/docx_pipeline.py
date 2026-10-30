@@ -27,6 +27,7 @@ from src.docx_reader import (
     table_to_text,
 )
 from src.image_filter import is_too_small
+from src.docx_structure import fix_contrast, normalize_headings, set_title
 from src.llm_client import generate_caption, generate_ole_alt_text, generate_table_alt_text
 from src.pipeline import _FILE_NAME, PlainNote, inspect_file, record_skip
 from src.pptx_reader import ole_object_to_text
@@ -223,6 +224,20 @@ async def run_docx_file(
     else:
         logger.warning("[file: %s] finished with some elements uncaptioned - run again to retry them "
                        "(cached captions won't be re-fetched)", filename)
+
+    # structure fixes Ally scores: heading levels and the Title are invisible; a contrast fix changes a
+    # color, so each one is noted for the person to look at
+    try:
+        headings = normalize_headings(doc)
+        if headings:
+            logger.info("[file: %s] headings: %s", filename, headings)
+        for note in fix_contrast(doc):
+            record_skip(state, filename, 0, "the document", "contrast", PlainNote(note))
+        title = set_title(doc)
+        if title:
+            logger.info("[file: %s] document title set to \"%s\"", filename, title)
+    except Exception as exc:  # a structure fix that fails leaves the file as it was; it never stops it
+        record_skip(state, filename, 0, "the document", "structure", exc)
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
     out_path = config.output_dir / filename

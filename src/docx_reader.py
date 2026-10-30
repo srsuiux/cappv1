@@ -44,20 +44,39 @@ def open_document(path: Path):
     return Document(str(path))
 
 
+def _changed_parts(doc, src: zipfile.ZipFile) -> dict[str, bytes]:
+    """The parts python-docx edits in place that differ from the original: the body always, the
+    styles and the core properties only when a fix touched them (so untouched files stay untouched)."""
+    declaration = b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    candidates = {
+        doc.part.partname.lstrip("/"): doc.part._element,
+        "word/styles.xml": doc.styles.element,
+        "docProps/core.xml": doc.core_properties._element,
+    }
+    changed = {}
+    for name, element in candidates.items():
+        if name not in src.namelist():
+            continue
+        if name != doc.part.partname.lstrip("/"):
+            was = etree.tostring(etree.fromstring(src.read(name)), method="c14n")
+            if etree.tostring(element, method="c14n") == was:
+                continue
+        changed[name] = declaration + etree.tostring(element, encoding="UTF-8")
+    return changed
+
+
 def save_document(doc, source: Path, dest: Path) -> None:
-    """Writes the finished copy by taking the original file as it is and replacing only the
-    document body. Saving through python-docx would repackage every part (order, content
-    types, XML declarations), which some readers such as Blackboard's previewer refuse."""
-    name = doc.part.partname.lstrip("/")
-    body = b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + etree.tostring(
-        doc.part._element, encoding="UTF-8")
+    """Writes the finished copy by taking the original file as it is and replacing only the parts
+    that changed. Saving through python-docx would repackage every part (order, content types, XML
+    declarations), which some readers such as Blackboard's previewer refuse."""
     with zipfile.ZipFile(source) as src, zipfile.ZipFile(dest, "w") as out:
+        replace = _changed_parts(doc, src)
         for info in src.infolist():
             # a fresh entry rather than the source's, which the writer would otherwise modify
             entry = zipfile.ZipInfo(info.filename, info.date_time)
             entry.compress_type = info.compress_type
             entry.external_attr = info.external_attr
-            out.writestr(entry, body if info.filename == name else src.read(info.filename))
+            out.writestr(entry, replace.get(info.filename) or src.read(info.filename))
 
 
 def _wp(tag: str) -> str:
@@ -183,32 +202,23 @@ def table_alt_text_unsupported(doc) -> str | None:
 
 
 def mark_table_header(table: Table) -> str:
-    """Flags a table's first row as its header: the Header Row box (w:tblLook firstRow) and
-    Repeat as header row (w:tblHeader), which Blackboard Ally reads (it scored 100% with both and
-    68% with the box alone). Returns "set", "already" or "skipped: <reason>".
+    """Flags a table's first row as its header: Repeat as header row (w:tblHeader), which Blackboard
+    Ally reads (it scored 100% with it and 68% without), plus the Header Row box (w:tblLook firstRow)
+    when no table style is attached, where the box changes nothing you can see. Every table gets it,
+    including one-row boxes: Ally flags a table without a header row whatever it holds. Returns "set"
+    or "already".
 
-    The box only changes how a table style paints row 1, so it is added only when no style is
-    attached. Repeat as header row shows only when a table runs onto a second page, where the
-    header row is repeated at the top of it; that is the one visible effect, and it is accepted."""
+    Repeat as header row shows only when a table runs onto a second page, where the header row is
+    repeated at the top of it; that is the one visible effect, and it is accepted."""
     tbl = table._tbl
     rows = tbl.findall(qn("w:tr"))
-    if len(rows) < 2:
-        return "skipped: only one row"
+    if not rows:
+        return "skipped: no rows"
     first = rows[0]
-    cells = first.findall(qn("w:tc"))
-    if len(cells) < 2:
-        return "skipped: one column, so it is a listing rather than a table with column names"
     if first.find(f"{qn('w:trPr')}/{qn('w:tblHeader')}") is not None:
         return "already"
     pr = tbl.tblPr
-    if pr.find(qn("w:tblStyle")) is not None:
-        return "skipped: a table style would restyle row 1"
-    if any(c.find(f"{qn('w:tcPr')}/{qn('w:gridSpan')}") is not None or c.find(f"{qn('w:tcPr')}/{qn('w:vMerge')}") is not None
-           for c in cells):
-        return "skipped: first row has merged cells"
-    if not all("".join(c.itertext()).strip() for c in cells):
-        return "skipped: first row has empty cells"
-    if pr.find(qn("w:tblLook")) is None:
+    if pr.find(qn("w:tblStyle")) is None and pr.find(qn("w:tblLook")) is None:
         look = etree.Element(qn("w:tblLook"))
         anchor = next((a for a in (pr.find(qn(t)) for t in ("w:tblCaption", "w:tblDescription", "w:tblPrChange"))
                        if a is not None), None)
