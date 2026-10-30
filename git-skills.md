@@ -84,7 +84,7 @@ Slash commands live inside the session. The shell exposes only `cappv1`, `--batc
 
 ## 8. Status (update when it changes)
 
-Stable: engine, services, terminal, batch CLI, web server and API, web UI (v1.3.0). Added in v1.4.0: read-only `/audit` (contrast, reading order; `src/audit.py`). Its web UI page is not built yet. Planned: file health check, screen-reader audit. Not started: npm launcher, PyPI/Homebrew, Windows. Added in v1.5.0: Word (.docx) through the engine, services, terminal and web server/UI (pictures and tables only; the accessibility check `/audit` is decks only). Do not describe anything unstarted as available.
+Stable: engine, services, terminal, batch CLI, web server and API, web UI (v1.3.0). Added in v1.4.0: read-only `/audit` (contrast, reading order; `src/audit.py`). Its web UI page is not built yet. Planned: file health check, screen-reader audit. Not started: npm launcher, PyPI/Homebrew, Windows. Added in v1.5.0: Word (.docx) through the engine, services, terminal and web server/UI (pictures and tables only; the accessibility check `/audit` is decks only). Unreleased, on `main`: Word files are repaired for Blackboard Ally (`src/docx_structure.py`, checked by `src/docx_check.py`), embedded objects get alt text, files are selectable on the Files page, and each unreadable item is skipped with a note instead of stopping the file. Do not describe anything unstarted as available.
 
 ## 9. Keep this file honest
 
