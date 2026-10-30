@@ -21,7 +21,7 @@ cappv1 writes alt text into PowerPoint decks using vision models (OpenRouter, Op
 src/tui/  src/web/        front ends: no logic, call services
 src/services/             settings, models, files, runs, health, storage, workspace, envfile
 src/ engine               pipeline.py, pptx_reader.py, llm_client.py, state.py, events.py, config.py,
-                          image_filter.py, doctor.py, models.py, main.py
+                          image_filter.py, doctor.py, models.py, outputs.py, main.py
 ```
 
 - Put logic in a service, not in a front end, so terminal and browser never disagree.
@@ -84,7 +84,7 @@ Slash commands live inside the session. The shell exposes only `cappv1`, `--batc
 
 ## 8. Status (update when it changes)
 
-Stable: engine, services, terminal, batch CLI, web server and API, web UI (v1.3.0). Added in v1.4.0: read-only `/audit` (contrast, reading order; `src/audit.py`). Its web UI page is not built yet. Planned: file health check, screen-reader audit. Not started: npm launcher, PyPI/Homebrew, Windows. Added in v1.5.0: Word (.docx) through the engine, services, terminal and web server/UI (pictures and tables only; the accessibility check `/audit` is decks only). Added in v1.6.0: Word files are repaired for Blackboard Ally (`src/docx_structure.py`, checked by `src/docx_check.py`), embedded objects get alt text, files are selectable on the Files page, and each unreadable item is skipped with a note instead of stopping the file. Unreleased: the app shell is fixed to the window (no sidebar toggle), an accent color picker, an installable web app manifest (the server must still be running, and the address with its token is needed to connect), a wide Files page with Current files, Past files and Finished copies, and per-run output folders with `/history`, `/remove` and `/api/v1/history`. Do not describe anything unstarted as available.
+Stable: engine, services, terminal, batch CLI, web server and API, web UI (v1.3.0). Added in v1.4.0: read-only `/audit` (contrast, reading order; `src/audit.py`). Its web UI page is not built yet. Planned: file health check, screen-reader audit. Not started: npm launcher, PyPI/Homebrew, Windows. Added in v1.5.0: Word (.docx) through the engine, services, terminal and web server/UI (pictures and tables only; the accessibility check `/audit` is decks only). Added in v1.6.0: Word files are repaired for Blackboard Ally (`src/docx_structure.py`, checked by `src/docx_check.py`), embedded objects get alt text, files are selectable on the Files page, and each unreadable item is skipped with a note instead of stopping the file. Unreleased: the app shell is fixed to the window (no sidebar toggle), an accent color picker, an installable web app manifest (the server must still be running, and the address with its token is needed to connect), a wide Files page with Current files, Past files and Finished copies, one full-width card layout on every page, an Appearance page (theme and accent color), a Changelog page read from `CHANGELOG.md`, and per-run output folders with `/history`, `/remove` and `/api/v1/history`. Do not describe anything unstarted as available.
 
 ## 9. Keep this file honest
 

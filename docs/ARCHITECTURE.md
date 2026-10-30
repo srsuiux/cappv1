@@ -22,10 +22,12 @@ src/web/
   api.py         /api/v1 routes, each a few lines over a service  (docs/API.md)
   templates/     the page layout: sidebar, status line, footer
   pages/         one fragment per page; the first line holds its title, menu entry and script
-  static/        app.css, scripts (one per page, plus shell.js, app.js and theme.js), fonts
+  static/        app.css, scripts (one per page, plus shell.js, app.js and theme.js), the web app manifest and icons, fonts
 ```
 
 A page is a fragment in `pages/` wrapped in a layout from `templates/` when requested, so the menu, footer and version live in one place and there is no build step. Scripts are plain ES modules served from `static/`. The content policy forbids inline script and style; `tests/test_web_pages.py` enforces it.
+
+The Changelog page is built from `CHANGELOG.md` by `changelog.py`, so release notes have one source. Theme and accent color are chosen on the Appearance page and applied by `theme.js` before the page paints.
 
 To add a page: create `pages/<name>.html` with a metadata comment on the first line, add a link in `templates/app.html`, and add a script in `static/` if it needs data.
 

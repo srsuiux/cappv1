@@ -153,8 +153,8 @@ cappv1 reads a `.pptx`, sends each picture, table, chart, diagram and embedded o
 - **Health:** the same checks as the terminal with plain-language fixes.
 - **Your data:** where everything is stored, sizes, and an erase button (two-step).
 - **Information pages:** How it works, Privacy, FAQ, About (includes accessibility statement and credits).
-- **Themes:** System / Light / Dark switch in the side panel, remembered and applied before first paint.
-- Responsive: sidebar collapses to a Menu button on small screens.
+- **Appearance page:** System / Light / Dark theme and six accent colors (each contrast-tested), remembered in the browser and applied before first paint. The window is fixed to the screen and the content scrolls inside it; every page shares one full-width card layout. The sidebar becomes a Menu button on small screens.
+- **Changelog page:** one card per release, read from `CHANGELOG.md`.
 
 ---
 
@@ -249,7 +249,7 @@ All under `/api/v1`, token header `X-Cappv1-Token`, errors as `{"error": {"code"
 
 `GET/PUT /settings` · `POST /settings/test` · `DELETE /settings/keys/<id>` · `GET /services` · `GET /services/<id>/models` · `GET /files` · `PUT /files/<name>` (raw body) · `DELETE /files/<name>` · `GET /files/<name>/download` · `POST /runs` · `GET /runs/current` · `POST /runs/<id>/cancel` · `GET /runs/<id>/events` (SSE) · `GET /doctor` · `GET /storage` · `POST /storage/clear`.
 
-Pages served by the same server: `/`, `/files`, `/services`, `/health`, `/data`, `/how-it-works`, `/privacy`, `/faq`, `/about`.
+Pages served by the same server: `/`, `/files`, `/services`, `/health`, `/data`, `/how-it-works`, `/privacy`, `/faq`, `/changelog`, `/appearance`, `/about`.
 
 ## 12. Timeline, releases, assets
 

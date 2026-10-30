@@ -6,10 +6,9 @@ __pycache__/
 *.pyc
 .state/
 logs/
-output/*.pptx
+output/*
 !output/.gitkeep
 input/*.pptx
 input/*.docx
 input/*.doc
-output/*.docx
 !input/.gitkeep

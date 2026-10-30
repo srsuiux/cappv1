@@ -80,7 +80,7 @@ The first time you open cappv1, it pauses for a few extra seconds to install wha
    A session opens with a `❯` prompt, like a chat. The first time, it offers to walk you through choosing an AI service.
 2. **Add your files.** Drag your `.pptx` or `.docx` files (or a whole folder of them) into the Terminal window, and press Enter. They are copied into the `input` folder for you. You can also copy them there yourself.
 3. **Run it.** Type `/run` and press Enter. A live display shows which file and slide it's on and what it's doing right now (looking at a picture, reading a chart, saving the deck). Press `Ctrl+C` to stop; finished slides are remembered.
-4. **Collect your files.** Each finished file appears in the `output` folder under its original name. Type `/open` to open that folder.
+4. **Collect your files.** Each run saves its finished files, under their original names, in its own folder inside `output`, named for the time it ran (for example `output/2026-10-29_21-28-38/`), so an earlier run is never overwritten. Type `/open` to open `output`, or `/history` to list the runs.
 5. **Check the result.** Open a file from `output` in PowerPoint, right-click a picture, table, or chart, and choose **Edit Alt Text**. The descriptions are usually good, but give them a quick read before sharing anything important.
 
 If one file fails, the others still run, and the failed file names are listed at the end. If the run is interrupted (laptop closes, network drops), open cappv1 and type `/run` again. It skips finished files and picks up where it left off.
@@ -101,6 +101,8 @@ Inside the session (type `/` to see them as you type):
 | `/audit` | Reports text that is hard to read against its background and slides whose reading order doesn't follow the layout. Reports only; it never changes your file. |
 | `/doctor` | Checks your setup. Safe to run any time; it changes nothing. |
 | `/status` | Shows the service, model, and whether your slides stay on your computer. |
+| `/history` | Lists the finished copies kept from each run. |
+| `/remove` | Takes a file off the list (`/remove deck.pptx`), or deletes a finished copy or a whole run (`/remove 2026-10-29_21-28-38`). Asks first. |
 | `/open` | Opens the `output` folder. |
 | `/clean` | **Permanently deletes** everything in `input` and `output`, plus saved progress. It asks first, but there's no undo. |
 | `/clear`, `/help`, `/exit` | Clear the screen, list commands, leave (or press `Ctrl+D`). |
