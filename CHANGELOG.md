@@ -2,6 +2,10 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
+## Unreleased
+
+- PowerPoint: finished decks open without the repair prompt and preview in Blackboard. The output is now the original file with only the slides that got alt text replaced, instead of a python-pptx re-save, which dropped embedded-object relationships with `Target="NULL"` and left slides pointing at nothing.
+
 ## 1.6.0
 
 - Word: Blackboard Ally structure fixes. Heading levels are renumbered to start at Heading 1 with no gaps, using copies of the existing heading styles so nothing looks different; captions become Heading 1 in a document with no headings; empty headings stop being headings; every table gets a header row, including one-row boxes; the Title property is filled when empty or wrong; text that fails the 4.5:1 contrast check is darkened to 7:1 and noted (the one visible change). `python -m src.docx_check` checks a file against these rules.

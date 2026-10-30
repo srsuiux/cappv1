@@ -27,6 +27,31 @@ def open_presentation(path: Path) -> Presentation:
     return Presentation(str(path))
 
 
+def save_presentation(prs: Presentation, source: Path, dest: Path) -> None:
+    """Writes the finished copy by taking the original file as it is and replacing only the slides
+    whose XML changed. Saving through python-pptx repackages every part and silently drops
+    relationships it cannot resolve (an embedded object with Target="NULL"), which leaves the slide
+    pointing at nothing: PowerPoint then offers to repair the file and Blackboard will not preview it."""
+    declaration = b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    with zipfile.ZipFile(source) as src, zipfile.ZipFile(dest, "w") as out:
+        names = set(src.namelist())
+        replace = {}
+        for slide in prs.slides:
+            name = slide.part.partname.lstrip("/")
+            if name not in names:
+                continue
+            element = slide.part._element
+            was = etree.tostring(etree.fromstring(src.read(name)), method="c14n")
+            if etree.tostring(element, method="c14n") != was:
+                replace[name] = declaration + etree.tostring(element, encoding="UTF-8")
+        for info in src.infolist():
+            # a fresh entry rather than the source's, which the writer would otherwise modify
+            entry = zipfile.ZipInfo(info.filename, info.date_time)
+            entry.compress_type = info.compress_type
+            entry.external_attr = info.external_attr
+            out.writestr(entry, replace.get(info.filename) or src.read(info.filename))
+
+
 def get_section_map(prs: Presentation) -> dict[int, str]:
     """Best-effort slide_index -> section name, parsed from presentation.xml's
     p14:sectionLst extension (not exposed by python-pptx's public API)."""

@@ -105,3 +105,30 @@ def test_header_row_is_left_alone_when_unsafe():
     for shape in (_table(3, style=True), _table(1, style=False), _table(3, style=False, merge=True), _table(3, style=False, blank=True)):
         assert mark_table_header(shape).startswith("skipped")
         assert shape.table._tbl.tblPr.get("firstRow") is None
+
+
+def test_the_deck_keeps_every_part_except_the_slides_it_wrote_to(configured, tmp_path):
+    """python-pptx drops a relationship whose target it cannot resolve (an embedded object with
+    Target="NULL"), leaving the slide pointing at nothing; PowerPoint then asks to repair the file."""
+    import zipfile
+
+    src = make_deck(tmp_path / "a.pptx")
+    broken = tmp_path / "broken.pptx"
+    rel = ('<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/'
+           'relationships/oleObject" Target="NULL"/>')
+    with zipfile.ZipFile(src) as zin, zipfile.ZipFile(broken, "w") as zout:
+        for info in zin.infolist():
+            data = zin.read(info.filename)
+            if info.filename == "ppt/slides/_rels/slide1.xml.rels":
+                data = data.replace(b"</Relationships>", rel.encode() + b"</Relationships>")
+            zout.writestr(info.filename, data)
+    broken.replace(src)
+    files.store_path(configured, src)
+    runs = RunManager(configured)
+    runs.start()
+    assert runs.wait(30)
+    with zipfile.ZipFile(src) as before, zipfile.ZipFile(configured.output_dir / "a.pptx") as after:
+        assert after.namelist() == before.namelist()
+        assert b'Id="rId99"' in after.read("ppt/slides/_rels/slide1.xml.rels")
+        changed = [n for n in before.namelist() if before.read(n) != after.read(n)]
+        assert changed and all(n.startswith("ppt/slides/slide") and n.endswith(".xml") for n in changed)

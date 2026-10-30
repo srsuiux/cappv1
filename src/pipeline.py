@@ -35,6 +35,7 @@ from src.pptx_reader import (
     mark_table_header,
     ole_object_to_text,
     open_presentation,
+    save_presentation,
     set_alt_text,
     smartart_to_text,
     table_to_text,
@@ -493,7 +494,7 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     events.emit("file_saving", filename=filename)
     # save beside the target, then rename: a crash never leaves a half-written deck in output/
     part_path = out_path.with_name(out_path.name + ".part")
-    prs.save(str(part_path))
+    save_presentation(prs, path, part_path)
     os.replace(part_path, out_path)
     if not any_failed:
         # only now is the file really done
