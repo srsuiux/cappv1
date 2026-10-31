@@ -1,0 +1,16 @@
+name: Links
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  markdown-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress --include-fragments --exclude '^https?://(localhost|127\.0\.0\.1)' '**/*.md'
+          fail: true
