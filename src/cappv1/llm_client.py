@@ -1,124 +1,23 @@
 import asyncio
 import base64
-import io
 import json
 import logging
 
 import httpx
 
 from cappv1.config import Config
+from cappv1.llm_prompts import (
+    _CHART_SYSTEM_PROMPT,
+    _IMAGE_SYSTEM_PROMPT,
+    _OLE_SYSTEM_PROMPT,
+    _SMARTART_SYSTEM_PROMPT,
+    _TABLE_SYSTEM_PROMPT,
+    _with_existing,
+)
+from cappv1.llm_providers import _PROVIDER_LABELS, _build_request, _ModelUnavailable, _parse_completion
 from cappv1.pptx_reader import SlideContext
 
 logger = logging.getLogger("pptx_alt_text")
-
-_CHAT_URLS = {
-    "openrouter": "https://openrouter.ai/api/v1/chat/completions",
-    "openai": "https://api.openai.com/v1/chat/completions",
-    "anthropic": "https://api.anthropic.com/v1/messages",
-}
-_PROVIDER_LABELS = {"openrouter": "OpenRouter", "openai": "OpenAI", "anthropic": "Anthropic", "ollama": "Ollama"}
-_ANTHROPIC_VERSION = "2023-06-01"
-_ANTHROPIC_IMAGE_MIMES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
-
-_IMAGE_SYSTEM_PROMPT = (
-    "You write alt-text for images embedded in PowerPoint slides, for screen-reader "
-    "accessibility. Rules:\n"
-    "- Describe the image's content AND its function/purpose on the slide.\n"
-    "- Be concise: aim for under {max_chars} characters.\n"
-    "- Never start with 'Image of', 'Picture of', or similar - screen readers already "
-    "announce it as an image.\n"
-    "- Don't restate text that's already on the slide verbatim; describe what the "
-    "image itself shows.\n"
-    "- If the image is purely decorative (a divider, background texture, generic "
-    "icon with no informational content), respond with exactly: DECORATIVE\n"
-    "- Output only the alt-text (or DECORATIVE). No quotes, no preamble."
-)
-
-_TABLE_SYSTEM_PROMPT = (
-    "You write alt-text for tables embedded in PowerPoint slides, for screen-reader "
-    "accessibility. Rules:\n"
-    "- Summarize what the table shows and its purpose on the slide - don't just "
-    "restate every cell, a screen reader will read those separately.\n"
-    "- Be concise: aim for under {max_chars} characters.\n"
-    "- Never start with 'Table of' or 'A table showing' - screen readers already "
-    "announce it as a table.\n"
-    "- Output only the alt-text. No quotes, no preamble."
-)
-
-_CHART_SYSTEM_PROMPT = (
-    "You write alt-text for charts embedded in PowerPoint slides, for screen-reader "
-    "accessibility. You are given the chart's type, title, categories, and series "
-    "data (not an image). Rules:\n"
-    "- Describe the key trend or takeaway the chart conveys, not every data point.\n"
-    "- Be concise: aim for under {max_chars} characters.\n"
-    "- Never start with 'Chart of' or 'A chart showing' - screen readers already "
-    "announce it as a chart.\n"
-    "- Output only the alt-text. No quotes, no preamble."
-)
-
-_OLE_SYSTEM_PROMPT = (
-    "You write alt-text for embedded objects (a Word document, an Excel sheet, a "
-    "Visio drawing, etc.) in PowerPoint slides, for screen-reader accessibility. "
-    "The text you're given was extracted by a best-effort heuristic scrape of the "
-    "embedded file's raw internal data, not a clean transcript - it will likely "
-    "contain garbled fragments, repeated font/metadata noise (e.g. 'System', font "
-    "names, author names), and text in a strange order. Rules:\n"
-    "- Use only the fragments that clearly make sense together; ignore metadata "
-    "noise and anything you can't confidently interpret.\n"
-    "- Describe what the object shows and its purpose on the slide, the same way "
-    "you would for a table or chart.\n"
-    "- Be concise: aim for under {max_chars} characters.\n"
-    "- Never start with 'Embedded object' or 'A document showing' - screen readers "
-    "already announce it as an object.\n"
-    "- If the extracted text gives no usable signal at all - it's entirely noise, "
-    "you cannot tell what the object contains - respond with exactly: UNKNOWN\n"
-    "- Output only the alt-text (or UNKNOWN). No quotes, no preamble."
-)
-
-_SMARTART_SYSTEM_PROMPT = (
-    "You write alt-text for SmartArt diagrams embedded in PowerPoint slides, for "
-    "screen-reader accessibility. You are given the diagram's node text as an "
-    "indented outline reflecting its actual hierarchy (not an image). Rules:\n"
-    "- Describe the structure and relationships the diagram conveys - who reports "
-    "to whom, what leads to what - not just a flat list of every node's text.\n"
-    "- Be concise: aim for under {max_chars} characters.\n"
-    "- Never start with 'Diagram of' or 'SmartArt showing' - screen readers "
-    "already announce it as a diagram.\n"
-    "- Output only the alt-text. No quotes, no preamble."
-)
-
-
-_REVIEW_SUFFIX = (
-    "\n\nThe author already wrote alt-text for this element; it is shown after the "
-    "context. Respect it:\n"
-    "- {verdict}\n"
-    "- When you improve it, keep the author's wording, facts and intent wherever they are "
-    "accurate. Add only what is missing (what it shows, and why it matters on this slide). "
-    "Never contradict the author.\n"
-    "- Never respond with DECORATIVE or UNKNOWN."
-)
-_VERDICT_ADEQUATE = (
-    "If it already tells a screen-reader user what this shows and why it matters, reply with "
-    "exactly: KEEP. Otherwise reply with the improved alt-text only."
-)
-_VERDICT_TOO_SHORT = "It is very short, so it is probably incomplete. Do NOT reply KEEP. Reply with an improved version that builds on it."
-
-
-def _with_existing(messages: list[dict], existing: str, too_short: bool) -> list[dict]:
-    """Adds the author's own alt-text, and the rules for building on it, to a request."""
-    suffix = _REVIEW_SUFFIX.format(verdict=_VERDICT_TOO_SHORT if too_short else _VERDICT_ADEQUATE)
-    note = f"\n\nAuthor's existing alt-text: {existing}"
-    out = []
-    for m in messages:
-        m = dict(m)
-        if m["role"] == "system":
-            m["content"] += suffix
-        elif isinstance(m["content"], list):
-            m["content"] = [dict(part, text=part["text"] + note) if part["type"] == "text" else part for part in m["content"]]
-        else:
-            m["content"] += note
-        out.append(m)
-    return out
 
 
 def _review(config: Config, messages: list[dict], existing: str) -> list[dict]:
@@ -216,72 +115,6 @@ def _build_text_messages(system_prompt: str, element_text: str, context: SlideCo
             ),
         },
     ]
-
-
-def _to_anthropic_image(url: str) -> dict:
-    """Converts an OpenAI-style data-URL image part to an Anthropic image block,
-    re-encoding to PNG when the format (e.g. BMP) isn't one Anthropic accepts."""
-    header, b64 = url.split(",", 1)
-    mime = header[len("data:") :].split(";")[0]
-    if mime not in _ANTHROPIC_IMAGE_MIMES:
-        try:
-            from PIL import Image
-
-            with Image.open(io.BytesIO(base64.b64decode(b64))) as img:
-                out = io.BytesIO()
-                img.convert("RGBA").save(out, format="PNG")
-            mime, b64 = "image/png", base64.b64encode(out.getvalue()).decode("ascii")
-        except Exception:
-            pass
-    return {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}}
-
-
-def _build_request(config: Config, model: str, messages: list[dict]) -> tuple[str, dict, dict]:
-    """Returns (url, headers, payload) for the configured provider. Messages are
-    built once in OpenAI chat format and translated here for Anthropic."""
-    if config.provider == "ollama":
-        url = f"{config.base_url}/v1/chat/completions"
-    else:
-        url = _CHAT_URLS[config.provider]
-
-    if config.provider == "anthropic":
-        headers = {
-            "x-api-key": config.api_key,
-            "anthropic-version": _ANTHROPIC_VERSION,
-            "Content-Type": "application/json",
-        }
-        system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
-        converted = []
-        for m in messages:
-            if m["role"] == "system":
-                continue
-            content = m["content"]
-            if isinstance(content, list):
-                content = [_to_anthropic_image(part["image_url"]["url"]) if part["type"] == "image_url" else part for part in content]
-            converted.append({"role": m["role"], "content": content})
-        payload = {"model": model, "system": system, "messages": converted, "max_tokens": 200}
-        return url, headers, payload
-
-    headers = {"Content-Type": "application/json"}
-    if config.api_key:
-        headers["Authorization"] = f"Bearer {config.api_key}"
-    payload = {"model": model, "messages": messages}
-    # OpenAI's newer models reject max_tokens in favor of max_completion_tokens
-    payload["max_completion_tokens" if config.provider == "openai" else "max_tokens"] = 200
-    return url, headers, payload
-
-
-def _parse_completion(config: Config, data: dict) -> str:
-    if config.provider == "anthropic":
-        return "".join(b.get("text", "") for b in data["content"] if b.get("type") == "text").strip()
-    content = data["choices"][0]["message"]["content"]
-    if content is None:  # some free models answer with null; try the fallback model instead of crashing
-        raise _ModelUnavailable("the model sent an empty reply")
-    return content.strip()
-
-
-class _ModelUnavailable(Exception):
-    """Raised for failures worth falling back to another model for."""
 
 
 async def _request_completion(
