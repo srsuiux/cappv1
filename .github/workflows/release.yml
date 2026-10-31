@@ -33,7 +33,7 @@ jobs:
               raise SystemExit(f"No section for {version} in CHANGELOG.md")
           print(match.group(1).strip())
           PY
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           body_path: notes.md
           files: dist/*
