@@ -1,12 +1,12 @@
 import pytest
 
-from src.services import files
-from src.services.errors import ServiceError
+from cappv1.services import files
+from cappv1.services.errors import ServiceError
 from tests.helpers import make_deck
 
 
 def good_bytes(tmp_path):
-    return make_deck(tmp_path / "src.pptx").read_bytes()
+    return make_deck(tmp_path / "cappv1.pptx").read_bytes()
 
 
 def test_store_saves_a_valid_deck(ws, tmp_path):

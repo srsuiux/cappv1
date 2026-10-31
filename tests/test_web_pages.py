@@ -2,8 +2,8 @@ import re
 
 import pytest
 
-from src.version import VERSION
-from src.web.server import PAGES, STATIC, WebServer, render_page
+from cappv1.version import VERSION
+from cappv1.web.server import PAGES, STATIC, WebServer, render_page
 from tests.test_web_api import Client
 
 SLUGS = sorted(p.stem for p in PAGES.glob("*.html"))
@@ -87,12 +87,12 @@ def test_pages_and_assets_are_served(configured):
 
 def test_privacy_page_states_what_the_code_actually_sends():
     """If these facts change in the code, this page must change with it."""
-    from src import llm_client
+    from cappv1 import llm_client
     text = render_page("privacy").decode()
     for claim in ("speaker notes", "127.0.0.1", "Ollama", "OpenRouter", "OpenAI", "Anthropic", ".state/", "logs/", ".env"):
         assert claim in text
     # the request builder sends these parts of the slide context; the page lists them
-    from src.pptx_reader import SlideContext
+    from cappv1.pptx_reader import SlideContext
     ctx = SlideContext(0, "Sec", "Title", "Body", "Notes")
     sent = llm_client._context_text(ctx)
     for part in ("Title", "Sec", "Body", "Notes"):
@@ -172,10 +172,10 @@ def test_every_page_starts_with_the_same_header(slug):
 
 
 def test_the_changelog_lists_every_release_in_the_changelog_file():
-    from src.web import changelog
-    from src.version import VERSION
+    from cappv1.web import changelog
+    from cappv1.version import VERSION
 
-    text = (STATIC.parents[2] / "CHANGELOG.md").read_text()
+    text = (STATIC.parents[3] / "CHANGELOG.md").read_text()
     versions = [r["version"] for r in changelog.parse(text)]
     assert VERSION in versions and "1.0.0" in versions
     html = render_page("changelog").decode()
@@ -190,7 +190,7 @@ def test_the_changelog_is_only_cards():
 
 
 def test_the_changelog_groups_changes_and_escapes_what_it_shows():
-    from src.web import changelog
+    from cappv1.web import changelog
 
     out = changelog.render("## 2.0.0 - 2026-01-02\n\n### New\n\n- A `code` <b>tag</b> and **bold**\n\n### Fixed\n\n- One thing\n\n## Unreleased\n\n- Later\n")
     assert 'class="kind new"' in out and 'class="kind fixed"' in out and "<code>code</code>" in out

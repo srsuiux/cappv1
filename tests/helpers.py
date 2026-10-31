@@ -29,6 +29,6 @@ def make_deck(path: Path, picture_color=(200, 60, 60)) -> Path:
 
 
 def alt_texts(path: Path) -> list[str]:
-    from src.pptx_reader import get_alt_text
+    from cappv1.pptx_reader import get_alt_text
 
     return [t for slide in Presentation(path).slides for shape in slide.shapes if (t := get_alt_text(shape))]

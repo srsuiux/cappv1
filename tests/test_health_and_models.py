@@ -1,5 +1,5 @@
-from src.services import health, models, settings
-from src.services.errors import ServiceError
+from cappv1.services import health, models, settings
+from cappv1.services.errors import ServiceError
 import pytest
 
 
@@ -10,7 +10,7 @@ def test_doctor_passes_for_a_working_local_setup(configured):
 
 
 def test_doctor_explains_how_to_fix_a_stopped_ollama(ws):
-    from src.services import envfile
+    from cappv1.services import envfile
 
     envfile.set_values(ws, {"OLLAMA_BASE_URL": "http://127.0.0.1:9"})  # nothing listens here
     settings.save(ws, "ollama", "gemma3:4b")
@@ -19,7 +19,7 @@ def test_doctor_explains_how_to_fix_a_stopped_ollama(ws):
 
 
 def test_doctor_flags_a_missing_key(ws):
-    from src.services import envfile
+    from cappv1.services import envfile
 
     envfile.set_values(ws, {"PROVIDER": "openai"})
     checks = {c.label: c for c in health.run_all(ws, live=False)}
@@ -31,7 +31,7 @@ def test_only_models_that_can_read_images_are_offered(configured):
 
 
 def test_ollama_down_is_a_friendly_error(ws):
-    from src.services import envfile
+    from cappv1.services import envfile
 
     envfile.set_values(ws, {"OLLAMA_BASE_URL": "http://127.0.0.1:9"})
     with pytest.raises(ServiceError) as err:
@@ -46,7 +46,7 @@ def test_openrouter_catalog_groups_by_maker_cheapest_first(monkeypatch):
         {"id": "a/cheap", "name": "x", "free": False, "price": 0.1},
         {"id": "b/mid", "name": "x", "free": False, "price": 1.0},
     ]
-    monkeypatch.setattr("src.models.fetch_openrouter_vision_models", lambda: fake)
+    monkeypatch.setattr("cappv1.models.fetch_openrouter_vision_models", lambda: fake)
     cat = models.openrouter_catalog()
     assert [m.id for m in cat.free] == ["a/free-one:free"]
     assert [m.id for m in cat.cheapest(2)] == ["a/cheap", "b/mid"]

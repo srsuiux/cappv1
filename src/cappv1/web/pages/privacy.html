@@ -1,0 +1,78 @@
+<!-- title="Privacy" nav="privacy" layout="app" width="wide" description="What cappv1 collects, what is sent to an AI service, and what is stored on your computer." -->
+<header class="page-head"><h1>Privacy</h1>
+<p class="lede">cappv1 has no accounts, no analytics and no servers of its own. It runs on your computer. Your slides leave it only if you choose a cloud AI service, and then only the parts that service needs, sent straight from your computer to that service.</p>
+<p class="muted">Last updated 29 October 2026.</p></header>
+<div class="cards">
+<section class="panelbox">
+<h2>What cappv1 collects</h2>
+<p>Nothing about you. There is no sign-up, no tracking, no usage statistics and no cookies. The web pages load no outside scripts, fonts or images; everything comes from the copy of cappv1 running on this computer. The page keeps one random code in this browser tab's session storage so it can talk to cappv1, and the code is forgotten when you close the tab.</p>
+</section>
+<section class="panelbox span">
+<h2>What is sent to an AI service</h2>
+<p>When cappv1 describes an item, it sends that service a request made of these parts:</p>
+<table>
+  <caption>Parts of a request</caption>
+  <thead><tr><th scope="col">Item</th><th scope="col">What is sent</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">A picture</th><td>The picture itself</td></tr>
+    <tr><th scope="row">A table</th><td>The table's text</td></tr>
+    <tr><th scope="row">An embedded object, such as a Visio drawing</th><td>Text read out of the object's file (rough and out of order), never its picture</td></tr>
+    <tr><th scope="row">A chart</th><td>The chart's text and numbers</td></tr>
+    <tr><th scope="row">Every item</th><td>The slide's title, section name, text and speaker notes, any alt text already there, and cappv1's instructions. For a Word document: the nearest heading above the item, the paragraphs just before and after it, any alt text already there, and cappv1's instructions</td></tr>
+  </tbody>
+</table>
+<p>The whole file is never uploaded, other slides (or the rest of a Word document) are not included, and file names are not sent. Because speaker notes and slide text are included as context, don't use a cloud service for decks whose notes you wouldn't want it to see.</p>
+</section>
+<section class="panelbox span">
+<h2>What each service does with it</h2>
+<table>
+  <caption>Where your content goes</caption>
+  <thead><tr><th scope="col">Service</th><th scope="col">Where it goes</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Ollama</th><td>Nowhere. It runs on this computer. cappv1 refuses a non-local Ollama address unless you explicitly allow it.</td></tr>
+    <tr><th scope="row">OpenRouter</th><td>To OpenRouter, which forwards it to the company that runs the model you picked. Free models may log requests.</td></tr>
+    <tr><th scope="row">OpenAI</th><td>To OpenAI's API.</td></tr>
+    <tr><th scope="row">Anthropic</th><td>To Anthropic's API.</td></tr>
+  </tbody>
+</table>
+<p>Once content reaches a cloud service, that service's own policy applies, including how long it keeps requests and whether it trains on them. Read it before you use the service: <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener noreferrer">OpenRouter</a>, <a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener noreferrer">OpenAI</a>, <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer">Anthropic</a> (each opens in a new tab). Your API key is sent only to the service it belongs to.</p>
+</section>
+<section class="panelbox span">
+<h2>What is stored on your computer</h2>
+<table>
+  <caption>Kept in cappv1's folder</caption>
+  <thead><tr><th scope="col">Where</th><th scope="col">What</th></tr></thead>
+  <tbody>
+    <tr><th scope="row"><code>input/</code></th><td>Copies of the decks and Word documents you added</td></tr>
+    <tr><th scope="row"><code>output/</code></th><td>The finished decks and documents, one folder per run (named for the time it ran) until you delete it</td></tr>
+    <tr><th scope="row"><code>.state/</code></th><td>Progress, the alt text already written, and notes on items it could not read (where they are and why), so repeat runs cost nothing</td></tr>
+    <tr><th scope="row"><code>logs/</code></th><td>File names, slide counts and error messages, not slide content</td></tr>
+    <tr><th scope="row"><code>.env</code></th><td>Your chosen service and model, and any API keys, readable only by your account</td></tr>
+  </tbody>
+</table>
+<p>The <a href="/data">Your data</a> page shows the real location and size of each of these on this computer.</p>
+</section>
+<section class="panelbox">
+<h2>Other network connections</h2>
+<ul>
+  <li><b>Checking a key:</b> when you save a new key, cappv1 asks that service whether it accepts it.</li>
+  <li><b>Browsing OpenRouter models:</b> cappv1 fetches OpenRouter's public model list. No key and no slide content is sent.</li>
+  <li><b>Installing:</b> installing cappv1 (for example with pipx) downloads its Python packages from the Python Package Index. cappv1 itself downloads nothing when you run it.</li>
+</ul>
+<p>There is nothing else: no update checks, no error reports, no analytics.</p>
+</section>
+<section class="panelbox">
+<h2>Who can reach the web page</h2>
+<p>Only programs on this computer. The server listens on <code>127.0.0.1</code>, so other devices on your network can't open it. Each launch creates a new random code that every request must carry, and requests with an unexpected address are refused, which stops other websites from using it.</p>
+</section>
+<section class="panelbox">
+<h2>Your controls</h2>
+<ul>
+  <li>Choose <b>Ollama</b> and nothing leaves your computer.</li>
+  <li>Open <a href="/data">Your data</a> to erase decks, finished copies, saved progress and logs.</li>
+  <li>Open <a href="/services">Services</a> to remove a saved API key.</li>
+  <li>Delete cappv1's folder to remove everything it has ever stored.</li>
+</ul>
+<p class="muted">This page describes how cappv1 behaves. It isn't legal advice, and it can't speak for the AI services you choose.</p>
+</section>
+</div>

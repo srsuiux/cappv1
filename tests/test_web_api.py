@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from src.web.server import TOKEN_HEADER, WebServer
+from cappv1.web.server import TOKEN_HEADER, WebServer
 from tests.helpers import make_deck
 
 
@@ -126,7 +126,7 @@ def test_bad_uploads_are_refused(web, deck, monkeypatch):
     status, body, _ = upload(web, "..%2Fescape.pptx", deck)  # only the file name part is ever used
     assert status == 201 and body["name"] == "escape.pptx" and not (web.server.ws.root / "escape.pptx").exists()
     web.call("DELETE", "/api/v1/files/escape.pptx")
-    from src.services import files
+    from cappv1.services import files
     monkeypatch.setattr(files, "MAX_UPLOAD_BYTES", 10)
     assert upload(web, "big.pptx", deck)[1]["error"]["code"] == "too_big"
     assert not list(web.server.ws.input_dir.iterdir())  # nothing half-saved

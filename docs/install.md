@@ -12,42 +12,26 @@ A full walkthrough, one time only.
 
 ## Install (one time)
 
-**1. Download the project and open it in Terminal.**
+**1. Install pipx** if you don't have it. pipx installs command-line tools in their own space so they can't clash with anything else. On a Mac with [Homebrew](https://brew.sh): `brew install pipx`. On Linux, use your package manager (for example `sudo apt install pipx`). Then run `pipx ensurepath` and open a new Terminal window.
+
+**2. Install cappv1.**
 
 ```
-git clone https://github.com/srsuiux/cappv1.git
-cd cappv1
+pipx install git+https://github.com/srsuiux/cappv1.git
 ```
 
-**2. Create your settings file and open it.**
+To update later, run `pipx upgrade cappv1`.
 
-```
-cp .env.example .env
-open -e .env
-```
-
-A text editor opens. Make two edits, with no spaces around the `=`:
-
-- Set `PROVIDER=` to `openrouter`, `openai`, `anthropic`, or `ollama`.
-- Paste your key after the matching line, for example `OPENAI_API_KEY=sk-...`. (Ollama needs no key. Follow [Private mode](providers.md#private-mode-run-everything-on-your-own-computer) instead.)
-
-Leave everything else as it is, then save (`Cmd + S`) and close the window.
-
-**3. Turn on the `cappv1` command.**
-
-```
-mkdir -p ~/.local/bin
-ln -sf "$(pwd)/bin/cappv1" ~/.local/bin/cappv1
-```
-
-**4. Open it and check that it works.**
+**3. Open it and check that it works.**
 
 ```
 cappv1
 ```
 
-The first time, it offers to walk you through choosing an AI service. Then type `/doctor` and press Enter. You should see a list of green checkmarks. A red ✗ means something needs fixing, and the line next to it says what.
+The first time, it offers to walk you through choosing an AI service and pasting your key (`/init`). Then type `/doctor` and press Enter. You should see a list of green checkmarks. A red ✗ means something needs fixing, and the line next to it says what.
 
 `cappv1` is the only command you type in Terminal. Everything else (`/run`, `/doctor`, `/models`, ...) is typed inside it.
 
-The first time you open cappv1, it pauses for a few extra seconds to install what it needs. That's normal and only happens once.
+**Where your files go.** cappv1 keeps your settings (`.env`), `input`, `output`, saved progress and logs in a folder called `cappv1` in your home folder (`~/cappv1`). Set `CAPPV1_HOME` to use another folder. If you run it from a cloned copy of the project (see [Development](development.md)), that folder is the project folder instead.
+
+You can also edit `~/cappv1/.env` by hand; [Configuration](configuration.md) lists every setting.

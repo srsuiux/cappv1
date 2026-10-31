@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from src.services import settings
-from src.services.workspace import Workspace
+from cappv1.services import settings
+from cappv1.services.workspace import Workspace
 
 _WATCHED = ("PROVIDER", "MODEL", "FALLBACK_MODEL", "CONCURRENCY", "MIN_", "MAX_ALT", "OLLAMA_", "REQUEST_TIMEOUT")
 
@@ -83,7 +83,7 @@ def fake_ollama():
 @pytest.fixture
 def configured(ws, fake_ollama):
     """A workspace set up to use the fake local model."""
-    from src.services import envfile
+    from cappv1.services import envfile
 
     envfile.set_values(ws, {"OLLAMA_BASE_URL": fake_ollama.url})
     settings.save(ws, "ollama", "gemma3:4b")

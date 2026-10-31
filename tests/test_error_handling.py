@@ -1,4 +1,4 @@
-from src import outputs
+from cappv1 import outputs
 """One unreadable item must never stop a file: it is skipped, noted, and the rest finishes."""
 import asyncio
 import logging
@@ -6,13 +6,13 @@ import logging
 from docx import Document
 from pptx import Presentation
 
-from src import events, pipeline
-from src.docx_reader import extract_pictures as docx_pictures
-from src.docx_reader import get_table_alt_text, extract_tables
-from src.pipeline import explain_error
-from src.services import files
-from src.services.runs import RunManager
-from src.state import load_state
+from cappv1 import events, pipeline
+from cappv1.docx_reader import extract_pictures as docx_pictures
+from cappv1.docx_reader import get_table_alt_text, extract_tables
+from cappv1.pipeline import explain_error
+from cappv1.services import files
+from cappv1.services.runs import RunManager
+from cappv1.state import load_state
 from tests.helpers import alt_texts, make_deck
 from tests.test_docx import docx_config, make_docx, run
 
@@ -119,7 +119,7 @@ def test_a_null_model_reply_means_try_the_fallback_not_crash():
 
     import pytest
 
-    from src.llm_client import _ModelUnavailable, _parse_completion
+    from cappv1.llm_client import _ModelUnavailable, _parse_completion
 
     config = types.SimpleNamespace(provider="openrouter")
     with pytest.raises(_ModelUnavailable):
@@ -133,7 +133,7 @@ def test_an_empty_model_reply_is_asked_again_before_giving_up(monkeypatch):
 
     import httpx
 
-    from src import llm_client
+    from cappv1 import llm_client
 
     replies = iter([None, "A diagram."])
 

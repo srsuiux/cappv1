@@ -8,11 +8,13 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 
 - Changelog page under Learn: a card per release with its date, grouped into new, improved and fixed. It is read from this file, so it is always current.
 - Appearance page under Learn: choose the theme and an accent color (blue, teal, green, purple, rose or amber) for buttons and links, each checked for contrast in light and dark. Remembered in this browser. They are no longer in the sidebar.
+- Install with `pipx install git+https://github.com/srsuiux/cappv1.git`. No cloning, symlink or virtual environment. Settings, `input`, `output` and saved progress live in `~/cappv1` (or `CAPPV1_HOME`); a cloned copy still uses its own folder.
 - Install cappv1 from the browser as an app with its own window. It still needs to be running, and the address it prints, to connect.
 - Each run keeps its finished copies in `output/<date>_<time>/` instead of replacing the last ones. Download or delete one copy or a whole run from the Files page, or in the terminal with `/history` and `/remove`; both see the change. Copies left loose in `output/` by older versions show as the oldest run.
 
 ### Improved
 
+- The Python package is now `cappv1` (it was `src`), and `pyproject.toml` is the only place dependencies are listed. `cappv1 --batch` now runs in the foreground and prints the log, instead of starting a background job; `python -m cappv1` also works.
 - Every page now uses the full window width, in the same card layout as Files, with a shared page header.
 - The window is fixed to the screen and only the content scrolls; the sidebar no longer folds.
 - Files page: three panels (Current files, Past files, Finished copies), with sizes and dates on each card. Long processing notes moved into a ? on the card that shows them on hover, focus or tap.
