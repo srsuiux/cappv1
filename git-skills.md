@@ -75,7 +75,7 @@ Slash commands live inside the session. The shell exposes only `cappv1`, `--batc
 | The one product rule | `skills.md` |
 | Architecture | `docs/ARCHITECTURE.md` |
 | HTTP API | `docs/API.md` |
-| Plans and scope | `docs/web-ui-plan.md` |
+| Why the web UI is shaped as it is | `docs/adr/0001-web-ui.md` |
 | Contribution and release process | `CONTRIBUTING.md` |
 | Security reporting | `SECURITY.md` |
 | Settings variables | `.env.example` |
