@@ -9,6 +9,7 @@ from docx import Document
 from lxml import etree
 from pptx import Presentation
 from pptx.oxml.ns import qn
+from pptx.presentation import Presentation as PresentationType
 
 _NV_PR_TAGS = ("p:nvPicPr", "p:nvSpPr", "p:nvGrpSpPr", "p:nvGraphicFramePr", "p:nvCxnSpPr")
 
@@ -23,11 +24,11 @@ class SlideContext:
     kind: str = "slide"  # "document" for a Word file: the prompts then talk about a document
 
 
-def open_presentation(path: Path) -> Presentation:
+def open_presentation(path: Path) -> PresentationType:
     return Presentation(str(path))
 
 
-def save_presentation(prs: Presentation, source: Path, dest: Path) -> None:
+def save_presentation(prs: PresentationType, source: Path, dest: Path) -> None:
     """Writes the finished copy by taking the original file as it is and replacing only the slides
     whose XML changed. Saving through python-pptx repackages every part and silently drops
     relationships it cannot resolve (an embedded object with Target="NULL"), which leaves the slide
@@ -52,7 +53,7 @@ def save_presentation(prs: Presentation, source: Path, dest: Path) -> None:
             out.writestr(entry, replace.get(info.filename) or src.read(info.filename))
 
 
-def get_section_map(prs: Presentation) -> dict[int, str]:
+def get_section_map(prs: PresentationType) -> dict[int, str]:
     """Best-effort slide_index -> section name, parsed from presentation.xml's
     p14:sectionLst extension (not exposed by python-pptx's public API)."""
     try:
