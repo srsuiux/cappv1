@@ -2,6 +2,16 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
+## 1.7.1 - 2026-10-30
+
+### Changed
+
+- The PyPI page now has a fuller description and is marked Production/Stable.
+
+### Fixed
+
+- A stray `.coverage` test file was removed from the repository.
+
 ## 1.7.0 - 2026-10-30
 
 ### New

@@ -5,14 +5,14 @@ build-backend = "hatchling.build"
 [project]
 name = "cappv1"
 dynamic = ["version", "readme"]
-description = "Writes alt text into PowerPoint and Word files using a vision model, without changing how they look."
+description = "Writes screen-reader alt text for pictures, charts, tables and diagrams in PowerPoint and Word files using a vision AI model. Works with OpenRouter, OpenAI, Anthropic, or offline with Ollama."
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Sundar Raj Sharma" }]
 keywords = ["accessibility", "a11y", "alt-text", "pptx", "docx", "powerpoint", "word", "llm", "wcag", "screen-reader"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Environment :: Web Environment",
     "Intended Audience :: Education",
