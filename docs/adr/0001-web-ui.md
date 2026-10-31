@@ -9,8 +9,8 @@ cappv1 started as a terminal tool. People who are not comfortable in Terminal or
 ## Decision
 
 - A web UI that runs on the user's own computer only (`127.0.0.1`). No cloud service, accounts, telemetry or outside requests from the page.
-- No web framework and no build step: a standard-library Python server, plain HTML, CSS and JavaScript. Pages are fragments in `src/web/pages/`, wrapped by a template.
-- One brain, two faces. Logic lives in a service layer (`src/services/`) that both the terminal and the browser call, so they cannot disagree. The engine stays a library with no UI knowledge and reports progress through an event bus. Both front ends share one `RunManager`, so a run started in one is visible in the other. Only one run is active at a time.
+- No web framework and no build step: a standard-library Python server, plain HTML, CSS and JavaScript. Pages are fragments in `src/cappv1/web/pages/`, wrapped by a template.
+- One brain, two faces. Logic lives in a service layer (`src/cappv1/services/`) that both the terminal and the browser call, so they cannot disagree. The engine stays a library with no UI knowledge and reports progress through an event bus. Both front ends share one `RunManager`, so a run started in one is visible in the other. Only one run is active at a time.
 - Localhost is not automatically safe. The server uses a Host-header allowlist (against DNS rebinding), a random per-launch token sent in a header on every API call, no CORS headers, a strict content policy (no inline script or style), and streamed, size-limited, validated uploads.
 - The UI must itself be accessible: keyboard operable, semantic HTML, live regions for progress, contrast of at least 4.5:1 for text, light and dark themes, plain language.
 - Deliberately small. It is not a data manager: no database, no file manager, no search, no accounts. "Your data" only shows what cappv1 already keeps and offers one erase action. (The one later exception, owner-approved, is that each run keeps its finished copies in `output/<date>_<time>/` until deleted.)

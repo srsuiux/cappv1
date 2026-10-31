@@ -1,9 +1,9 @@
-from src import outputs
 from pptx import Presentation
 
-from src.pptx_reader import get_alt_text, set_alt_text
-from src.services import files
-from src.services.runs import RunManager
+from cappv1 import outputs
+from cappv1.pptx_reader import get_alt_text, set_alt_text
+from cappv1.services import files
+from cappv1.services.runs import RunManager
 from tests.helpers import make_deck
 
 LONG = "A chart of quarterly sales for each region, used to compare the north and the south"
@@ -72,8 +72,8 @@ def test_different_images_never_share_a_caption(configured, fake_ollama, tmp_pat
 # ---- table header row ---------------------------------------------------------
 def _table(rows, style=True, merge=False, blank=False):
     from pptx import Presentation
-    from pptx.util import Inches
     from pptx.oxml.ns import qn
+    from pptx.util import Inches
 
     prs = Presentation()
     slide = prs.slides.add_slide(prs.slide_layouts[5])
@@ -92,7 +92,7 @@ def _table(rows, style=True, merge=False, blank=False):
 
 
 def test_header_row_is_flagged_when_it_changes_nothing_visually():
-    from src.pptx_reader import mark_table_header
+    from cappv1.pptx_reader import mark_table_header
 
     shape = _table(3, style=False)
     assert mark_table_header(shape) == "set"
@@ -101,7 +101,7 @@ def test_header_row_is_flagged_when_it_changes_nothing_visually():
 
 
 def test_header_row_is_left_alone_when_unsafe():
-    from src.pptx_reader import mark_table_header
+    from cappv1.pptx_reader import mark_table_header
 
     for shape in (_table(3, style=True), _table(1, style=False), _table(3, style=False, merge=True), _table(3, style=False, blank=True)):
         assert mark_table_header(shape).startswith("skipped")
@@ -115,8 +115,7 @@ def test_the_deck_keeps_every_part_except_the_slides_it_wrote_to(configured, tmp
 
     src = make_deck(tmp_path / "a.pptx")
     broken = tmp_path / "broken.pptx"
-    rel = ('<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/'
-           'relationships/oleObject" Target="NULL"/>')
+    rel = '<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/oleObject" Target="NULL"/>'
     with zipfile.ZipFile(src) as zin, zipfile.ZipFile(broken, "w") as zout:
         for info in zin.infolist():
             data = zin.read(info.filename)

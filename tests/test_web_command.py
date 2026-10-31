@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
-from src.services.runs import RunManager
-from src.tui import commands
+from cappv1.services.runs import RunManager
+from cappv1.tui import commands
 
 
 class _Console:

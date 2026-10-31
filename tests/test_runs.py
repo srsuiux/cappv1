@@ -1,11 +1,11 @@
-from src import outputs
 import time
 
 import pytest
 
-from src.services import files
-from src.services.errors import ServiceError
-from src.services.runs import RunManager
+from cappv1 import outputs
+from cappv1.services import files
+from cappv1.services.errors import ServiceError
+from cappv1.services.runs import RunManager
 from tests.helpers import alt_texts, make_deck
 
 
@@ -100,7 +100,7 @@ def test_cancel_stops_promptly_and_work_can_resume(configured, fake_ollama, tmp_
 
 
 def test_missing_local_model_is_explained_before_starting(configured, tmp_path):
-    from src.services import settings
+    from cappv1.services import settings
 
     add_deck(configured, tmp_path)
     settings.save(configured, "ollama", "not-downloaded:7b")

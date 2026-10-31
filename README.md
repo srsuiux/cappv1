@@ -58,14 +58,11 @@ The web pages also have How it works, Privacy, FAQ, Changelog, Appearance (theme
 ## Quick start
 
 ```
-git clone https://github.com/srsuiux/cappv1.git
-cd cappv1
-cp .env.example .env        # then set PROVIDER and your key
-mkdir -p ~/.local/bin && ln -sf "$(pwd)/bin/cappv1" ~/.local/bin/cappv1
-cappv1                      # then type /doctor, drag in a file, and type /run
+pipx install git+https://github.com/srsuiux/cappv1.git
+cappv1                      # then type /init, drag in a file, and type /run
 ```
 
-You need a Mac or Linux computer, Python 3.11 or newer, and an AI service (an API key, or Ollama to run it all on your own computer). The full walkthrough is in [docs/install.md](docs/install.md).
+You need a Mac or Linux computer, Python 3.11 or newer, and an AI service (an API key, or Ollama to run it all on your own computer). The full walkthrough is in [docs/install.md](docs/install.md). To try it without a file of your own, use [examples/sample.pptx](examples/sample.pptx).
 
 ## Commands
 

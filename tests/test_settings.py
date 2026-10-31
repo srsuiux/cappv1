@@ -3,8 +3,8 @@ import stat
 
 import pytest
 
-from src.services import settings
-from src.services.errors import ServiceError
+from cappv1.services import settings
+from cappv1.services.errors import ServiceError
 
 
 def test_unconfigured_workspace_reports_so(ws):
@@ -32,7 +32,7 @@ def test_key_is_saved_but_never_returned(ws):
 
 
 def test_switching_service_clears_the_old_fallback_model(ws):
-    from src.services import envfile
+    from cappv1.services import envfile
 
     envfile.set_values(ws, {"FALLBACK_MODEL": "old/model"})
     settings.save(ws, "ollama", "gemma3:4b")

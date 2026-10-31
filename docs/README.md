@@ -24,4 +24,4 @@
 
 ## Elsewhere in the repository
 
-[Changelog](../CHANGELOG.md), [contributing](../CONTRIBUTING.md), [security policy](../SECURITY.md) and [license](../LICENSE).
+[Example deck](../examples/README.md), [changelog](../CHANGELOG.md), [contributing](../CONTRIBUTING.md), [security policy](../SECURITY.md) and [license](../LICENSE).

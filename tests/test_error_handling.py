@@ -1,18 +1,18 @@
-from src import outputs
 """One unreadable item must never stop a file: it is skipped, noted, and the rest finishes."""
+
 import asyncio
 import logging
 
 from docx import Document
 from pptx import Presentation
 
-from src import events, pipeline
-from src.docx_reader import extract_pictures as docx_pictures
-from src.docx_reader import get_table_alt_text, extract_tables
-from src.pipeline import explain_error
-from src.services import files
-from src.services.runs import RunManager
-from src.state import load_state
+from cappv1 import events, outputs, pipeline
+from cappv1.docx_reader import extract_pictures as docx_pictures
+from cappv1.docx_reader import extract_tables, get_table_alt_text
+from cappv1.pipeline import explain_error
+from cappv1.services import files
+from cappv1.services.runs import RunManager
+from cappv1.state import load_state
 from tests.helpers import alt_texts, make_deck
 from tests.test_docx import docx_config, make_docx, run
 
@@ -44,7 +44,9 @@ def test_a_broken_picture_is_skipped_and_the_file_still_finishes(tmp_path, fake_
     assert state.status == "complete"
     assert [(s["where"], s["kind"]) for s in state.skipped] == [("slide 1", "picture")]
     assert state.skipped[0]["error"]
-    assert alt_texts(outputs.latest(config.output_dir, "a.pptx")).count(fake_ollama.reply) == 2  # the table and chart on slide 2 were still done
+    assert (
+        alt_texts(outputs.latest(config.output_dir, "a.pptx")).count(fake_ollama.reply) == 2
+    )  # the table and chart on slide 2 were still done
     assert [d["where"] for n, d in seen if n == "element_skipped"] == ["slide 1"]
     saved = next(d for n, d in seen if n == "file_saved")
     assert saved["skipped"] == 1 and not saved["incomplete"]
@@ -119,7 +121,7 @@ def test_a_null_model_reply_means_try_the_fallback_not_crash():
 
     import pytest
 
-    from src.llm_client import _ModelUnavailable, _parse_completion
+    from cappv1.llm_client import _ModelUnavailable, _parse_completion
 
     config = types.SimpleNamespace(provider="openrouter")
     with pytest.raises(_ModelUnavailable):
@@ -133,7 +135,7 @@ def test_an_empty_model_reply_is_asked_again_before_giving_up(monkeypatch):
 
     import httpx
 
-    from src import llm_client
+    from cappv1 import llm_client
 
     replies = iter([None, "A diagram."])
 
@@ -144,8 +146,9 @@ def test_an_empty_model_reply_is_asked_again_before_giving_up(monkeypatch):
         return None
 
     monkeypatch.setattr(llm_client.asyncio, "sleep", no_wait)
-    config = types.SimpleNamespace(provider="openrouter", base_url="http://x", api_key="k", request_timeout=5,
-                                   max_alt_text_chars=125, ollama_base_url="", model="m")
+    config = types.SimpleNamespace(
+        provider="openrouter", base_url="http://x", api_key="k", request_timeout=5, max_alt_text_chars=125, ollama_base_url="", model="m"
+    )
     monkeypatch.setattr(llm_client, "_build_request", lambda c, m, msgs: ("http://x/v1", {}, {}))
 
     async def go():

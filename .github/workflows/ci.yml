@@ -6,16 +6,46 @@ on:
   pull_request:
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests
+      - run: ruff format --check src tests
+      - run: mypy
+
+  test:
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest]
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: pip install -e ".[dev]"
       - run: python -m compileall -q src
-      - run: python -m pytest -q
+      - run: python -m pytest -q --cov=cappv1 --cov-report=term --cov-report=xml
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build
+      - run: python -m build
+      - name: Install the built wheel and run it
+        run: |
+          pip install dist/*.whl
+          cd "$RUNNER_TEMP"
+          cappv1 --version
+          python -c "from cappv1.home import bundled_file; assert bundled_file('CHANGELOG.md') and bundled_file('.env.example')"

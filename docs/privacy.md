@@ -45,7 +45,7 @@ Delete cappv1's folder to remove everything it has ever stored.
 
 - **Checking a key:** when you save a new key, cappv1 asks that service whether it accepts it.
 - **Browsing OpenRouter models:** cappv1 fetches OpenRouter's public model list. No key and no slide content is sent.
-- **Installing:** the first run downloads cappv1's Python packages from the Python Package Index.
+- **Installing:** installing cappv1 (for example with pipx) downloads its Python packages from the Python Package Index. cappv1 itself downloads nothing when you run it.
 
 There is nothing else: no update checks, no error reports, no analytics.
 

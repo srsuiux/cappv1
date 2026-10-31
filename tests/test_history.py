@@ -2,10 +2,9 @@ import time
 
 import pytest
 
-from src import outputs
-from src.services import files
-from src.services.errors import ServiceError
-from src.services.runs import RunManager
+from cappv1.services import files
+from cappv1.services.errors import ServiceError
+from cappv1.services.runs import RunManager
 from tests.helpers import make_deck
 
 
@@ -79,7 +78,7 @@ class _Session:
 
 
 def test_terminal_lists_and_removes_what_the_web_page_shows(ws, tmp_path, monkeypatch):
-    from src.tui import commands
+    from cappv1.tui import commands
 
     files.store_path(ws, make_deck(tmp_path / "a.pptx"))
     (ws.output_dir / "2026-01-02_03-04-05").mkdir()

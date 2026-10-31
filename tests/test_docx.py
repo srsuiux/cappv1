@@ -1,4 +1,3 @@
-from src import outputs
 import asyncio
 import io
 import types
@@ -10,9 +9,9 @@ from docx.shared import Inches
 from lxml import etree
 from PIL import Image
 
-from src import pipeline
-from src.config import load_config
-from src.docx_reader import (
+from cappv1 import outputs, pipeline
+from cappv1.config import load_config
+from cappv1.docx_reader import (
     extract_pictures,
     extract_tables,
     get_alt_text,
@@ -23,6 +22,7 @@ from src.docx_reader import (
 )
 
 LONG = "A bar chart of quarterly sales for each region, used to compare the north and the south"
+
 
 def png(color=(200, 60, 60), size=(300, 200)) -> io.BytesIO:
     buf = io.BytesIO()
@@ -134,10 +134,14 @@ def set_mode(path, mode):
     xml = parts["word/settings.xml"].decode()
     if "compatibilityMode" in xml:
         import re
+
         xml = re.sub(r'(compatibilityMode"[^>]*w:val=")\d+', rf"\g<1>{mode}", xml)
     else:
-        xml = xml.replace("</w:settings>", f'<w:compat><w:compatSetting w:name="compatibilityMode" '
-                          f'w:uri="http://schemas.microsoft.com/office/word" w:val="{mode}"/></w:compat></w:settings>')
+        xml = xml.replace(
+            "</w:settings>",
+            f'<w:compat><w:compatSetting w:name="compatibilityMode" '
+            f'w:uri="http://schemas.microsoft.com/office/word" w:val="{mode}"/></w:compat></w:settings>',
+        )
     parts["word/settings.xml"] = xml.encode()
     with zipfile.ZipFile(path, "w") as z:
         for name, data in parts.items():
@@ -152,7 +156,8 @@ def test_tables_in_an_old_compatibility_mode_document_are_left_alone(tmp_path, f
     xml = zipfile.ZipFile(outputs.latest(config.output_dir, "a.docx")).read("word/document.xml").decode()
     assert "tblDescription" not in xml and "tblCaption" not in xml
     assert 'descr="' in xml and 'descr=""' not in xml  # the picture still got its text
-    from src.state import load_state
+    from cappv1.state import load_state
+
     notes = load_state(config.state_dir, "a.docx").skipped
     assert len(notes) == 1 and notes[0]["kind"] == "tables"
     assert notes[0]["error"].startswith("1 table not described") and "compatibility mode (11)" in notes[0]["error"]
@@ -173,21 +178,36 @@ def add_object(path, *, alt=None):
     inside.add_paragraph("Customer places Order; Order contains Product")
     inside.save(inner)
     alt_attr = f' alt="{alt}"' if alt else ""
-    ns = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
-          'xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" '
-          'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"')
-    obj = (f'<w:p {ns}><w:r><w:object w:dxaOrig="100" w:dyaOrig="100"><v:shape id="ole_rId9" style="width:10pt"{alt_attr}>'
-           f'<v:imagedata o:title=""/></v:shape><o:OLEObject Type="Embed" ProgID="" ShapeID="ole_rId9" '
-           f'DrawAspect="Content" ObjectID="_1" r:id="rId9"/></w:object></w:r></w:p>')
+    ns = (
+        'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+        'xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+    )
+    obj = (
+        f'<w:p {ns}><w:r><w:object w:dxaOrig="100" w:dyaOrig="100"><v:shape id="ole_rId9" style="width:10pt"{alt_attr}>'
+        f'<v:imagedata o:title=""/></v:shape><o:OLEObject Type="Embed" ProgID="" ShapeID="ole_rId9" '
+        f'DrawAspect="Content" ObjectID="_1" r:id="rId9"/></w:object></w:r></w:p>'
+    )
     with zipfile.ZipFile(path) as z:
         parts = {n: z.read(n) for n in z.namelist()}
     parts["word/embeddings/oleObject1.bin"] = inner.getvalue()
-    rels = parts["word/_rels/document.xml.rels"].decode().replace(
-        "</Relationships>", '<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/'
-        'relationships/oleObject" Target="embeddings/oleObject1.bin"/></Relationships>')
+    rels = (
+        parts["word/_rels/document.xml.rels"]
+        .decode()
+        .replace(
+            "</Relationships>",
+            '<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/'
+            'relationships/oleObject" Target="embeddings/oleObject1.bin"/></Relationships>',
+        )
+    )
     parts["word/_rels/document.xml.rels"] = rels.encode()
-    types = parts["[Content_Types].xml"].decode().replace(
-        "<Override", '<Default Extension="bin" ContentType="application/vnd.openxmlformats-officedocument.oleObject"/><Override', 1)
+    types = (
+        parts["[Content_Types].xml"]
+        .decode()
+        .replace(
+            "<Override", '<Default Extension="bin" ContentType="application/vnd.openxmlformats-officedocument.oleObject"/><Override', 1
+        )
+    )
     parts["[Content_Types].xml"] = types.encode()
     doc = parts["word/document.xml"].decode().replace("<w:sectPr", obj.replace(f" {ns}", "") + "<w:sectPr", 1)
     parts["word/document.xml"] = doc.encode()
@@ -237,7 +257,7 @@ def listing_free_doc(tmp_path, rows):
 
 
 def test_a_plain_table_gets_its_first_row_marked_as_the_header(tmp_path):
-    from src.docx_reader import mark_table_header
+    from cappv1.docx_reader import mark_table_header
 
     table, pr = listing_free_doc(tmp_path, [["Tool", "Vendor"], ["Erwin", "Quest"]])
     assert mark_table_header(table) == "set"
@@ -249,7 +269,7 @@ def test_a_plain_table_gets_its_first_row_marked_as_the_header(tmp_path):
 
 
 def test_header_look_goes_before_an_existing_description(tmp_path):
-    from src.docx_reader import mark_table_header
+    from cappv1.docx_reader import mark_table_header
 
     table, pr = listing_free_doc(tmp_path, [["A", "B"], ["1", "2"]])
     etree.SubElement(pr, W + "tblDescription").set(W + "val", "x")
@@ -258,14 +278,17 @@ def test_header_look_goes_before_an_existing_description(tmp_path):
     assert tags.index("tblLook") < tags.index("tblDescription")
 
 
-@pytest.mark.parametrize("rows", [
-    [["Only", "row"]],
-    [["A"], ["1"]],
-    [["A", ""], ["1", "2"]],
-])
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [["Only", "row"]],
+        [["A"], ["1"]],
+        [["A", ""], ["1", "2"]],
+    ],
+)
 def test_every_table_gets_a_header_row_whatever_it_holds(tmp_path, rows):
     """Ally flags a table without a header row, including one-row boxes and one-column listings."""
-    from src.docx_reader import mark_table_header
+    from cappv1.docx_reader import mark_table_header
 
     table, pr = listing_free_doc(tmp_path, rows)
     assert mark_table_header(table) == "set"
@@ -273,7 +296,7 @@ def test_every_table_gets_a_header_row_whatever_it_holds(tmp_path, rows):
 
 
 def test_a_styled_table_gets_the_repeat_setting_but_not_the_look_box(tmp_path):
-    from src.docx_reader import mark_table_header
+    from cappv1.docx_reader import mark_table_header
 
     table, pr = listing_free_doc(tmp_path, [["A", "B"], ["1", "2"]])
     etree.SubElement(pr, W + "tblStyle").set(W + "val", "Grid")
@@ -348,13 +371,13 @@ def test_a_failed_model_call_leaves_the_file_to_retry(tmp_path, fake_ollama, mon
     async def no_wait(_):
         pass
 
-    monkeypatch.setattr("src.llm_client.asyncio.sleep", no_wait)
+    monkeypatch.setattr("cappv1.llm_client.asyncio.sleep", no_wait)
     config = docx_config(tmp_path, fake_ollama, monkeypatch)
     make_docx(config.input_dir / "a.docx")
     fake_ollama.stop()
     fake_ollama.server.server_close()  # every call now fails to connect
     run(config)
-    from src.state import load_state
+    from cappv1.state import load_state
 
     state = load_state(config.state_dir, "a.docx")
     assert state.status == "in_progress" and state.completed_slide_indices == []
@@ -363,8 +386,8 @@ def test_a_failed_model_call_leaves_the_file_to_retry(tmp_path, fake_ollama, mon
 
 # ---- services, runs and the web server --------------------------------------------
 def test_docx_uploads_are_accepted_and_checked(ws, tmp_path):
-    from src.services import files
-    from src.services.errors import ServiceError
+    from cappv1.services import files
+    from cappv1.services.errors import ServiceError
 
     info = files.store_path(ws, make_docx(tmp_path / "paper.docx"))
     assert info.name == "paper.docx" and info.state == "new"
@@ -381,7 +404,7 @@ def test_docx_uploads_are_accepted_and_checked(ws, tmp_path):
 
 
 def test_word_lock_files_are_ignored(ws, tmp_path):
-    from src.services import files
+    from cappv1.services import files
 
     files.store_path(ws, make_docx(tmp_path / "paper.docx"))
     (ws.input_dir / "~$paper.docx").write_bytes(b"lock")
@@ -389,8 +412,8 @@ def test_word_lock_files_are_ignored(ws, tmp_path):
 
 
 def test_a_run_through_the_service_captions_a_docx(configured, tmp_path):
-    from src.services import files
-    from src.services.runs import RunManager
+    from cappv1.services import files
+    from cappv1.services.runs import RunManager
 
     files.store_path(configured, make_docx(tmp_path / "paper.docx"))
     runs = RunManager(configured)
@@ -407,8 +430,8 @@ def out_doc_at(path):
 
 
 def test_the_accessibility_check_says_it_is_decks_only(configured, tmp_path):
-    from src.services import audit, files
-    from src.services.errors import ServiceError
+    from cappv1.services import audit, files
+    from cappv1.services.errors import ServiceError
 
     files.store_path(configured, make_docx(tmp_path / "paper.docx"))
     with pytest.raises(ServiceError) as err:
@@ -417,7 +440,7 @@ def test_the_accessibility_check_says_it_is_decks_only(configured, tmp_path):
 
 
 def test_clean_removes_documents_too(configured, tmp_path):
-    from src.services import files
+    from cappv1.services import files
 
     files.store_path(configured, make_docx(tmp_path / "paper.docx"))
     assert files.clean(configured)["input"] == 1
@@ -426,8 +449,8 @@ def test_clean_removes_documents_too(configured, tmp_path):
 
 def test_run_events_say_what_kind_of_file_it_is(configured, tmp_path):
     """The web page shows slide tiles for a deck and item chips for a Word document."""
-    from src.services import files
-    from src.services.runs import RunManager
+    from cappv1.services import files
+    from cappv1.services.runs import RunManager
     from tests.helpers import make_deck
 
     files.store_path(configured, make_docx(tmp_path / "paper.docx"))
@@ -446,13 +469,16 @@ def test_run_events_say_what_kind_of_file_it_is(configured, tmp_path):
 
 
 def test_an_embedded_excel_sheet_is_read_not_mistaken_for_a_word_file():
-    from src.pptx_reader import ole_object_to_text
+    from cappv1.pptx_reader import ole_object_to_text
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
         z.writestr("xl/workbook.xml", "<workbook/>")
-        z.writestr("xl/sharedStrings.xml", '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-                   "<si><t>Quarter</t></si><si><r><t>Revenue</t></r></si></sst>")
+        z.writestr(
+            "xl/sharedStrings.xml",
+            '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            "<si><t>Quarter</t></si><si><r><t>Revenue</t></r></si></sst>",
+        )
     text = ole_object_to_text(buf.getvalue())
     assert "Quarter" in text and "Revenue" in text
     assert ole_object_to_text(b"PK\x03\x04 not really a zip") == ""
@@ -463,18 +489,20 @@ def test_the_terminal_says_document_not_slide_for_a_word_file():
 
     from rich.console import Console
 
-    from src.tui.runview import RunView
+    from cappv1.tui.runview import RunView
 
     out = _io.StringIO()
     view = RunView(Console(file=out, width=100, force_terminal=False), types.SimpleNamespace())
     view.on_event("file_start", {"filename": "a.docx", "index": 1, "total": 1})
     view.on_event("file_open", {"total_slides": 1, "resumed": 0, "kind": "document"})
-    view.on_event("slide_end", {"slide": 0, "empty": False, "captioned": 4, "enhanced": 0, "kept": 0,
-                                "decorative": 0, "cached": 0, "failed": 0})
+    view.on_event(
+        "slide_end", {"slide": 0, "empty": False, "captioned": 4, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0}
+    )
     assert "document" in out.getvalue() and "slide" not in out.getvalue()
 
 
 # ---- structure fixes Ally scores -------------------------------------------------------------
+
 
 def styled(doc, text, style):
     return doc.add_paragraph(text, style=style)
@@ -496,7 +524,7 @@ def rpr_of(styles_el, style_id):
 
 
 def test_heading_levels_are_renumbered_without_changing_how_they_look():
-    from src.docx_structure import normalize_headings
+    from cappv1.docx_structure import normalize_headings
 
     doc = bare(Document())
     before = rpr_of(doc.styles.element, "Heading4"), rpr_of(doc.styles.element, "Heading7")
@@ -512,7 +540,7 @@ def test_heading_levels_are_renumbered_without_changing_how_they_look():
 
 
 def test_a_document_that_already_starts_at_heading_1_is_not_touched():
-    from src.docx_structure import normalize_headings
+    from cappv1.docx_structure import normalize_headings
 
     doc = Document()
     styled(doc, "One", "Heading 1")
@@ -521,7 +549,7 @@ def test_a_document_that_already_starts_at_heading_1_is_not_touched():
 
 
 def test_an_empty_heading_keeps_its_look_but_stops_being_a_heading():
-    from src.docx_structure import normalize_headings
+    from cappv1.docx_structure import normalize_headings
 
     doc = bare(Document())
     styled(doc, "One", "Heading 1")
@@ -533,7 +561,7 @@ def test_an_empty_heading_keeps_its_look_but_stops_being_a_heading():
 
 
 def test_captions_become_heading_1_in_a_document_with_no_headings():
-    from src.docx_structure import normalize_headings
+    from cappv1.docx_structure import normalize_headings
 
     doc = Document()
     styled(doc, "Table 2-1: Quality", "Normal")
@@ -548,8 +576,8 @@ def test_captions_become_heading_1_in_a_document_with_no_headings():
 def test_low_contrast_text_is_darkened_to_pass_and_keeps_its_hue():
     from docx.oxml.ns import qn
 
-    from src.docx_check import contrast
-    from src.docx_structure import fix_contrast
+    from cappv1.docx_check import contrast
+    from cappv1.docx_structure import fix_contrast
 
     doc = Document()
     run = doc.add_paragraph().add_run("light green")
@@ -567,7 +595,7 @@ def test_low_contrast_text_is_darkened_to_pass_and_keeps_its_hue():
 
 
 def test_the_title_is_filled_when_empty_or_wrong_and_left_alone_when_right():
-    from src.docx_structure import set_title
+    from cappv1.docx_structure import set_title
 
     doc = Document()
     doc.add_paragraph("Chapter 2 Figures and Tables")
@@ -578,7 +606,7 @@ def test_the_title_is_filled_when_empty_or_wrong_and_left_alone_when_right():
 
 
 def test_the_finished_file_passes_the_ally_self_check(tmp_path, fake_ollama, monkeypatch):
-    from src.docx_check import check
+    from cappv1.docx_check import check
 
     config = docx_config(tmp_path, fake_ollama, monkeypatch)
     make_docx(config.input_dir / "a.docx")
@@ -598,7 +626,7 @@ def table_with_heading_cells(doc, style="Heading 4"):
 
 def test_heading_styled_table_labels_do_not_count_as_headings_so_captions_are_promoted():
     """Ally ignores headings inside table cells; in four real chapters that was the only 'heading'."""
-    from src.docx_structure import normalize_headings
+    from cappv1.docx_structure import normalize_headings
 
     doc = bare(Document())
     styled(doc, "Table 3-1: Data types", "Normal")
@@ -612,7 +640,7 @@ def test_heading_styled_table_labels_do_not_count_as_headings_so_captions_are_pr
 
 
 def test_body_headings_are_renumbered_while_table_labels_keep_their_old_style():
-    from src.docx_structure import normalize_headings
+    from cappv1.docx_structure import normalize_headings
 
     doc = bare(Document())
     styled(doc, "Intro", "Heading 4")
@@ -624,7 +652,7 @@ def test_body_headings_are_renumbered_while_table_labels_keep_their_old_style():
 
 
 def test_the_self_check_reports_headings_that_exist_only_inside_tables(tmp_path):
-    from src.docx_check import check
+    from cappv1.docx_check import check
 
     doc = Document()
     for i in range(14):
@@ -644,11 +672,12 @@ def test_a_picture_no_model_can_read_is_described_by_its_caption(tmp_path, fake_
     renamed = media.rsplit(".", 1)[0] + ".wmf"
     parts[renamed] = parts.pop(media)
     parts["word/_rels/document.xml.rels"] = parts["word/_rels/document.xml.rels"].replace(
-        media.encode()[len("word/"):], renamed.encode()[len("word/"):])
+        media.encode()[len("word/") :], renamed.encode()[len("word/") :]
+    )
     parts["[Content_Types].xml"] = parts["[Content_Types].xml"].replace(
-        b"<Default", b'<Default Extension="wmf" ContentType="image/x-wmf"/><Default', 1)
+        b"<Default", b'<Default Extension="wmf" ContentType="image/x-wmf"/><Default', 1
+    )
     doc_xml = parts["word/document.xml"].decode().replace("Figure 1 shows the trend.", "Figure 7.3: Hospital layout")
-    caption = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:r><w:t>Figure 7.3: Hospital layout</w:t></w:r></w:p>'
     parts["word/document.xml"] = doc_xml.encode()
     with zipfile.ZipFile(src, "w") as z:
         for n, d in parts.items():
@@ -660,7 +689,7 @@ def test_a_picture_no_model_can_read_is_described_by_its_caption(tmp_path, fake_
 
 
 def test_what_counts_as_a_caption():
-    from src.docx_reader import CAPTION
+    from cappv1.docx_reader import CAPTION
 
     for yes in ("Figure 7.3: Hospital layout", "Table 2-1. Quality", "Figure 2.9 ER Modeler Window", "Fig. 4 - Plan"):
         assert CAPTION.match(yes), yes

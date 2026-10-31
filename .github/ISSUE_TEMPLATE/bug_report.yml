@@ -1,0 +1,64 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Please don't attach decks or documents with private content. A description or a small example file is enough.
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: cappv1 version
+      description: Run `cappv1 --version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: AI service
+      options: [OpenRouter, OpenAI, Anthropic, "Ollama (on this computer)", Not sure]
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: Shown by `/status`.
+  - type: dropdown
+    id: frontend
+    attributes:
+      label: Where did it happen
+      options: [Terminal, Browser, "Batch (cappv1 --batch)"]
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS, Linux, "Windows (WSL)", Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: filetype
+    attributes:
+      label: File type
+      options: [".pptx", ".docx", Both, Not file related]

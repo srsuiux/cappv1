@@ -6,7 +6,7 @@ Please report security problems privately, not in a public issue. On GitHub, ope
 
 ## What we consider in scope
 
-- The local web server (`src/web`): access control, request handling, file upload and download, path handling.
+- The local web server (`src/cappv1/web`): access control, request handling, file upload and download, path handling.
 - Handling of API keys and of decks and their contents.
 - Anything that lets a deck be changed beyond its alt text.
 
