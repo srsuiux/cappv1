@@ -43,7 +43,7 @@ def configure(session, show_current_first: bool) -> bool:
             return True
         change_model_only = pick == 1
 
-    if change_model_only:
+    if change_model_only and active:
         svc = settings.service(active)
     else:
         rows = [

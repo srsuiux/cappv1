@@ -64,7 +64,7 @@ def select(title: str, options: list[tuple[str, str]], default: int = 0) -> int 
         def _number(event, n=n):
             event.app.exit(result=n - 1)
 
-    app = Application(
+    app: Application[int | None] = Application(
         layout=Layout(Window(FormattedTextControl(render), height=Dimension(min=3))),
         key_bindings=kb,
         full_screen=False,

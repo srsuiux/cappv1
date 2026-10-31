@@ -327,7 +327,8 @@ def _paragraph_text(p_el) -> str:
 
 
 def _is_heading(doc, p_el) -> bool:
-    name = Paragraph(p_el, doc._body).style.name or ""
+    style = Paragraph(p_el, doc._body).style
+    name = (style.name if style is not None else None) or ""
     return name == "Title" or name.startswith("Heading")
 
 
