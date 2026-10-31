@@ -93,7 +93,7 @@ def normalize_headings(doc) -> str:
     # empty headings read as noise to a screen reader: keep their spacing, drop their heading-ness
     for p in flow:
         sid = _style_of(p)
-        if is_heading(p) and not _text(p):
+        if sid is not None and is_heading(p) and not _text(p):
             plain_id = sid + "Plain"
             if plain_id not in by_id:
                 plain = copy.deepcopy(by_id[sid])
@@ -106,14 +106,14 @@ def normalize_headings(doc) -> str:
 
     headings = [(p, _style_of(p)) for p in flow if is_heading(p) and _text(p)]
     if headings:
-        used = sorted({_level(by_id[sid]) for _, sid in headings})
+        used = sorted({lvl for _, sid in headings if (lvl := _level(by_id[sid])) is not None})
         if len(used) > 6 or _level(by_id[headings[0][1]]) != used[0]:
             return "; ".join(done)  # the first heading is deeper than a later one: can't fix without moving text
         if used == list(range(1, len(used) + 1)):
             return "; ".join(done)  # already starts at Heading 1 with no gaps
         rank = {lvl: i + 1 for i, lvl in enumerate(used)}
         used_ids = {sid for _, sid in headings}
-        targets = {sid: rank[_level(by_id[sid])] for sid in used_ids}
+        targets = {sid: rank[lvl] for sid in used_ids if (lvl := _level(by_id[sid])) is not None}
         new_ids = {f"Heading{n}" for n in targets.values()}
         affected = new_ids & set(by_id)  # existing styles a new heading style would overwrite
         remapped = {id(p) for p, _ in headings}
@@ -144,10 +144,10 @@ def normalize_headings(doc) -> str:
     # captions are what a reader navigates by
     captions = [p for p in flow if _CAPTION.match(_text(p)) and len(_text(p)) <= 200 and p.getparent() is body]
     if len(captions) >= 2:
-        counts = {}
+        counts: dict[str, int] = {}
         for p in captions:
             counts[_style_of(p) or "Normal"] = counts.get(_style_of(p) or "Normal", 0) + 1
-        base = max(counts, key=counts.get)
+        base = max(counts, key=lambda style: counts[style])
         if "Heading1" not in by_id or not any(_style_of(p) == "Heading1" for p in paragraphs):
             if "Heading1" in by_id:
                 styles_el.remove(by_id["Heading1"])
@@ -170,7 +170,7 @@ def normalize_headings(doc) -> str:
 def fix_contrast(doc) -> list[str]:
     """Darkens text colors that fail 4.5:1 against what is behind them to 7:1, keeping the hue. Returns a
     note per color changed. This is the one fix that changes how a page looks."""
-    notes = {}
+    notes: dict[tuple[str, str, str], int] = {}
     for run in doc.element.body.iter(qn("w:r")):
         color = run.find(f"{qn('w:rPr')}/{qn('w:color')}")
         if color is None or not _HEX.fullmatch(color.get(qn("w:val")) or "") or not _text(run):

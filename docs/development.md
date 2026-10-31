@@ -20,7 +20,7 @@ Clone the repository, create a virtual environment, run `pip install -e ".[dev]"
 
 CI also runs, on every push and pull request:
 
-- `ruff check` and `ruff format --check` (settings in `pyproject.toml`), and `mypy`. Some modules are listed under `[[tool.mypy.overrides]]` as known type debt; remove a module from the list once it is clean.
+- `ruff check` and `ruff format --check` (settings in `pyproject.toml`), and `mypy` over every module in `src/cappv1`, with no exceptions. New code needs to type-check; avoid `# type: ignore`, and give a short reason if you must use it.
 - The tests on Linux and macOS, with a coverage report (`python -m pytest --cov=cappv1`).
 - A build of the wheel, installed and run in a clean environment.
 - A markdown link check.
