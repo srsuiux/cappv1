@@ -3,7 +3,8 @@ from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.util import Inches, Pt
 
-from cappv1.audit import audit_deck, contrast_ratio
+from cappv1.audit import audit_deck
+from cappv1.audit_color import contrast_ratio
 from cappv1.services import audit as audit_service
 from cappv1.services.errors import ServiceError
 from tests.helpers import make_deck
