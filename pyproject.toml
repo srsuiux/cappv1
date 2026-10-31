@@ -59,8 +59,9 @@ ignore = ["E501", "E741", "B007", "B905"]  # E501: the formatter owns line lengt
 files = ["src/cappv1"]
 ignore_missing_imports = true
 
-# Known type errors, to be fixed module by module. New code and every other
-# module is checked; remove a line here once its module is clean.
+# Known type errors, to be fixed module by module (tracked in
+# https://github.com/srsuiux/cappv1/issues/1). New code and every other module is
+# checked; remove a line here once its module is clean.
 [[tool.mypy.overrides]]
 module = [
     "cappv1.audit",
