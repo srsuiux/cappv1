@@ -58,8 +58,8 @@ Slash commands live inside the session. The shell exposes only `cappv1`, `--batc
 - **Commit locally after every clean, meaningful change. Push only when the user asks.** Never force-push `main`.
 - Commit message: short imperative subject, a few lines on why, one logical change per commit, then the attribution line the environment specifies.
 - Versions `MAJOR.MINOR.PATCH`; releases are annotated tags `vX.Y.Z` on `main`.
-- Release steps: merge, clean `git status`, bump `src/cappv1/version.py`, add a `CHANGELOG.md` section, commit `Release vX.Y.Z`, `git tag -a vX.Y.Z -m "cappv1 X.Y.Z"`, `git push origin main vX.Y.Z`, then create the GitHub Release by hand (`gh` is not installed).
-- CI: GitHub Actions on Python 3.11, 3.12, 3.13. Check it after a push.
+- Release steps: merge, clean `git status`, bump `src/cappv1/version.py`, add a `CHANGELOG.md` section, commit `Release vX.Y.Z`, `git tag -a vX.Y.Z -m "cappv1 X.Y.Z"`, `git push origin main vX.Y.Z`, and the `Release` workflow creates the GitHub Release from the tag (`gh` is not installed here).
+- CI: GitHub Actions (ruff, mypy, tests on Linux and macOS with Python 3.11, 3.12, 3.13, a wheel build, a link check). Check it after a push. `pre-commit` runs the same lint locally.
 
 ## 6. Tests and checks
 

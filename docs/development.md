@@ -18,6 +18,15 @@ Settings live in `.env`; see [`configuration.md`](configuration.md) for the full
 
 Clone the repository, create a virtual environment, run `pip install -e ".[dev]"` (the one place dependencies are listed is `pyproject.toml`), then `python -m pytest`. CI runs the same on Python 3.11 to 3.13 for every pull request. New behavior comes with a test.
 
+CI also runs, on every push and pull request:
+
+- `ruff check` and `ruff format --check` (settings in `pyproject.toml`), and `mypy`. Some modules are listed under `[[tool.mypy.overrides]]` as known type debt; remove a module from the list once it is clean.
+- The tests on Linux and macOS, with a coverage report (`python -m pytest --cov=cappv1`).
+- A build of the wheel, installed and run in a clean environment.
+- A markdown link check.
+
+Run the same checks before you push with `pre-commit install` (once), which also blocks committing `.env` files and anything in `input/` or `output/`.
+
 ### The fake local model
 
 Tests use a temporary workspace and a fake local model, never your real settings or keys.
@@ -48,7 +57,7 @@ Short imperative subject ("Add Ollama provider"), then a few lines on why. One l
 2. Update `VERSION` in `src/cappv1/version.py` (the package version is read from it) and add a section to `CHANGELOG.md`.
 3. Commit: `Release vX.Y.Z`.
 4. `git tag -a vX.Y.Z -m "cappv1 X.Y.Z"` then `git push origin main vX.Y.Z`.
-5. On GitHub, create a Release from the tag and paste the changelog section.
+5. The `Release` workflow builds the wheel and sdist and creates the GitHub Release from the tag, using that version's `CHANGELOG.md` section as the notes. It fails if the tag does not match `src/cappv1/version.py`.
 
 ## Never commit
 

@@ -7,6 +7,7 @@
 cappv1 writes alt text for the pictures, charts and tables in your `.pptx` and `.docx` files, so people who use a screen reader aren't left with silence. Nothing you can see changes, and your originals are never touched.
 
 [![CI](https://github.com/srsuiux/cappv1/actions/workflows/ci.yml/badge.svg)](https://github.com/srsuiux/cappv1/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/srsuiux/cappv1/branch/main/graph/badge.svg)](https://codecov.io/gh/srsuiux/cappv1)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![Mac and Linux](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)
