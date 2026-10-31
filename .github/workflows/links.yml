@@ -2,7 +2,7 @@ name: Links
 
 on:
   push:
-    branches: [main, "fix/**", "docs/**", "feature/**"]
+    branches: [main, "fix/**", "docs/**", "feature/**", "release/**"]
   pull_request:
 
 jobs:
