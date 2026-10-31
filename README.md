@@ -23,7 +23,7 @@ A screen reader reads a chart as just "Chart." cappv1 asks an AI model to descri
 |---|---|
 | "Chart." | "Bar chart of enrolment by year, rising from 410 in 2021 to 640 in 2025." |
 
-- **Safe by design.** Layout, text, fonts, colors and pictures stay exactly as they were. It works on a copy and saves a finished file. The only extras it does are listed in [`skills.md`](skills.md), such as marking a table's top row as its header.
+- **Safe by design.** Layout, text, fonts, colors and pictures stay exactly as they were. It works on a copy and saves a finished file. The only extras it does are listed in [`docs/scope.md`](docs/scope.md), such as marking a table's top row as its header.
 - **Builds on what's there.** Alt text a person already wrote is kept or improved, never silently replaced.
 - **Picks up where it stopped.** Progress is saved. A crash, a closed laptop or `Ctrl+C` doesn't cost finished work, and nothing is paid for twice.
 - **Private if you want it.** Run a vision model on your own computer with Ollama and nothing leaves it. No accounts, no analytics, no tracking.
@@ -262,7 +262,7 @@ The run summary counts these separately ("improved", "kept as written"), so you 
 
 cappv1 is built in layers that only depend downward:
 
-- `src/pipeline.py`, `pptx_reader.py`, `docx_reader.py`, `llm_client.py` and friends are the **engine**. They know nothing about screens. [`skills.md`](skills.md) documents the one rule any change must follow: this tool writes alt text, plus only the few fixes it lists.
+- `src/pipeline.py`, `pptx_reader.py`, `docx_reader.py`, `llm_client.py` and friends are the **engine**. They know nothing about screens. [`docs/scope.md`](docs/scope.md) documents the one rule any change must follow: this tool writes alt text, plus only the few fixes it lists.
 - `src/services/` is the **service layer**: settings, models, files, health checks and runs, as plain functions that return data and raise `ServiceError` with a plain-language message.
 - `src/tui/` (the terminal session) and `src/web/` (the local web server and pages) are the two **front ends**. They only ask and draw.
 
@@ -274,7 +274,7 @@ Run the tests with `pip install -r requirements-dev.txt` and then `python -m pyt
 |---|---|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | How the code is laid out |
 | [`docs/API.md`](docs/API.md) | The local web API |
-| [`skills.md`](skills.md) | The one product rule |
+| [`docs/scope.md`](docs/scope.md) | The one product rule |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to contribute and release |
 | [`SECURITY.md`](SECURITY.md) | Reporting a security problem |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed in each version |

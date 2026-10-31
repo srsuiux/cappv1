@@ -4,7 +4,7 @@ cappv1 is open source under the [MIT License](LICENSE). Issues and pull requests
 
 ## Ground rule
 
-The tool never changes how a slide looks: it writes alt text, plus a short list of visually inert accessibility fixes. Any change must keep that true (see `skills.md`). LLM agents also read `git-skills.md`, which `CLAUDE.md` loads automatically.
+The tool never changes how a slide looks: it writes alt text, plus a short list of visually inert accessibility fixes. Any change must keep that true (see `docs/scope.md`). LLM agents also read `git-skills.md`, which `CLAUDE.md` loads automatically.
 
 ## Branches
 

@@ -85,7 +85,7 @@ def test_a_run_writes_alt_text_for_pictures_and_tables(tmp_path, fake_ollama, mo
 
 
 def test_only_alt_text_changes_in_the_document(tmp_path, fake_ollama, monkeypatch):
-    """The skills.md invariant: everything but the alt-text fields comes out the same."""
+    """The docs/scope.md invariant: everything but the alt-text fields comes out the same."""
     config = docx_config(tmp_path, fake_ollama, monkeypatch)
     src = make_docx(config.input_dir / "a.docx")
     run(config)

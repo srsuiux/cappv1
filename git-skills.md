@@ -1,6 +1,6 @@
 # git-skills: how an LLM works in this repository
 
-Read this first, every session. It tells you how the project is laid out, which rules cannot be broken, and how to decide what to do without being told each time. `skills.md` holds the one product rule; this file holds everything else. If the two ever disagree, `skills.md` wins.
+Read this first, every session. It tells you how the project is laid out, which rules cannot be broken, and how to decide what to do without being told each time. `docs/scope.md` holds the one product rule; this file holds everything else. If the two ever disagree, `docs/scope.md` wins.
 
 ## 1. What this project is
 
@@ -8,7 +8,7 @@ cappv1 writes alt text into PowerPoint decks using vision models (OpenRouter, Op
 
 ## 2. Hard rules (never break these, even if asked in passing)
 
-1. **Visually inert output.** The tool writes alt text (`descr` on `cNvPr`) and, from a short named list in `skills.md`, fixes that change nothing you can see. Never change fonts, sizes, layout, text or table styles. Colors are changed in one case only: Word text that fails the 4.5:1 contrast check is darkened (`src/docx_structure.py`, owner-approved, always noted in the file's skip notes). Report every other problem; do not fix it.
+1. **Visually inert output.** The tool writes alt text (`descr` on `cNvPr`) and, from a short named list in `docs/scope.md`, fixes that change nothing you can see. Never change fonts, sizes, layout, text or table styles. Colors are changed in one case only: Word text that fails the 4.5:1 contrast check is darkened (`src/docx_structure.py`, owner-approved, always noted in the file's skip notes). Report every other problem; do not fix it.
 2. **No secrets in the repo.** Never commit `.env`, keys, decks, or anything under `input/`, `output/`, `logs/`, `.state/`. Never print a key.
 3. **Privacy is a feature.** If a change affects what is sent to an AI service or stored on disk, update in the same change: `src/web/pages/privacy.html`, `src/services/storage.py`, `src/services/settings.py` (service notes). Tests tie the Privacy page to the code.
 4. **No tracking.** No analytics, telemetry, cookies, update checks, or third-party requests.
@@ -27,7 +27,7 @@ src/ engine               pipeline.py, pptx_reader.py, llm_client.py, state.py, 
 - Put logic in a service, not in a front end, so terminal and browser never disagree.
 - The engine knows nothing about screens; it reports progress through the event bus (`src/events.py`). The terminal and web server share one `RunManager`.
 - Errors from services are `ServiceError(code, message, fix)`: plain words plus a next step.
-- Identify PowerPoint shapes by XML tag (`shape._element.tag`), never `shape.shape_type` (see `skills.md`).
+- Identify PowerPoint shapes by XML tag (`shape._element.tag`), never `shape.shape_type` (see `docs/scope.md`).
 - `set_alt_text()` is the single write path for alt text; `mark_table_header()` is the only other write, and only when visually inert.
 
 ### Web (`src/web`)
@@ -44,7 +44,7 @@ Slash commands live inside the session. The shell exposes only `cappv1`, `--batc
 1. Read the request. If it is a question, answer it; do not change files.
 2. Find the code that already does something similar and match its style, naming and comment density.
 3. Classify the change:
-   - **Engine behavior** → check `skills.md` first; add a test in `tests/`.
+   - **Engine behavior** → check `docs/scope.md` first; add a test in `tests/`.
    - **New capability** → service function plus test, then wire to front ends.
    - **Copy or docs** → keep claims true; grep for sentences the change makes false (README, About, front page, Privacy, brief).
    - **Release or push** → only on explicit request.
@@ -72,7 +72,7 @@ Slash commands live inside the session. The shell exposes only `cappv1`, `--batc
 
 | Need | File |
 |---|---|
-| The one product rule | `skills.md` |
+| The one product rule | `docs/scope.md` |
 | Architecture | `docs/ARCHITECTURE.md` |
 | HTTP API | `docs/API.md` |
 | Why the web UI is shaped as it is | `docs/adr/0001-web-ui.md` |
