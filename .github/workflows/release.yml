@@ -17,9 +17,7 @@ jobs:
           python-version: "3.12"
       - run: pip install build twine
       - name: Check the tag matches the package version
-        run: |
-          version="$(python -c "exec(open('src/cappv1/version.py').read()); print(VERSION)")"
-          test "v$version" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME does not match version $version"; exit 1; }
+        run: python .github/scripts/check_release_tag.py "$GITHUB_REF_NAME"
       - run: python -m build
       - run: twine check dist/*
       - uses: actions/upload-artifact@v4

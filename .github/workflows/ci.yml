@@ -41,6 +41,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Test the release tag check (the same script the Release workflow runs)
+        run: |
+          tag="v$(python .github/scripts/check_release_tag.py --print)"
+          python .github/scripts/check_release_tag.py "$tag"
+          if python .github/scripts/check_release_tag.py v0.0.0; then echo "a wrong tag was accepted"; exit 1; fi
       - run: pip install build twine
       - run: python -m build
       - run: twine check dist/*
