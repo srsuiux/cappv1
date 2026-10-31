@@ -8,7 +8,7 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 
 - Changelog page under Learn: a card per release with its date, grouped into new, improved and fixed. It is read from this file, so it is always current.
 - Appearance page under Learn: choose the theme and an accent color (blue, teal, green, purple, rose or amber) for buttons and links, each checked for contrast in light and dark. Remembered in this browser. They are no longer in the sidebar.
-- Install with `pipx install git+https://github.com/srsuiux/cappv1.git`. No cloning, symlink or virtual environment.
+- Install with `pipx install cappv1` (or `pipx install git+https://github.com/srsuiux/cappv1.git`). No cloning, symlink or virtual environment.
 - Install cappv1 from the browser as an app with its own window. It still needs to be running, and the address it prints, to connect.
 - Each run keeps its finished copies in `output/<date>_<time>/` instead of replacing the last ones. Download or delete one copy or a whole run from the Files page, or in the terminal with `/history` and `/remove`; both see the change. Copies left loose in `output/` by older versions show as the oldest run.
 
