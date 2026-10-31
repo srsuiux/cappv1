@@ -15,12 +15,13 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from cappv1 import doctor, outputs
-from cappv1.services import audit, files, health, settings
-from cappv1.services import models as model_service
+from cappv1 import outputs
+from cappv1.services import audit, files, health
 from cappv1.services.errors import ServiceError
+from cappv1.tui.common import checking, fail, nothing_changed, service_error, success
 from cappv1.tui.menu import select
-from cappv1.tui.theme import ACCENT, BAD, CROSS, MUTED, OK, TICK, WARN
+from cappv1.tui.setup_flow import configure
+from cappv1.tui.theme import ACCENT, MUTED, OK, TICK, WARN
 
 
 @dataclass
@@ -29,31 +30,6 @@ class Command:
     help: str
     handler: Callable
     aliases: tuple[str, ...] = ()
-
-
-# ---------------------------------------------------------------- helpers
-def _checking(session, label: str, fn):
-    """Runs fn() (blocking) under a spinner and returns its result."""
-    with session.console.status(Text(f"{label}…", style=ACCENT), spinner="dots", spinner_style=ACCENT):
-        return fn()
-
-
-def _ok(session, msg: str) -> None:
-    session.console.print(Text(f" {TICK} {msg}", style=OK))
-
-
-def _fail(session, msg: str, fix: str = "") -> None:
-    session.console.print(Text(f" {CROSS} {msg}", style=BAD))
-    if fix:
-        session.console.print(Text(f"   {fix}", style=MUTED))
-
-
-def _service_error(session, err: ServiceError) -> None:
-    _fail(session, err.message, err.fix)
-
-
-def _nothing_changed(session) -> None:
-    session.console.print(Text(" Nothing changed.", style=MUTED))
 
 
 # ---------------------------------------------------------------- /help
@@ -80,7 +56,7 @@ def cmd_status(session, args: str) -> None:
     rows.add_row(Text("Workspace", style=MUTED), Text(s.workspace))
     session.console.print(Panel(rows, title="Status", title_align="left", border_style="grey42", padding=(1, 2)))
     if s.error:
-        _fail(session, s.error, "Type /init to set this up.")
+        fail(session, s.error, "Type /init to set this up.")
 
 
 # ---------------------------------------------------------------- /files
@@ -160,15 +136,15 @@ def cmd_remove(session, args: str) -> None:
         if outputs.RUN_NAME.fullmatch(run):
             what = f"the copy {name} in run {run}" if name else f"every finished copy in run {run}"
             if select(f"Delete {what}?", [("No, keep it", ""), ("Yes, delete", "no undo")]) != 1:
-                _nothing_changed(session)
+                nothing_changed(session)
                 return
             files.delete_copy(session.ws, run, name or None)
-            _ok(session, f"Deleted {what}")
+            success(session, f"Deleted {what}")
         else:
             files.remove(session.ws, target)
-            _ok(session, f"Removed {target} from the list. Finished copies are kept.")
+            success(session, f"Removed {target} from the list. Finished copies are kept.")
     except ServiceError as err:
-        _service_error(session, err)
+        service_error(session, err)
 
 
 # ---------------------------------------------------------------- /audit
@@ -188,7 +164,7 @@ def cmd_audit(session, args: str) -> None:
         try:
             result = audit.report(session.ws, name)
         except ServiceError as err:
-            _fail(session, name, f"{err.message} {err.fix}".strip())
+            fail(session, name, f"{err.message} {err.fix}".strip())
             continue
         session.console.print()
         session.console.print(Text(f" {result['file']}", style="bold"), Text(f"  (checked the {result['checked']})", style=MUTED), sep="")
@@ -207,12 +183,12 @@ def cmd_doctor(session, args: str) -> None:
     session.console.print()
     all_ok = True
     for planned in health.planned_checks(session.ws):
-        ok, detail = _checking(session, planned.label, planned.run)
+        ok, detail = checking(session, planned.label, planned.run)
         all_ok &= ok
         if ok:
             session.console.print(Text(f" {TICK} {planned.label}", style=OK), Text(f" {detail}" if detail else "", style=MUTED), sep="")
         else:
-            _fail(session, planned.label, detail)
+            fail(session, planned.label, detail)
     session.console.print()
     session.console.print(
         Text(
@@ -227,7 +203,7 @@ def cmd_doctor(session, args: str) -> None:
 # choice first and lets you keep it. /models goes straight to the pickers.
 # Both then share one flow: pick a service, then a model for it.
 def cmd_init(session, args: str) -> None:
-    if _configure(session, show_current_first=True):
+    if configure(session, show_current_first=True):
         _where_next(session)
 
 
@@ -254,7 +230,7 @@ def cmd_web(session, args: str) -> None:
         if session.web:
             session.web.stop()
             session.web = None
-            _ok(session, "Web page stopped")
+            success(session, "Web page stopped")
         else:
             console.print(Text(" The web page isn't running.", style=MUTED))
         return
@@ -264,211 +240,17 @@ def cmd_web(session, args: str) -> None:
             session.web.start()
         except ServiceError as err:
             session.web = None
-            _service_error(session, err)
+            service_error(session, err)
             return
     url = session.web.url
-    _ok(session, "Web page is running on this computer only")
+    success(session, "Web page is running on this computer only")
     console.print(Text(f"   {url}", style=ACCENT))
     console.print(Text("   Opened in your browser. Type /web stop to turn it off. Runs started there show up here too.", style=MUTED))
     webbrowser.open(url)
 
 
 def cmd_models(session, args: str) -> None:
-    _configure(session, show_current_first=False)
-
-
-def _configure(session, show_current_first: bool) -> bool:
-    """True when a service and model are now saved (changed or kept)."""
-    console = session.console
-    console.print()
-    current = settings.read(session.ws)
-    active = current.provider
-
-    # Already set up: show what is in use and don't walk through setup again.
-    change_model_only = False
-    if show_current_first and current.configured and active:
-        label = f"{current.provider_label} · {current.model}"
-        pick = select(
-            f"Currently using {label}",
-            [
-                ("Keep this", "no changes"),
-                ("Change the model", f"stay with {current.provider_label}"),
-                ("Switch AI service", "choose a different service"),
-            ],
-        )
-        if pick not in (1, 2):
-            _ok(session, f"Keeping {label}")
-            console.print(Text("   ", style=MUTED), session.privacy_text(active), sep="")
-            console.print()
-            return True
-        change_model_only = pick == 1
-
-    if change_model_only:
-        svc = settings.service(active)
-    else:
-        rows = [
-            (s.label + ("  (active)" if s.id == active else ""), s.note + (", key saved" if current.keys_saved.get(s.id) else ""))
-            for s in settings.SERVICES
-        ]
-        start = next((i for i, s in enumerate(settings.SERVICES) if s.id == active), 0)
-        choice = select("Which AI service?", rows, start)
-        if choice is None:
-            _nothing_changed(session)
-            return False
-        svc = settings.SERVICES[choice]
-        console.print(Text(f" {TICK} Service: {svc.label}", style=OK))
-
-    # the model last used with this service, so switching back is one Enter
-    remembered = current.remembered.get(svc.id) or (current.model if svc.id == active else "")
-    new_key = None
-    if svc.id == "ollama":
-        model = _pick_ollama_model(session, remembered)
-    else:
-        new_key = _ensure_key(session, svc, current.keys_saved.get(svc.id, False))
-        if new_key is None:
-            return False
-        model = _pick_model(session, svc, remembered)
-    if not model:
-        return False
-
-    try:
-        saved = settings.save(session.ws, svc.id, model, api_key=new_key or None)
-    except ServiceError as err:
-        _service_error(session, err)
-        return False
-    session.refresh()
-    _ok(session, f"Now using {saved.provider_label} · {saved.model}")
-    console.print(Text("   ", style=MUTED), session.privacy_text(saved.provider), sep="")
-    console.print()
-    return True
-
-
-def _ensure_key(session, svc, key_saved: bool) -> str | None:
-    """'' when a saved key will be used, a newly entered and checked key, or
-    None when the person stopped."""
-    if key_saved:
-        return ""
-    from prompt_toolkit import prompt
-
-    console = session.console
-    console.print(Text(f"   Get a key at {svc.key_help}", style=MUTED))
-    try:
-        key = prompt(f" Paste your {svc.label} key (hidden): ", is_password=True).strip()
-    except (EOFError, KeyboardInterrupt):
-        key = ""
-    if not key:
-        _nothing_changed(session)
-        return None
-    ok, detail = _checking(session, f"Checking the key with {svc.label}", lambda: settings.check_key(svc.id, key))
-    if ok:
-        _ok(session, f"{svc.label} accepted the key")
-        return key
-    _fail(session, detail)
-    if select("Save it anyway?", [("No, let me try again", ""), ("Yes, save it", "")]) == 1:
-        return key
-    console.print(Text(" Nothing changed. Run /models to try again.", style=MUTED))
-    return None
-
-
-def _openrouter_options(session) -> list[tuple[str, str]] | None:
-    """Narrows OpenRouter's few hundred image models down to a short list."""
-    try:
-        catalog = _checking(session, "Fetching models from OpenRouter", model_service.openrouter_catalog)
-    except ServiceError as err:
-        _service_error(session, err)
-        return None
-    makers = catalog.makers()
-    pick = select(
-        "Which OpenRouter models?",
-        [
-            ("Free", f"{len(catalog.free)} models, shared servers (may log your slides)"),
-            ("Cheapest paid", "the ten lowest prices"),
-            ("Browse paid by maker", f"{len(makers)} makers, e.g. OpenAI, Google, DeepSeek"),
-        ],
-    )
-    if pick is None:
-        _nothing_changed(session)
-        return None
-    if pick == 0:
-        chosen = catalog.free
-    elif pick == 1:
-        chosen = catalog.cheapest()
-    else:
-        names = list(makers)
-        maker = select("Which maker?", [(m, f"{len(makers[m])} models") for m in names])
-        if maker is None:
-            _nothing_changed(session)
-            return None
-        chosen = makers[names[maker]]
-    if pick != 0:
-        session.console.print(
-            Text("   Prices are per million input tokens. A picture is roughly a thousand, so most cost a fraction of a cent.", style=MUTED)
-        )
-    return [(m.id, m.note) for m in chosen]
-
-
-def _pick_model(session, svc, remembered: str) -> str | None:
-    if svc.id == "openrouter":
-        options = _openrouter_options(session)
-        if options is None:
-            return None
-    else:
-        options = [(m.id, m.note) for m in model_service.CURATED[svc.id]] + [("Other...", "type a model name")]
-    if not options:
-        _fail(session, "No image-capable models found right now.")
-        return None
-    start = next((i for i, (mid, _) in enumerate(options) if mid == remembered), 0)
-    options = [(mid, "last used" if mid == remembered else note) for mid, note in options]
-    pick = select(f"Which {svc.label} model?", options, start)
-    if pick is None:
-        _nothing_changed(session)
-        return None
-    chosen = options[pick][0]
-    if chosen != "Other...":
-        return chosen
-    from prompt_toolkit import prompt
-
-    try:
-        return prompt(" Model name: ").strip() or None
-    except (EOFError, KeyboardInterrupt):
-        return None
-
-
-def _pick_ollama_model(session, remembered: str) -> str | None:
-    console = session.console
-    while True:
-        try:
-            installed = _checking(session, "Looking for Ollama", lambda: model_service.ollama_vision(session.ws))
-            break
-        except ServiceError as err:
-            _service_error(session, err)
-            if select("What next?", [("Try again", "after starting Ollama"), ("Stop", "")]) != 0:
-                console.print(Text(" Nothing changed. Run /models when Ollama is ready.", style=MUTED))
-                return None
-    _ok(session, "Ollama is running")
-
-    names = [m.id for m in installed]
-    suggested = doctor.DEFAULT_OLLAMA_MODEL
-    options = [(n, "last used" if n == remembered else "installed") for n in names]
-    if suggested not in names:
-        options.append((f"Download {suggested}", "about 3 GB, a one-time download"))
-    start = next((i for i, n in enumerate(names) if n == remembered), 0)
-    pick = select("Which model should read your images?", options, start)
-    if pick is None:
-        _nothing_changed(session)
-        return None
-    label = options[pick][0]
-    if not label.startswith("Download "):
-        return label
-    if not shutil.which("ollama"):
-        _fail(session, "Can't find the ollama command.", f"Open a new Terminal and run: ollama pull {suggested}")
-        return None
-    console.print(Text(f" Downloading {suggested}. Ollama shows its own progress below.\n", style=MUTED))
-    if subprocess.run(["ollama", "pull", suggested]).returncode != 0:
-        _fail(session, "The download didn't finish.", f"Check your internet, then run /models again (or: ollama pull {suggested})")
-        return None
-    _ok(session, f"{suggested} is ready")
-    return suggested
+    configure(session, show_current_first=False)
 
 
 # ---------------------------------------------------------------- /run
@@ -478,7 +260,7 @@ def cmd_run(session, args: str) -> None:
     console = session.console
     resume, force = "--resume" in args, "--force" in args
     try:
-        plan = _checking(session, "Checking everything is ready", lambda: session.runs.prepare(resume, force))
+        plan = checking(session, "Checking everything is ready", lambda: session.runs.prepare(resume, force))
     except ServiceError as err:
         if err.code == "nothing_to_do":
             console.print(Text(f"\n {TICK} {err.message}", style=OK))
@@ -490,7 +272,7 @@ def cmd_run(session, args: str) -> None:
         elif err.code == "no_files":
             console.print(Text("\n Nothing to process yet. Drag a .pptx or .docx into this window first.\n", style=MUTED))
         else:
-            _service_error(session, err)
+            service_error(session, err)
         return
 
     if force:
@@ -516,7 +298,7 @@ def cmd_run(session, args: str) -> None:
         console.print(Text("\n Stopped. Finished slides are saved; /run continues from there.\n", style=WARN))
         return
     if status.state == "failed":
-        _fail(session, f"The run stopped: {status.error}")
+        fail(session, f"The run stopped: {status.error}")
         return
 
     took = int(time.monotonic() - began)
@@ -547,7 +329,7 @@ def cmd_open(session, args: str) -> None:
     opener = "open" if platform.system() == "Darwin" else "xdg-open"
     if shutil.which(opener):
         subprocess.run([opener, str(out)])
-        _ok(session, "Opened the output folder")
+        success(session, "Opened the output folder")
     else:
         session.console.print(Text(f" Your finished files are in {out}", style=MUTED))
 
@@ -562,7 +344,7 @@ def cmd_clean(session, args: str) -> None:
         session.console.print(Text(" Nothing deleted.", style=MUTED))
         return
     files.clean(session.ws)
-    _ok(session, "Workspace is clean")
+    success(session, "Workspace is clean")
 
 
 # ---------------------------------------------------------------- /clear, /exit

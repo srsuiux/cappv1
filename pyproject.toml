@@ -75,6 +75,7 @@ module = [
     "cappv1.tui.menu",
     "cappv1.tui.runview",
     "cappv1.tui.session",
+    "cappv1.tui.setup_flow",
     "cappv1.web.changelog",
 ]
 ignore_errors = true
