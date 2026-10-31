@@ -9,8 +9,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
@@ -26,8 +26,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
@@ -37,8 +37,8 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Test the release tag check (the same script the Release workflow runs)
@@ -55,3 +55,24 @@ jobs:
           cd "$RUNNER_TEMP"
           cappv1 --version
           python -c "from cappv1.home import bundled_file; assert bundled_file('CHANGELOG.md') and bundled_file('.env.example')"
+      - name: Keep the build for the artifact check below
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  artifacts:
+    # The Release workflow passes the build between jobs with these same two actions
+    # but only runs on a tag, so this job tries the pair on every push and PR.
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - run: pip install twine
+      - run: twine check dist/*
