@@ -58,11 +58,11 @@ The web pages also have How it works, Privacy, FAQ, Changelog, Appearance (theme
 ## Quick start
 
 ```
-pipx install git+https://github.com/srsuiux/cappv1.git
+pipx install cappv1
 cappv1                      # then type /init, drag in a file, and type /run
 ```
 
-You need a Mac or Linux computer, Python 3.11 or newer, and an AI service (an API key, or Ollama to run it all on your own computer). The full walkthrough is in [docs/install.md](docs/install.md). To try it without a file of your own, use [examples/sample.pptx](examples/sample.pptx).
+You need a Mac or Linux computer, Python 3.11 or newer, and an AI service (an API key, or Ollama to run it all on your own computer). The full walkthrough, and the install-from-GitHub fallback, is in [docs/install.md](docs/install.md). To try it without a file of your own, use [examples/sample.pptx](examples/sample.pptx).
 
 ## Commands
 

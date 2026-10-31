@@ -4,7 +4,7 @@
 
 | What you see | What to do |
 |---|---|
-| `command not found: cappv1` | Run `pipx ensurepath`, then open a new Terminal window. If it still fails, run `pipx install git+https://github.com/srsuiux/cappv1.git` again. |
+| `command not found: cappv1` | Run `pipx ensurepath`, then open a new Terminal window. If it still fails, run `pipx install cappv1` again (or `pipx install git+https://github.com/srsuiux/cappv1.git` if that fails). |
 | A red ✗ in `/doctor` | Read the message beside it. It says what to fix. |
 | `API key is not set` or `rejected this key (401)` | Re-check the key in `.env`: no spaces or quotes, and it's on the line that matches your `PROVIDER`. |
 | Some images, tables, or charts have no description | The AI service had a temporary hiccup. Type `/run` again; it retries only what's missing. |

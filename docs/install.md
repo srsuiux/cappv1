@@ -17,10 +17,16 @@ A full walkthrough, one time only.
 **2. Install cappv1.**
 
 ```
-pipx install git+https://github.com/srsuiux/cappv1.git
+pipx install cappv1
 ```
 
 To update later, run `pipx upgrade cappv1`.
+
+If that fails, or you want the newest unreleased code, install straight from GitHub instead:
+
+```
+pipx install git+https://github.com/srsuiux/cappv1.git
+```
 
 **3. Open it and check that it works.**
 
@@ -42,7 +48,7 @@ cappv1 does not run on Windows itself yet, but it should work inside the Windows
 
 1. Install WSL with Ubuntu. In PowerShell, run `wsl --install -d Ubuntu-24.04`, restart if asked, and open **Ubuntu** from the Start menu.
 2. In the Ubuntu window, install Python and pipx: `sudo apt update && sudo apt install -y python3 python3-pip pipx`, then `pipx ensurepath` and open a new Ubuntu window. Ubuntu 22.04 ships Python 3.10, which is too old.
-3. Install and open cappv1 as above: `pipx install git+https://github.com/srsuiux/cappv1.git`, then `cappv1`.
+3. Install and open cappv1 as above: `pipx install cappv1`, then `cappv1`.
 
 Your files live inside Linux, in `~/cappv1`. To add your Windows files, copy them in from Ubuntu (for example `cp /mnt/c/Users/<you>/Documents/deck.pptx ~/cappv1/input/`), or open `\\wsl$\Ubuntu\home\<you>\cappv1` in File Explorer and drag files in. Finished copies appear under `output` in the same place.
 

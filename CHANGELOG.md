@@ -2,13 +2,14 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
-## Unreleased
+## 1.7.0 - 2026-10-30
 
 ### New
 
 - Changelog page under Learn: a card per release with its date, grouped into new, improved and fixed. It is read from this file, so it is always current.
 - Appearance page under Learn: choose the theme and an accent color (blue, teal, green, purple, rose or amber) for buttons and links, each checked for contrast in light and dark. Remembered in this browser. They are no longer in the sidebar.
-- Install with `pipx install git+https://github.com/srsuiux/cappv1.git`. No cloning, symlink or virtual environment.
+- Install with `pipx install cappv1` (or `pipx install git+https://github.com/srsuiux/cappv1.git`). No cloning, symlink or virtual environment.
+- cappv1 is published on PyPI, so `pipx install cappv1` works. Releases are built and uploaded by GitHub Actions when a version tag is pushed, using PyPI Trusted Publishing (no stored token).
 - Install cappv1 from the browser as an app with its own window. It still needs to be running, and the address it prints, to connect.
 - Each run keeps its finished copies in `output/<date>_<time>/` instead of replacing the last ones. Download or delete one copy or a whole run from the Files page, or in the terminal with `/history` and `/remove`; both see the change. Copies left loose in `output/` by older versions show as the oldest run.
 
@@ -20,6 +21,10 @@ All notable changes to cappv1. Versions follow [Semantic Versioning](https://sem
 ### Improved
 
 - The Python package is now `cappv1` (it was `src`), and `pyproject.toml` is the only place dependencies are listed. `python -m cappv1` also works.
+- Checks on every push and pull request: ruff (lint and format), mypy, tests on Linux and macOS with Python 3.11 to 3.13 and coverage, a wheel build that is installed and run, and a link check for the docs. Dependabot keeps dependencies and Actions up to date, and `pre-commit` runs the same lint locally.
+- Type checking: mypy now covers every module except a short list still being fixed (tracked in issue #1). Five modules were fixed in this release.
+- A test runs the sample deck and checks that only alt text changed in the finished copy.
+- The docs are split into focused pages under `docs/`, with an index.
 - Every page now uses the full window width, in the same card layout as Files, with a shared page header.
 - The window is fixed to the screen and only the content scrolls; the sidebar no longer folds.
 - Files page: three panels (Current files, Past files, Finished copies), with sizes and dates on each card. Long processing notes moved into a ? on the card that shows them on hover, focus or tap.
