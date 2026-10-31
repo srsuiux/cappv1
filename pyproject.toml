@@ -97,11 +97,7 @@ ignore_missing_imports = true
 # checked; remove a line here once its module is clean.
 [[tool.mypy.overrides]]
 module = [
-    "cappv1.audit",
-    "cappv1.docx_pipeline",
     "cappv1.docx_structure",
-    "cappv1.pipeline",
     "cappv1.pptx_reader",
-    "cappv1.tui.session",
 ]
 ignore_errors = true

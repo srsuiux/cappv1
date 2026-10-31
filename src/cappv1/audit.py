@@ -77,7 +77,7 @@ def _has_nonsolid_fill(el) -> bool:
     return el is not None and any(el.find(f"{{{_A}}}{t}") is not None for t in ("gradFill", "blipFill", "pattFill"))
 
 
-def _background(theme: _Theme, slide) -> str | None:
+def _background(theme: _Theme, slide) -> list | None:
     """The slide's background color: its own, else its layout's, else the master's."""
     for part in (slide, slide.slide_layout, slide.slide_layout.slide_master):
         bg = part._element.find(f".//{qn('p:bg')}")

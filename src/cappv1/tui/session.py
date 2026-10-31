@@ -9,7 +9,7 @@ from pathlib import Path
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.formatted_text import FormattedText
-from prompt_toolkit.history import FileHistory, InMemoryHistory
+from prompt_toolkit.history import FileHistory, History, InMemoryHistory
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 from rich import box
@@ -87,11 +87,12 @@ class Session:
         self.web = None  # the WebServer, while /web is on
         self.settings = settings.read(self.ws)
         self._pending: int | None = None
+        history: History
         try:
             history = FileHistory(str(self.ws.state_dir / "history"))
         except OSError:
             history = InMemoryHistory()
-        self.prompt = PromptSession(
+        self.prompt: PromptSession[str] = PromptSession(
             history=history,
             completer=_SlashCompleter(self.commands),
             complete_while_typing=True,
@@ -127,7 +128,7 @@ class Session:
         body.append("Welcome to cappv1", style="bold")
         body.append(f"  v{VERSION}\n", style=MUTED)
         body.append("  Improve the accessibility of PowerPoint and Word files, with a screen-reader user in mind\n\n", style=MUTED)
-        if s.configured:
+        if s.configured and s.provider:
             body.append(f"  {s.provider_label} · {s.model}\n")
             body.append("  ")
             body.append_text(self.privacy_text(s.provider))

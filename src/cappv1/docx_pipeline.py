@@ -3,6 +3,7 @@ import hashlib
 import logging
 import os
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -52,7 +53,9 @@ async def run_docx_file(config: Config, client: httpx.AsyncClient, semaphore: as
     state.skipped = []
     save_state(config.state_dir, state)
 
-    pictures, tables, objects = [], [], []
+    pictures: list[Any] = []
+    tables: list[Any] = []
+    objects: list[Any] = []
     for kind, find, into in (
         ("pictures", extract_pictures, pictures),
         ("tables", extract_tables, tables),
