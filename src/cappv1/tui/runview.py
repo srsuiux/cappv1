@@ -1,6 +1,7 @@
 """Live display for a processing run, driven by engine events."""
 
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from rich.console import Console, Group
@@ -26,9 +27,10 @@ class RunView:
         self.first_call_done = False
         self.totals = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0}
         self.file_totals = dict(self.totals)
-        self.files_ok, self.files_bad = 0, []
+        self.files_ok = 0
+        self.files_bad: list[str] = []
         self.live: Live | None = None
-        self._unsub = None
+        self._unsub: Callable[[], None] | None = None
 
     def __enter__(self) -> "RunView":
         self._unsub = events.subscribe(self.on_event)

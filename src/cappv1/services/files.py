@@ -5,6 +5,7 @@ import zipfile
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 from cappv1 import outputs
 from cappv1.config import load_config
@@ -153,7 +154,9 @@ def history(ws: Workspace) -> list[dict]:
     """Finished copies by run, newest run first: {run, when, files: [{name, size, modified}], bytes}."""
     out = []
     for run in outputs.run_ids(ws.output_dir):
-        items = [{"name": p.name, "size": p.stat().st_size, "modified": p.stat().st_mtime} for p in outputs.files_in(ws.output_dir, run)]
+        items: list[dict[str, Any]] = [
+            {"name": p.name, "size": p.stat().st_size, "modified": p.stat().st_mtime} for p in outputs.files_in(ws.output_dir, run)
+        ]
         if items:
             out.append({"run": run, "legacy": run == outputs.LEGACY, "files": items, "bytes": sum(i["size"] for i in items)})
     return out

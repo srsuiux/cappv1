@@ -3,6 +3,7 @@
 import html
 import re
 from datetime import date
+from typing import Any
 
 from cappv1 import home
 
@@ -13,7 +14,8 @@ _KINDS = {"new": "new", "added": "new", "improved": "improved", "changed": "impr
 
 def parse(text: str) -> list[dict]:
     """[{version, date, note, groups: [{title, kind, items: [str]}]}], newest first as written."""
-    releases, group = [], None
+    releases: list[dict[str, Any] | None] = []
+    group: dict[str, Any] | None = None
     for line in text.splitlines():
         if line.startswith("## "):
             m = _HEAD.match(line[3:].strip())
