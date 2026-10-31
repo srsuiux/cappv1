@@ -9,8 +9,8 @@ import re
 from docx.oxml.ns import qn
 from lxml import etree
 
+from cappv1.docx_check import _HEX, CONTRAST_AA, CONTRAST_AAA, contrast, run_background
 from cappv1.docx_reader import CAPTION as _CAPTION
-from cappv1.docx_check import CONTRAST_AA, CONTRAST_AAA, _HEX, contrast, run_background
 
 _MAX_TITLE_CHARS = 120
 

@@ -1,6 +1,6 @@
-from cappv1 import outputs
 from pptx import Presentation
 
+from cappv1 import outputs
 from cappv1.pptx_reader import get_alt_text, set_alt_text
 from cappv1.services import files
 from cappv1.services.runs import RunManager
@@ -72,8 +72,8 @@ def test_different_images_never_share_a_caption(configured, fake_ollama, tmp_pat
 # ---- table header row ---------------------------------------------------------
 def _table(rows, style=True, merge=False, blank=False):
     from pptx import Presentation
-    from pptx.util import Inches
     from pptx.oxml.ns import qn
+    from pptx.util import Inches
 
     prs = Presentation()
     slide = prs.slides.add_slide(prs.slide_layouts[5])

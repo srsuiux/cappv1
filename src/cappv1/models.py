@@ -5,11 +5,10 @@ available on OpenRouter, lets you pick one, and writes it into .env as
 MODEL=... - the fix when a paid model 402s for lack of credits. With
 PROVIDER=ollama it lists the vision models installed on this computer instead.
 """
+import json
 import sys
 import urllib.error
 import urllib.request
-import json
-from pathlib import Path
 
 from cappv1.doctor import ROOT, ollama_base_url, ollama_installed_models, pick_provider, read_env_file
 

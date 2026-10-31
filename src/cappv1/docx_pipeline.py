@@ -21,18 +21,18 @@ from cappv1.docx_reader import (
     nearby_caption,
     open_document,
     save_document,
-    table_alt_text_unsupported,
     set_alt_text,
     set_object_alt_text,
     set_table_alt_text,
+    table_alt_text_unsupported,
     table_to_text,
 )
-from cappv1.image_filter import is_too_small
 from cappv1.docx_structure import fix_contrast, normalize_headings, set_title
+from cappv1.image_filter import is_too_small
 from cappv1.llm_client import generate_caption, generate_ole_alt_text, generate_table_alt_text
 from cappv1.pipeline import _FILE_NAME, PlainNote, inspect_file, record_skip
 from cappv1.pptx_reader import ole_object_to_text
-from cappv1.state import FileState, save_state
+from cappv1.state import save_state
 
 logger = logging.getLogger("pptx_alt_text")
 

@@ -172,8 +172,8 @@ def test_every_page_starts_with_the_same_header(slug):
 
 
 def test_the_changelog_lists_every_release_in_the_changelog_file():
-    from cappv1.web import changelog
     from cappv1.version import VERSION
+    from cappv1.web import changelog
 
     text = (STATIC.parents[3] / "CHANGELOG.md").read_text()
     versions = [r["version"] for r in changelog.parse(text)]

@@ -1,6 +1,7 @@
+import pytest
+
 from cappv1.services import health, models, settings
 from cappv1.services.errors import ServiceError
-import pytest
 
 
 def test_doctor_passes_for_a_working_local_setup(configured):

@@ -6,9 +6,9 @@ import platform
 import shutil
 import subprocess
 import time
-from datetime import datetime
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
+from datetime import datetime
 
 from rich.panel import Panel
 from rich.table import Table

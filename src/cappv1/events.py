@@ -1,7 +1,8 @@
 """Tiny progress event bus. The pipeline emits; the terminal UI subscribes.
 With no subscribers (the plain CLI) emit() does nothing."""
+from collections.abc import Callable
 from contextlib import asynccontextmanager
-from typing import Any, Callable
+from typing import Any
 
 _listeners: list[Callable[[str, dict[str, Any]], None]] = []
 

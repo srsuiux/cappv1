@@ -104,7 +104,7 @@ def check(path: Path) -> list[Issue]:
             issues.append(Issue("major", "alt text", f"embedded object \"{shape.get('id', '')}\" has no description"))
 
     # 3. contrast of every run against the cell, paragraph or highlight behind it
-    style_color, style_fill = {}, {}
+    style_color = {}
     if styles_xml is not None:
         for st in styles_xml.iter(_w("style")):
             c = st.find(f"{_w('rPr')}/{_w('color')}")

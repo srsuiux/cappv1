@@ -1,9 +1,9 @@
 """The decks and Word documents in input/ and output/. Add, list, fetch, remove, clean. Finished copies are kept per run (src/cappv1/outputs.py) until deleted."""
 import os
 import zipfile
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Iterable
 
 from cappv1 import outputs
 from cappv1.config import load_config

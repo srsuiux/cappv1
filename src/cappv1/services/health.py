@@ -1,6 +1,6 @@
 """Is cappv1 ready to run? The checks behind /doctor and the web Doctor page."""
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from typing import Callable
 from urllib.parse import urlparse
 
 from cappv1 import doctor

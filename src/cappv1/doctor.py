@@ -6,7 +6,6 @@ when something looks broken.
 """
 import argparse
 import json
-import subprocess
 import sys
 import urllib.error
 import urllib.request

@@ -6,7 +6,6 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-
 _EXTENSIONS = (".pptx", ".docx")
 RUN_NAME = re.compile(r"\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(-\d+)?")
 LEGACY = ""  # the run id of files that sit directly in output/

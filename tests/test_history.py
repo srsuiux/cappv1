@@ -2,7 +2,6 @@ import time
 
 import pytest
 
-from cappv1 import outputs
 from cappv1.services import files
 from cappv1.services.errors import ServiceError
 from cappv1.services.runs import RunManager

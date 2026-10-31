@@ -12,7 +12,7 @@ from prompt_toolkit.history import FileHistory, InMemoryHistory
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 from rich import box
-from rich.console import Console, Group
+from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
@@ -22,11 +22,10 @@ from cappv1.services.errors import ServiceError
 from cappv1.services.runs import RunManager
 from cappv1.services.workspace import default_workspace
 from cappv1.tui import anim
-from cappv1.version import VERSION
 from cappv1.tui.commands import build_commands
 from cappv1.tui.menu import select
 from cappv1.tui.theme import ACCENT, ARROW, BAD, CROSS, MUTED, OK, TICK, WARN
-
+from cappv1.version import VERSION
 
 _PROMPT_STYLE = Style.from_dict({
     "rule": "#555555",

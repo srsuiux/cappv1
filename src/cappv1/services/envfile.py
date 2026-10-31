@@ -1,7 +1,6 @@
 """Reads and edits a workspace's .env in place, keeping comments and order."""
 import os
 import shutil
-from pathlib import Path
 
 from dotenv import load_dotenv
 

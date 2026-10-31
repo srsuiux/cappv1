@@ -1,4 +1,3 @@
-from cappv1 import outputs
 """One unreadable item must never stop a file: it is skipped, noted, and the rest finishes."""
 import asyncio
 import logging
@@ -6,9 +5,9 @@ import logging
 from docx import Document
 from pptx import Presentation
 
-from cappv1 import events, pipeline
+from cappv1 import events, outputs, pipeline
 from cappv1.docx_reader import extract_pictures as docx_pictures
-from cappv1.docx_reader import get_table_alt_text, extract_tables
+from cappv1.docx_reader import extract_tables, get_table_alt_text
 from cappv1.pipeline import explain_error
 from cappv1.services import files
 from cappv1.services.runs import RunManager

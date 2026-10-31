@@ -1,4 +1,3 @@
-from cappv1 import outputs
 import asyncio
 import io
 import types
@@ -10,7 +9,7 @@ from docx.shared import Inches
 from lxml import etree
 from PIL import Image
 
-from cappv1 import pipeline
+from cappv1 import outputs, pipeline
 from cappv1.config import load_config
 from cappv1.docx_reader import (
     extract_pictures,
@@ -648,7 +647,6 @@ def test_a_picture_no_model_can_read_is_described_by_its_caption(tmp_path, fake_
     parts["[Content_Types].xml"] = parts["[Content_Types].xml"].replace(
         b"<Default", b'<Default Extension="wmf" ContentType="image/x-wmf"/><Default', 1)
     doc_xml = parts["word/document.xml"].decode().replace("Figure 1 shows the trend.", "Figure 7.3: Hospital layout")
-    caption = '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:r><w:t>Figure 7.3: Hospital layout</w:t></w:r></w:p>'
     parts["word/document.xml"] = doc_xml.encode()
     with zipfile.ZipFile(src, "w") as z:
         for n, d in parts.items():

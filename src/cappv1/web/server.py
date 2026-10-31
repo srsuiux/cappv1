@@ -21,10 +21,10 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from cappv1.services import files
-from cappv1.version import VERSION
 from cappv1.services.errors import ServiceError
 from cappv1.services.runs import RunManager
 from cappv1.services.workspace import Workspace
+from cappv1.version import VERSION
 from cappv1.web import api, changelog
 
 logger = logging.getLogger("pptx_alt_text")

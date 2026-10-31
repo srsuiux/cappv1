@@ -10,3 +10,13 @@ output/*
 !output/.gitkeep
 input/*
 !input/.gitkeep
+.idea/
+.vscode/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+coverage.xml
+.mypy_cache/
+.ruff_cache/
