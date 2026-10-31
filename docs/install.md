@@ -40,8 +40,8 @@ You can also edit `~/cappv1/.env` by hand; [Configuration](configuration.md) lis
 
 cappv1 does not run on Windows itself yet, but it should work inside the Windows Subsystem for Linux (WSL), which gives you a Linux terminal on Windows. This has not been tested by the author, so treat it as a starting point and report what you find.
 
-1. Install WSL with Ubuntu. In PowerShell, run `wsl --install -d Ubuntu`, restart if asked, and open **Ubuntu** from the Start menu.
-2. In the Ubuntu window, install Python and pipx: `sudo apt update && sudo apt install -y python3 python3-pip pipx`, then `pipx ensurepath` and open a new Ubuntu window. Ubuntu 22.04 ships Python 3.10, which is too old; use Ubuntu 24.04 (`wsl --install -d Ubuntu-24.04`) or install Python 3.11 or newer.
+1. Install WSL with Ubuntu. In PowerShell, run `wsl --install -d Ubuntu-24.04`, restart if asked, and open **Ubuntu** from the Start menu.
+2. In the Ubuntu window, install Python and pipx: `sudo apt update && sudo apt install -y python3 python3-pip pipx`, then `pipx ensurepath` and open a new Ubuntu window. Ubuntu 22.04 ships Python 3.10, which is too old.
 3. Install and open cappv1 as above: `pipx install git+https://github.com/srsuiux/cappv1.git`, then `cappv1`.
 
 Your files live inside Linux, in `~/cappv1`. To add your Windows files, copy them in from Ubuntu (for example `cp /mnt/c/Users/<you>/Documents/deck.pptx ~/cappv1/input/`), or open `\\wsl$\Ubuntu\home\<you>\cappv1` in File Explorer and drag files in. Finished copies appear under `output` in the same place.
