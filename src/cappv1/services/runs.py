@@ -11,7 +11,8 @@ from dataclasses import asdict, dataclass, field, replace
 
 from cappv1 import doctor, events
 from cappv1.config import Config, load_config
-from cappv1.pipeline import discover_candidates, inspect_file, run, setup_logging
+from cappv1.logsetup import setup_logging
+from cappv1.pipeline import discover_candidates, inspect_file, run
 from cappv1.services import envfile
 from cappv1.services.errors import ServiceError
 from cappv1.services.workspace import Workspace

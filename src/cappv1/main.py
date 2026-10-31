@@ -23,7 +23,8 @@ Inside cappv1, type / to see the commands:
 def batch(argv: list[str]) -> int:
     from cappv1 import doctor
     from cappv1.config import load_config
-    from cappv1.pipeline import discover_candidates, run, setup_logging
+    from cappv1.logsetup import setup_logging
+    from cappv1.pipeline import discover_candidates, run
 
     parser = argparse.ArgumentParser(prog="cappv1 --batch")
     parser.add_argument("--resume", action="store_true", help="only resume in_progress files")
