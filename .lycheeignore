@@ -1,0 +1,10 @@
+# Sites that block automated checkers or rate-limit GitHub's runners. The links stay in the docs.
+^https://(www\.)?openai\.com/
+^https://platform\.openai\.com/
+^https://(www\.)?anthropic\.com/
+^https://console\.anthropic\.com/
+^https://platform\.claude\.com/
+^https://openrouter\.ai/
+^https://img\.shields\.io/
+^https://codecov\.io/
+^https://(www\.)?(anthology|blackboard)\.com/
