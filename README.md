@@ -63,7 +63,7 @@ pipx install git+https://github.com/srsuiux/cappv1.git
 cappv1                      # then type /init, drag in a file, and type /run
 ```
 
-You need a Mac or Linux computer, Python 3.11 or newer, and an AI service (an API key, or Ollama to run it all on your own computer). The full walkthrough is in [docs/install.md](docs/install.md).
+You need a Mac or Linux computer, Python 3.11 or newer, and an AI service (an API key, or Ollama to run it all on your own computer). The full walkthrough is in [docs/install.md](docs/install.md). To try it without a file of your own, use [examples/sample.pptx](examples/sample.pptx).
 
 ## Commands
 
