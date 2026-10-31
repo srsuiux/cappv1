@@ -65,18 +65,13 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "cappv1.audit",
-    "cappv1.config",
     "cappv1.docx_pipeline",
-    "cappv1.docx_reader",
     "cappv1.docx_structure",
     "cappv1.pipeline",
     "cappv1.pptx_reader",
     "cappv1.services.files",
-    "cappv1.tui.commands",
-    "cappv1.tui.menu",
     "cappv1.tui.runview",
     "cappv1.tui.session",
-    "cappv1.tui.setup_flow",
     "cappv1.web.changelog",
 ]
 ignore_errors = true

@@ -1,4 +1,5 @@
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
@@ -26,7 +27,7 @@ PROVIDERS = {
 }
 
 
-def resolve_provider(env: dict[str, str]) -> str:
+def resolve_provider(env: Mapping[str, str]) -> str:
     """PROVIDER if set, otherwise the first provider that has a key."""
     chosen = env.get("PROVIDER", "").strip().lower()
     if chosen:
