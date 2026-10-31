@@ -1,2 +1,2 @@
 @git-skills.md
-@skills.md
+@docs/scope.md

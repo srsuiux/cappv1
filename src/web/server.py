@@ -1,6 +1,6 @@
 """A small local web server: HTTP in, services out.
 
-Security (see docs/web-ui-plan.md, section 4): bound to 127.0.0.1 only; a
+Security (see docs/adr/0001-web-ui.md): bound to 127.0.0.1 only; a
 Host-header allowlist (blocks DNS rebinding); a random per-launch token that
 every API call must send in a header (which also rules out cross-site calls,
 since there are no CORS headers); a strict content policy; streamed, size-
