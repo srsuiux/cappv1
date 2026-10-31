@@ -1,4 +1,5 @@
 """CHANGELOG.md as the Changelog page. The file stays the one source: no second copy to keep in step."""
+
 import html
 import re
 from datetime import date
@@ -37,7 +38,11 @@ def _inline(text: str) -> str:
     out = html.escape(text, quote=False)
     out = re.sub(r"`([^`]+)`", r"<code>\1</code>", out)
     out = re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", out)
-    return re.sub(r"\[([^\]]+)\]\((https://[^)\s]+)\)", r'<a href="\2" target="_blank" rel="noopener noreferrer">\1<span class="sr"> (opens in a new tab)</span></a>', out)
+    return re.sub(
+        r"\[([^\]]+)\]\((https://[^)\s]+)\)",
+        r'<a href="\2" target="_blank" rel="noopener noreferrer">\1<span class="sr"> (opens in a new tab)</span></a>',
+        out,
+    )
 
 
 def _nice_date(iso: str) -> str:
@@ -48,18 +53,27 @@ def _nice_date(iso: str) -> str:
 def render(text: str | None = None) -> str:
     releases = parse((CHANGELOG.read_text(encoding="utf-8") if CHANGELOG else "") if text is None else text)
     if not releases:
-        return "<p class=\"muted\">No release notes yet.</p>"
+        return '<p class="muted">No release notes yet.</p>'
     latest = next((r["version"] for r in releases if r["version"] != "Unreleased"), "")
     body = []
     for r in releases:
         v = r["version"]
         when = f'<time datetime="{r["date"]}">{_nice_date(r["date"])}</time>' if r["date"] else "<span>Not released yet</span>"
-        chip = ' <span class="chip">Latest release</span>' if v == latest else (' <span class="chip soon">Next</span>' if v == "Unreleased" else "")
-        note = f'<span>{_inline(r["note"])}</span>' if r["note"] else ""
+        chip = (
+            ' <span class="chip">Latest release</span>'
+            if v == latest
+            else (' <span class="chip soon">Next</span>' if v == "Unreleased" else "")
+        )
+        note = f"<span>{_inline(r['note'])}</span>" if r["note"] else ""
         groups = "".join(
-            f'<h3 class="kind {g["kind"]}">{html.escape(g["title"])}</h3><ul>' + "".join(f"<li>{_inline(i)}</li>" for i in g["items"]) + "</ul>"
-            for g in r["groups"])
+            f'<h3 class="kind {g["kind"]}">{html.escape(g["title"])}</h3><ul>'
+            + "".join(f"<li>{_inline(i)}</li>" for i in g["items"])
+            + "</ul>"
+            for g in r["groups"]
+        )
         label = "Unreleased" if v == "Unreleased" else f"Version {v}"
-        body.append(f'<section class="panelbox release" id="v-{v}" aria-labelledby="h-{v}"><div class="relhead">'
-                    f'<h2 id="h-{v}">{html.escape(label)}{chip}</h2><span class="meta">{when}{note}</span></div>{groups}</section>')
+        body.append(
+            f'<section class="panelbox release" id="v-{v}" aria-labelledby="h-{v}"><div class="relhead">'
+            f'<h2 id="h-{v}">{html.escape(label)}{chip}</h2><span class="meta">{when}{note}</span></div>{groups}</section>'
+        )
     return f'<div class="cards releases">{"".join(body)}</div>'

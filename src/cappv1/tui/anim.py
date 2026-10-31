@@ -1,5 +1,6 @@
 """Context-aware animation: what spins, and what it says, depends on what the
 engine is actually doing right now (a picture, a chart, saving the deck...)."""
+
 import time
 
 from rich.text import Text

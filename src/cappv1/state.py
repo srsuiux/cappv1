@@ -52,8 +52,7 @@ def load_state(state_dir: Path, filename: str) -> FileState:
             os.replace(path, aside)
         except OSError:
             pass
-        logger.warning("[file: %s] saved progress was unreadable and was set aside (%s); starting this file fresh",
-                       filename, aside.name)
+        logger.warning("[file: %s] saved progress was unreadable and was set aside (%s); starting this file fresh", filename, aside.name)
         return FileState(filename=filename)
 
 

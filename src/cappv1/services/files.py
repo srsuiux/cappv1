@@ -1,4 +1,5 @@
 """The decks and Word documents in input/ and output/. Add, list, fetch, remove, clean. Finished copies are kept per run (src/cappv1/outputs.py) until deleted."""
+
 import os
 import zipfile
 from collections.abc import Iterable
@@ -37,9 +38,10 @@ def safe_name(name: str) -> str:
         raise ServiceError("bad_name", "That file name can't be used.", "Rename the file and try again.")
     ext = Path(base).suffix.lower()
     if ext not in SUPPORTED_EXTENSIONS:
-        raise ServiceError("unsupported_file", f"{base} isn't a .pptx or .docx file.",
-                           "cappv1 works with PowerPoint .pptx and Word .docx files.")
-    return base[:-len(ext)] + ext
+        raise ServiceError(
+            "unsupported_file", f"{base} isn't a .pptx or .docx file.", "cappv1 works with PowerPoint .pptx and Word .docx files."
+        )
+    return base[: -len(ext)] + ext
 
 
 _MAIN_PART = {".pptx": "ppt/presentation.xml", ".docx": "word/document.xml"}
@@ -55,8 +57,7 @@ def _looks_valid(path: Path, ext: str) -> bool:
 
 def input_candidates(folder: Path) -> list[Path]:
     """Supported files directly inside a folder (Word's ~$ lock files and dotfiles are skipped)."""
-    return sorted(p for p in folder.iterdir()
-                  if p.suffix.lower() in SUPPORTED_EXTENSIONS and not p.name.startswith(("~$", ".")))
+    return sorted(p for p in folder.iterdir() if p.suffix.lower() in SUPPORTED_EXTENSIONS and not p.name.startswith(("~$", ".")))
 
 
 def input_paths(ws: Workspace) -> list[Path]:
@@ -75,14 +76,16 @@ def store(ws: Workspace, name: str, chunks: Iterable[bytes]) -> FileInfo:
             for chunk in chunks:
                 size += len(chunk)
                 if size > MAX_UPLOAD_BYTES:
-                    raise ServiceError("too_big", f"{name} is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
-                                       "Split the file or compress its pictures first.")
+                    raise ServiceError(
+                        "too_big",
+                        f"{name} is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
+                        "Split the file or compress its pictures first.",
+                    )
                 f.write(chunk)
         ext = Path(name).suffix.lower()
         if not _looks_valid(tmp, ext):
             kind, app = ("PowerPoint", "PowerPoint") if ext == ".pptx" else ("Word", "Word")
-            raise ServiceError("unsupported_file", f"{name} isn't a valid {kind} file.",
-                               f"Open it in {app} and save a copy as {ext}.")
+            raise ServiceError("unsupported_file", f"{name} isn't a valid {kind} file.", f"Open it in {app} and save a copy as {ext}.")
         os.replace(tmp, target)
     finally:
         tmp.unlink(missing_ok=True)
@@ -166,7 +169,9 @@ def delete_copy(ws: Workspace, run: str, name: str | None = None) -> int:
     except ValueError:
         n = 0
     if not n:
-        raise ServiceError("not_found", "That finished copy isn't there any more.", "Reload the page, or type /history to see what is kept.")
+        raise ServiceError(
+            "not_found", "That finished copy isn't there any more.", "Reload the page, or type /history to see what is kept."
+        )
     return n
 
 

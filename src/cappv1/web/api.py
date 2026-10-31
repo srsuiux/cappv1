@@ -1,4 +1,5 @@
 """The /api/v1 routes: each one asks a service and returns JSON."""
+
 import json
 import time
 from urllib.parse import quote
@@ -72,10 +73,26 @@ def clear_storage(req):
 # ---- services and models ----------------------------------------------------------
 def get_services(req):
     current = settings.read(req.ws)
-    req.h.send_json(200, {"services": [
-        {"id": s.id, "label": s.label, "private": s.private, "needs_key": bool(s.key_var), "key_help": s.key_help,
-         "note": s.note, "handling": s.handling, "policy_url": s.policy_url, "key_saved": bool(current.keys_saved.get(s.id)), "model": current.remembered.get(s.id, "")}
-        for s in settings.SERVICES]})
+    req.h.send_json(
+        200,
+        {
+            "services": [
+                {
+                    "id": s.id,
+                    "label": s.label,
+                    "private": s.private,
+                    "needs_key": bool(s.key_var),
+                    "key_help": s.key_help,
+                    "note": s.note,
+                    "handling": s.handling,
+                    "policy_url": s.policy_url,
+                    "key_saved": bool(current.keys_saved.get(s.id)),
+                    "model": current.remembered.get(s.id, ""),
+                }
+                for s in settings.SERVICES
+            ]
+        },
+    )
 
 
 def _options(items) -> list[dict]:
@@ -91,8 +108,11 @@ def get_models(req):
         out = {"models": _options(models.ollama_vision(req.ws)), "installed": models.ollama_installed(req.ws)}
     else:
         catalog = models.openrouter_catalog()
-        out = {"free": _options(catalog.free), "cheapest": _options(catalog.cheapest(10)),
-               "makers": {maker: _options(items) for maker, items in catalog.makers().items()}}
+        out = {
+            "free": _options(catalog.free),
+            "cheapest": _options(catalog.cheapest(10)),
+            "makers": {maker: _options(items) for maker, items in catalog.makers().items()},
+        }
     req.h.send_json(200, out)
 
 
@@ -139,8 +159,12 @@ def download_history(req):
 def _send_file(req, path):
     size = path.stat().st_size
     kind = "wordprocessingml.document" if path.suffix.lower() == ".docx" else "presentationml.presentation"
-    req.h._headers(200, f"application/vnd.openxmlformats-officedocument.{kind}", size,
-                   {"Content-Disposition": f"attachment; filename*=UTF-8''{quote(path.name)}"})
+    req.h._headers(
+        200,
+        f"application/vnd.openxmlformats-officedocument.{kind}",
+        size,
+        {"Content-Disposition": f"attachment; filename*=UTF-8''{quote(path.name)}"},
+    )
     with path.open("rb") as fh:
         while block := fh.read(1 << 20):
             req.h.wfile.write(block)
@@ -155,8 +179,9 @@ def start_run(req):
     body = req.json()
     force = _flag(body, "force")
     if force and not _flag(body, "confirm"):
-        raise ServiceError("bad_request", "Replacing the author's own alt text needs confirmation.",
-                           "Send “confirm”: true along with “force”: true.")
+        raise ServiceError(
+            "bad_request", "Replacing the author's own alt text needs confirmation.", "Send “confirm”: true along with “force”: true."
+        )
     only = body.get("files")
     if only is not None and not (isinstance(only, list) and all(isinstance(n, str) for n in only)):
         raise ServiceError("bad_request", "“files” must be a list of file names.", "Send the names exactly as the files list shows them.")

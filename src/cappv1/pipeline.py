@@ -51,7 +51,11 @@ SUPPORTED_EXTENSIONS = (".pptx", ".docx")
 
 _RESET, _BOLD, _DIM = "\033[0m", "\033[1m", "\033[2m"
 _RED, _GREEN, _YELLOW, _CYAN, _GRAY = (
-    "\033[31m", "\033[32m", "\033[33m", "\033[36m", "\033[90m",
+    "\033[31m",
+    "\033[32m",
+    "\033[33m",
+    "\033[36m",
+    "\033[90m",
 )
 _LEVEL_COLOR = {logging.INFO: _CYAN, logging.WARNING: _YELLOW, logging.ERROR: _RED}
 
@@ -167,7 +171,7 @@ def discover_candidates(config: Config) -> list[Path]:
 
 
 def file_kind(path: Path) -> str:
-    """"document" for a Word file, "slides" for a deck: front ends show a view to match."""
+    """ "document" for a Word file, "slides" for a deck: front ends show a view to match."""
     return "document" if path.suffix.lower() == ".docx" else "slides"
 
 
@@ -217,26 +221,45 @@ async def _process_slide(
     smartart_shapes = extract_smartart(slide)
     invisible_shapes = extract_invisible_shapes(slide)
     bar = progress_bar(slide_index + 1, total_slides)
-    total_elements = (
-        len(pictures) + len(tables) + len(charts) + len(ole_objects)
-        + len(smartart_shapes) + len(invisible_shapes)
-    )
+    total_elements = len(pictures) + len(tables) + len(charts) + len(ole_objects) + len(smartart_shapes) + len(invisible_shapes)
 
     events.emit(
-        "slide_start", filename=filename, slide=slide_index, total=total_slides,
+        "slide_start",
+        filename=filename,
+        slide=slide_index,
+        total=total_slides,
         counts={
-            "picture": len(pictures), "table": len(tables), "chart": len(charts),
-            "object": len(ole_objects), "diagram": len(smartart_shapes),
+            "picture": len(pictures),
+            "table": len(tables),
+            "chart": len(charts),
+            "object": len(ole_objects),
+            "diagram": len(smartart_shapes),
             "invisible": len(invisible_shapes),
         },
     )
 
     if total_elements == 0:
-        events.emit("slide_end", filename=filename, slide=slide_index, total=total_slides,
-                    captioned=0, enhanced=0, kept=0, decorative=0, cached=0, failed=0, skipped=0, empty=True)
+        events.emit(
+            "slide_end",
+            filename=filename,
+            slide=slide_index,
+            total=total_slides,
+            captioned=0,
+            enhanced=0,
+            kept=0,
+            decorative=0,
+            cached=0,
+            failed=0,
+            skipped=0,
+            empty=True,
+        )
         logger.info(
             "[file: %s] %s %d/%d [section: %s] no images, tables, or charts",
-            filename, bar, slide_index + 1, total_slides, section or "-",
+            filename,
+            bar,
+            slide_index + 1,
+            total_slides,
+            section or "-",
         )
         state.mark_slide_done(slide_index)
         return 0
@@ -285,8 +308,7 @@ async def _process_slide(
         else:
             n["captioned"] += 1
         set_alt_text(shape, caption)
-        events.emit("alt_written", filename=filename, slide=slide_index,
-                    outcome="enhanced" if author else "captioned", text=caption)
+        events.emit("alt_written", filename=filename, slide=slide_index, outcome="enhanced" if author else "captioned", text=caption)
         return caption
 
     # No LLM call needed here - these are provably zero-pixel shapes (explicit
@@ -431,10 +453,25 @@ async def _process_slide(
         "[file: %s] %s %d/%d [section: %s] captioned %d, enhanced %d, kept author's %d, "
         "decorative %d, cached %d, failed %d, skipped %d (of %d elements: %d images, %d tables, "
         "%d charts, %d OLE objects, %d SmartArt, %d invisible shapes)",
-        filename, bar, slide_index + 1, total_slides, section or "-",
-        n["captioned"], n["enhanced"], n["kept"], n["decorative"], n["cached"], failed, n["skipped"],
-        total_elements, len(pictures), len(tables), len(charts), len(ole_objects),
-        len(smartart_shapes), len(invisible_shapes),
+        filename,
+        bar,
+        slide_index + 1,
+        total_slides,
+        section or "-",
+        n["captioned"],
+        n["enhanced"],
+        n["kept"],
+        n["decorative"],
+        n["cached"],
+        failed,
+        n["skipped"],
+        total_elements,
+        len(pictures),
+        len(tables),
+        len(charts),
+        len(ole_objects),
+        len(smartart_shapes),
+        len(invisible_shapes),
     )
     events.emit("slide_end", filename=filename, slide=slide_index, total=total_slides, empty=False, **n)
     if failed == 0:
@@ -457,8 +494,7 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     state.content_hash = digest
     state.skipped = []  # every slide is walked again, so the notes are rebuilt
     save_state(config.state_dir, state)
-    events.emit("file_open", filename=filename, kind="slides", total_slides=total_slides,
-                resumed=len(state.completed_slide_indices))
+    events.emit("file_open", filename=filename, kind="slides", total_slides=total_slides, resumed=len(state.completed_slide_indices))
 
     # Every slide is walked again on a resume: the output deck is rebuilt from
     # the untouched input, so slides finished before a crash must have their
@@ -467,15 +503,34 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
     for index, slide in enumerate(prs.slides):
         try:
             failed = await _process_slide(
-                slide, index, total_slides, filename, section_map.get(index),
-                config, client, semaphore, state,
+                slide,
+                index,
+                total_slides,
+                filename,
+                section_map.get(index),
+                config,
+                client,
+                semaphore,
+                state,
             )
         except Exception as exc:  # the slide itself is unreadable: note it and move on
             record_skip(state, filename, index, f"slide {index + 1}", "whole slide", exc)
             state.mark_slide_done(index)
             failed = 0
-            events.emit("slide_end", filename=filename, slide=index, total=total_slides, empty=False,
-                        captioned=0, enhanced=0, kept=0, decorative=0, cached=0, failed=0, skipped=1)
+            events.emit(
+                "slide_end",
+                filename=filename,
+                slide=index,
+                total=total_slides,
+                empty=False,
+                captioned=0,
+                enhanced=0,
+                kept=0,
+                decorative=0,
+                cached=0,
+                failed=0,
+                skipped=1,
+            )
         any_failed = any_failed or failed > 0
         save_state(config.state_dir, state)
 
@@ -484,8 +539,7 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
         # failed slides - succeeded images on them are still cached, so
         # nothing gets re-captioned unnecessarily.
         logger.warning(
-            "[file: %s] finished with some images uncaptioned - type /run again "
-            "to retry them (cached captions won't be re-fetched)",
+            "[file: %s] finished with some images uncaptioned - type /run again to retry them (cached captions won't be re-fetched)",
             filename,
         )
     save_state(config.state_dir, state)
@@ -504,8 +558,12 @@ async def run_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio
         save_state(config.state_dir, state)
     events.emit("file_saved", filename=filename, path=str(out_path), incomplete=any_failed, skipped=len(state.skipped))
     if state.skipped:
-        logger.warning("[file: %s] %d item(s) were skipped and need a look: %s", filename, len(state.skipped),
-                       "; ".join(f"{s['kind']} on {s['where']}" for s in state.skipped))
+        logger.warning(
+            "[file: %s] %d item(s) were skipped and need a look: %s",
+            filename,
+            len(state.skipped),
+            "; ".join(f"{s['kind']} on {s['where']}" for s in state.skipped),
+        )
     logger.info("[file: %s] saved to %s", filename, out_path)
 
 

@@ -1,5 +1,6 @@
 """Arrow-key menu that renders inline (like Claude Code's selectors) and
 erases itself when you choose."""
+
 from prompt_toolkit.application import Application
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import Layout, Window
@@ -19,7 +20,7 @@ def select(title: str, options: list[tuple[str, str]], default: int = 0) -> int 
 
     def render():
         start = max(0, min(state["i"] - _PAGE // 2, len(options) - _PAGE))
-        shown = options[start:start + _PAGE]
+        shown = options[start : start + _PAGE]
         out = [("bold", f"{title}\n")]
         if start > 0:
             out.append(("fg:#777777", "   ↑ more\n"))
@@ -58,6 +59,7 @@ def select(title: str, options: list[tuple[str, str]], default: int = 0) -> int 
         event.app.exit(result=None)
 
     for n in range(1, min(len(options), 9) + 1):
+
         @kb.add(str(n))
         def _number(event, n=n):
             event.app.exit(result=n - 1)

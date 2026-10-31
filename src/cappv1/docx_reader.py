@@ -109,12 +109,14 @@ def extract_pictures(doc) -> list[DocPicture]:
         if not blips:
             continue
         part = related.get(blips[0].get(qn("r:embed")))  # None: the image is missing from the file
-        found.append(DocPicture(
-            doc_pr=doc_pr,
-            image_bytes=part.blob if part is not None else None,
-            ext=Path(str(part.partname)).suffix.lstrip(".") if part is not None else "",
-            block=_top_block(doc_pr, body),
-        ))
+        found.append(
+            DocPicture(
+                doc_pr=doc_pr,
+                image_bytes=part.blob if part is not None else None,
+                ext=Path(str(part.partname)).suffix.lstrip(".") if part is not None else "",
+                block=_top_block(doc_pr, body),
+            )
+        )
     return found
 
 
@@ -138,12 +140,14 @@ def extract_objects(doc) -> list[DocObject]:
         ole = obj.find(f"{{{_OFFICE_NS}}}OLEObject")
         rid = ole.get(qn("r:id")) if ole is not None else None
         part = related.get(rid) if rid else None
-        found.append(DocObject(
-            shape=shape,
-            blob=part.blob if part is not None else None,
-            prog_id=(ole.get("ProgID") or "") if ole is not None else "",
-            block=_top_block(obj, body),
-        ))
+        found.append(
+            DocObject(
+                shape=shape,
+                blob=part.blob if part is not None else None,
+                prog_id=(ole.get("ProgID") or "") if ole is not None else "",
+                block=_top_block(obj, body),
+            )
+        )
     return found
 
 
@@ -184,7 +188,7 @@ def nearby_caption(block, max_chars: int) -> str:
             seen += 1
             if CAPTION.match(text):
                 text = re.sub(r"\s+", " ", text)
-                return text if len(text) <= max_chars else text[:max_chars - 1].rstrip() + "…"
+                return text if len(text) <= max_chars else text[: max_chars - 1].rstrip() + "…"
     return ""
 
 
@@ -225,9 +229,11 @@ def table_alt_text_unsupported(doc) -> str | None:
                 pass
     if mode >= _FIRST_MODE_WITH_TABLE_ALT_TEXT:
         return None
-    return (f"this document is in Word's old compatibility mode ({mode}), and Word cannot open a file that has "
-            "table descriptions in that mode, so the tables were left as they were and the pictures were described. "
-            "To describe the tables: open the file in Word, choose Save As, save a .docx, then run it again")
+    return (
+        f"this document is in Word's old compatibility mode ({mode}), and Word cannot open a file that has "
+        "table descriptions in that mode, so the tables were left as they were and the pictures were described. "
+        "To describe the tables: open the file in Word, choose Save As, save a .docx, then run it again"
+    )
 
 
 def mark_table_header(table: Table) -> str:
@@ -249,14 +255,20 @@ def mark_table_header(table: Table) -> str:
     pr = tbl.tblPr
     if pr.find(qn("w:tblStyle")) is None and pr.find(qn("w:tblLook")) is None:
         look = etree.Element(qn("w:tblLook"))
-        anchor = next((a for a in (pr.find(qn(t)) for t in ("w:tblCaption", "w:tblDescription", "w:tblPrChange"))
-                       if a is not None), None)
+        anchor = next((a for a in (pr.find(qn(t)) for t in ("w:tblCaption", "w:tblDescription", "w:tblPrChange")) if a is not None), None)
         if anchor is not None:
             anchor.addprevious(look)  # schema order: tblLook comes before the title and description
         else:
             pr.append(look)
-        for name, value in (("val", "0020"), ("firstRow", "1"), ("lastRow", "0"), ("firstColumn", "0"),
-                            ("lastColumn", "0"), ("noHBand", "0"), ("noVBand", "0")):
+        for name, value in (
+            ("val", "0020"),
+            ("firstRow", "1"),
+            ("lastRow", "0"),
+            ("firstColumn", "0"),
+            ("lastColumn", "0"),
+            ("noHBand", "0"),
+            ("noVBand", "0"),
+        ):
             look.set(qn(f"w:{name}"), value)
     trpr = first.find(qn("w:trPr"))
     if trpr is None:
@@ -325,7 +337,7 @@ def get_context(doc, block, index: int = 0) -> SlideContext:
     siblings = list(doc.element.body)
     at = siblings.index(block)
     title = ""
-    for el in reversed(siblings[:at + 1]):
+    for el in reversed(siblings[: at + 1]):
         if el.tag == qn("w:p") and _paragraph_text(el) and _is_heading(doc, el):
             title = _paragraph_text(el)
             break
@@ -339,7 +351,7 @@ def get_context(doc, block, index: int = 0) -> SlideContext:
     parts = [
         nearest(reversed(siblings[:at])),
         _paragraph_text(block) if block.tag == qn("w:p") else "",
-        nearest(siblings[at + 1:]),
+        nearest(siblings[at + 1 :]),
     ]
     text = "\n".join(p for p in parts if p and p != title)[:_MAX_CONTEXT_CHARS]
     return SlideContext(index=index, section=None, title=title, body_text=text, notes="", kind="document")

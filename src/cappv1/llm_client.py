@@ -101,10 +101,7 @@ _VERDICT_ADEQUATE = (
     "If it already tells a screen-reader user what this shows and why it matters, reply with "
     "exactly: KEEP. Otherwise reply with the improved alt-text only."
 )
-_VERDICT_TOO_SHORT = (
-    "It is very short, so it is probably incomplete. Do NOT reply KEEP. Reply with an improved "
-    "version that builds on it."
-)
+_VERDICT_TOO_SHORT = "It is very short, so it is probably incomplete. Do NOT reply KEEP. Reply with an improved version that builds on it."
 
 
 def _with_existing(messages: list[dict], existing: str, too_short: bool) -> list[dict]:
@@ -180,9 +177,14 @@ def _for_document(text: str, context: SlideContext) -> str:
     """The prompts are written for slides; for a Word file they say document instead."""
     if context.kind != "document":
         return text
-    return (text.replace("PowerPoint slides", "Word documents").replace("on the slide", "in the document")
-            .replace("on this slide", "in this document").replace("on slide", "in the document")
-            .replace("slide's author", "document's author").replace("the slide", "the document"))
+    return (
+        text.replace("PowerPoint slides", "Word documents")
+        .replace("on the slide", "in the document")
+        .replace("on this slide", "in this document")
+        .replace("on slide", "in the document")
+        .replace("slide's author", "document's author")
+        .replace("the slide", "the document")
+    )
 
 
 def _build_image_messages(image_bytes: bytes, ext: str, context: SlideContext, max_chars: int) -> list[dict]:
@@ -220,7 +222,7 @@ def _to_anthropic_image(url: str) -> dict:
     """Converts an OpenAI-style data-URL image part to an Anthropic image block,
     re-encoding to PNG when the format (e.g. BMP) isn't one Anthropic accepts."""
     header, b64 = url.split(",", 1)
-    mime = header[len("data:"):].split(";")[0]
+    mime = header[len("data:") :].split(";")[0]
     if mime not in _ANTHROPIC_IMAGE_MIMES:
         try:
             from PIL import Image
@@ -255,10 +257,7 @@ def _build_request(config: Config, model: str, messages: list[dict]) -> tuple[st
                 continue
             content = m["content"]
             if isinstance(content, list):
-                content = [
-                    _to_anthropic_image(part["image_url"]["url"]) if part["type"] == "image_url" else part
-                    for part in content
-                ]
+                content = [_to_anthropic_image(part["image_url"]["url"]) if part["type"] == "image_url" else part for part in content]
             converted.append({"role": m["role"], "content": content})
         payload = {"model": model, "system": system, "messages": converted, "max_tokens": 200}
         return url, headers, payload
@@ -302,10 +301,14 @@ async def _request_completion(
         except httpx.RequestError as exc:
             if attempt == max_retries:
                 raise _ModelUnavailable(str(exc)) from exc
-            backoff = 2 ** attempt
+            backoff = 2**attempt
             logger.warning(
                 "caption attempt %d/%d on '%s' failed (%s), retrying in %ds",
-                attempt, max_retries, model, exc, backoff,
+                attempt,
+                max_retries,
+                model,
+                exc,
+                backoff,
             )
             await asyncio.sleep(backoff)
             continue
@@ -316,9 +319,8 @@ async def _request_completion(
             except _ModelUnavailable as exc:  # an empty reply is usually momentary: ask the same model again
                 if attempt == max_retries:
                     raise
-                backoff = 2 ** attempt
-                logger.warning("caption attempt %d/%d on '%s' failed (%s), retrying in %ds",
-                               attempt, max_retries, model, exc, backoff)
+                backoff = 2**attempt
+                logger.warning("caption attempt %d/%d on '%s' failed (%s), retrying in %ds", attempt, max_retries, model, exc, backoff)
                 await asyncio.sleep(backoff)
                 continue
 
@@ -327,19 +329,24 @@ async def _request_completion(
 
         if resp.status_code in (401, 403):
             logger.error(
-                "caption generation failed: %s rejected the request (%d) - "
-                "check your API key with /doctor.",
-                label, resp.status_code,
+                "caption generation failed: %s rejected the request (%d) - check your API key with /doctor.",
+                label,
+                resp.status_code,
             )
             return None
 
         if resp.status_code == 429 or resp.status_code >= 500:
             if attempt == max_retries:
                 raise _ModelUnavailable(f"HTTP {resp.status_code} - {_error_detail(resp)}")
-            backoff = 2 ** attempt
+            backoff = 2**attempt
             logger.warning(
                 "caption attempt %d/%d on '%s' failed (HTTP %d), retrying in %ds - %s",
-                attempt, max_retries, model, resp.status_code, backoff, _error_detail(resp),
+                attempt,
+                max_retries,
+                model,
+                resp.status_code,
+                backoff,
+                _error_detail(resp),
             )
             await asyncio.sleep(backoff)
             continue
@@ -366,9 +373,7 @@ async def _complete_with_fallback(
     has_fallback = bool(config.fallback_model) and config.fallback_model != config.model
     try:
         # with nothing to fail over to, the primary gets the full retry budget
-        return await _request_completion(
-            client, config, config.model, messages, primary_max_retries if has_fallback else max_retries
-        )
+        return await _request_completion(client, config, config.model, messages, primary_max_retries if has_fallback else max_retries)
     except _ModelUnavailable as exc:
         logger.warning("'%s' unavailable (%s)", config.model, exc)
 
@@ -382,7 +387,8 @@ async def _complete_with_fallback(
     except _ModelUnavailable as exc:
         logger.error(
             "caption generation failed permanently: fallback model '%s' also unavailable (%s)",
-            config.fallback_model, exc,
+            config.fallback_model,
+            exc,
         )
         return None
 
@@ -415,9 +421,9 @@ async def generate_table_alt_text(
     existing: str = "",
 ) -> str | None:
     """Returns a text description of a table's content, or None on permanent failure."""
-    messages = _review(config, _build_text_messages(
-        _TABLE_SYSTEM_PROMPT, table_text, context, config.max_alt_text_chars, "Table"
-    ), existing)
+    messages = _review(
+        config, _build_text_messages(_TABLE_SYSTEM_PROMPT, table_text, context, config.max_alt_text_chars, "Table"), existing
+    )
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
 
 
@@ -431,9 +437,9 @@ async def generate_chart_alt_text(
     existing: str = "",
 ) -> str | None:
     """Returns a text description of a chart's data, or None on permanent failure."""
-    messages = _review(config, _build_text_messages(
-        _CHART_SYSTEM_PROMPT, chart_text, context, config.max_alt_text_chars, "Chart data"
-    ), existing)
+    messages = _review(
+        config, _build_text_messages(_CHART_SYSTEM_PROMPT, chart_text, context, config.max_alt_text_chars, "Chart data"), existing
+    )
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
 
 
@@ -451,9 +457,9 @@ async def generate_ole_alt_text(
     heuristically-extracted text, or None on permanent failure. The caller
     decides what to do with "UNKNOWN" (e.g. a progId-based fallback string) -
     this function doesn't guess at that."""
-    messages = _review(config, _build_text_messages(
-        _OLE_SYSTEM_PROMPT, ole_text, context, config.max_alt_text_chars, "Embedded object content"
-    ), existing)
+    messages = _review(
+        config, _build_text_messages(_OLE_SYSTEM_PROMPT, ole_text, context, config.max_alt_text_chars, "Embedded object content"), existing
+    )
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
 
 
@@ -468,7 +474,9 @@ async def generate_smartart_alt_text(
 ) -> str | None:
     """Returns a text description of a SmartArt diagram's structure, or None
     on permanent failure."""
-    messages = _review(config, _build_text_messages(
-        _SMARTART_SYSTEM_PROMPT, smartart_text, context, config.max_alt_text_chars, "Diagram outline"
-    ), existing)
+    messages = _review(
+        config,
+        _build_text_messages(_SMARTART_SYSTEM_PROMPT, smartart_text, context, config.max_alt_text_chars, "Diagram outline"),
+        existing,
+    )
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)

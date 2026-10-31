@@ -57,6 +57,7 @@ class FakeOllama:
                     return self._send({"capabilities": fake.models.get(body["model"], [])})
                 if fake.delay:
                     import time
+
                     time.sleep(fake.delay)
                 fake.calls += 1
                 self._send({"choices": [{"message": {"content": fake.reply}}]})

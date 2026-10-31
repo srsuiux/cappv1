@@ -2,6 +2,7 @@
 
 This file only asks and draws; what cappv1 actually does lives in src/cappv1/services.
 """
+
 import platform
 import shutil
 import subprocess
@@ -94,7 +95,9 @@ _STATE_TEXT = {
 def cmd_files(session, args: str) -> None:
     listing = files.list_files(session.ws)
     if not listing:
-        session.console.print(Text("\n No files yet. Drag a .pptx or .docx into this window, or copy it into the input/ folder.\n", style=MUTED))
+        session.console.print(
+            Text("\n No files yet. Drag a .pptx or .docx into this window, or copy it into the input/ folder.\n", style=MUTED)
+        )
         return
     table = Table(box=None, padding=(0, 2), show_edge=False)
     table.add_column("File", overflow="fold")
@@ -144,7 +147,11 @@ def cmd_remove(session, args: str) -> None:
     """Removes a file from the list, or a finished copy / whole run from the history. The web page shows the change too."""
     target = args.strip().strip("/")
     if not target:
-        session.console.print(Text("\n Type /remove <file name> to take a file off the list, or /remove <run folder> for a run (see /history).\n", style=MUTED))
+        session.console.print(
+            Text(
+                "\n Type /remove <file name> to take a file off the list, or /remove <run folder> for a run (see /history).\n", style=MUTED
+            )
+        )
         return
     run, _, name = target.partition("/")
     try:
@@ -171,7 +178,9 @@ def _slide_list(slides: list) -> str:
 
 def cmd_audit(session, args: str) -> None:
     """Reports what cappv1 noticed but will not change. Read-only."""
-    names = [args.strip()] if args.strip() else [f.name for f in files.list_files(session.ws) if f.name.lower().endswith(".pptx")]  # the check reads decks only
+    names = (
+        [args.strip()] if args.strip() else [f.name for f in files.list_files(session.ws) if f.name.lower().endswith(".pptx")]
+    )  # the check reads decks only
     if not names:
         session.console.print(Text("\n No files yet. Drag a .pptx or .docx into this window first.\n", style=MUTED))
         return
@@ -205,7 +214,11 @@ def cmd_doctor(session, args: str) -> None:
         else:
             _fail(session, planned.label, detail)
     session.console.print()
-    session.console.print(Text(" All good. Type /run to start." if all_ok else " Fix the items marked ✗, then run /doctor again.", style=OK if all_ok else WARN))
+    session.console.print(
+        Text(
+            " All good. Type /run to start." if all_ok else " Fix the items marked ✗, then run /doctor again.", style=OK if all_ok else WARN
+        )
+    )
     session.console.print()
 
 
@@ -219,10 +232,13 @@ def cmd_init(session, args: str) -> None:
 
 
 def _where_next(session) -> None:
-    pick = select("Where would you like to go on?", [
-        ("Continue in the browser", "same settings, easier for first-time users"),
-        ("Stay in the terminal", "type /run when you're ready"),
-    ])
+    pick = select(
+        "Where would you like to go on?",
+        [
+            ("Continue in the browser", "same settings, easier for first-time users"),
+            ("Stay in the terminal", "type /run when you're ready"),
+        ],
+    )
     if pick == 0:
         cmd_web(session, "")
 
@@ -272,11 +288,14 @@ def _configure(session, show_current_first: bool) -> bool:
     change_model_only = False
     if show_current_first and current.configured and active:
         label = f"{current.provider_label} · {current.model}"
-        pick = select(f"Currently using {label}", [
-            ("Keep this", "no changes"),
-            ("Change the model", f"stay with {current.provider_label}"),
-            ("Switch AI service", "choose a different service"),
-        ])
+        pick = select(
+            f"Currently using {label}",
+            [
+                ("Keep this", "no changes"),
+                ("Change the model", f"stay with {current.provider_label}"),
+                ("Switch AI service", "choose a different service"),
+            ],
+        )
         if pick not in (1, 2):
             _ok(session, f"Keeping {label}")
             console.print(Text("   ", style=MUTED), session.privacy_text(active), sep="")
@@ -287,8 +306,10 @@ def _configure(session, show_current_first: bool) -> bool:
     if change_model_only:
         svc = settings.service(active)
     else:
-        rows = [(s.label + ("  (active)" if s.id == active else ""),
-                 s.note + (", key saved" if current.keys_saved.get(s.id) else "")) for s in settings.SERVICES]
+        rows = [
+            (s.label + ("  (active)" if s.id == active else ""), s.note + (", key saved" if current.keys_saved.get(s.id) else ""))
+            for s in settings.SERVICES
+        ]
         start = next((i for i, s in enumerate(settings.SERVICES) if s.id == active), 0)
         choice = select("Which AI service?", rows, start)
         if choice is None:
@@ -357,11 +378,14 @@ def _openrouter_options(session) -> list[tuple[str, str]] | None:
         _service_error(session, err)
         return None
     makers = catalog.makers()
-    pick = select("Which OpenRouter models?", [
-        ("Free", f"{len(catalog.free)} models, shared servers (may log your slides)"),
-        ("Cheapest paid", "the ten lowest prices"),
-        ("Browse paid by maker", f"{len(makers)} makers, e.g. OpenAI, Google, DeepSeek"),
-    ])
+    pick = select(
+        "Which OpenRouter models?",
+        [
+            ("Free", f"{len(catalog.free)} models, shared servers (may log your slides)"),
+            ("Cheapest paid", "the ten lowest prices"),
+            ("Browse paid by maker", f"{len(makers)} makers, e.g. OpenAI, Google, DeepSeek"),
+        ],
+    )
     if pick is None:
         _nothing_changed(session)
         return None
@@ -377,7 +401,9 @@ def _openrouter_options(session) -> list[tuple[str, str]] | None:
             return None
         chosen = makers[names[maker]]
     if pick != 0:
-        session.console.print(Text("   Prices are per million input tokens. A picture is roughly a thousand, so most cost a fraction of a cent.", style=MUTED))
+        session.console.print(
+            Text("   Prices are per million input tokens. A picture is roughly a thousand, so most cost a fraction of a cent.", style=MUTED)
+        )
     return [(m.id, m.note) for m in chosen]
 
 
@@ -456,7 +482,11 @@ def cmd_run(session, args: str) -> None:
     except ServiceError as err:
         if err.code == "nothing_to_do":
             console.print(Text(f"\n {TICK} {err.message}", style=OK))
-            console.print(Text(" Their finished copies are in output/ (type /open). Add new files, or edit a deck and drop it in again.\n", style=MUTED))
+            console.print(
+                Text(
+                    " Their finished copies are in output/ (type /open). Add new files, or edit a deck and drop it in again.\n", style=MUTED
+                )
+            )
         elif err.code == "no_files":
             console.print(Text("\n Nothing to process yet. Drag a .pptx or .docx into this window first.\n", style=MUTED))
         else:
@@ -525,7 +555,9 @@ def cmd_open(session, args: str) -> None:
 # ---------------------------------------------------------------- /clean
 def cmd_clean(session, args: str) -> None:
     counts = files.clean(session.ws, dry_run=True)
-    session.console.print(Text(f"\n This permanently deletes {counts['input']} input, {counts['output']} output file(s) and saved progress.", style=WARN))
+    session.console.print(
+        Text(f"\n This permanently deletes {counts['input']} input, {counts['output']} output file(s) and saved progress.", style=WARN)
+    )
     if select("Delete them?", [("No, keep everything", ""), ("Yes, delete", "no undo")]) != 1:
         session.console.print(Text(" Nothing deleted.", style=MUTED))
         return
@@ -545,7 +577,12 @@ def cmd_exit(session, args: str) -> None:
 
 def build_commands() -> list[Command]:
     return [
-        Command("run", "Describe everything in input/ (--resume continues unfinished files; --force redoes all and replaces authors' text)", cmd_run, ("start",)),
+        Command(
+            "run",
+            "Describe everything in input/ (--resume continues unfinished files; --force redoes all and replaces authors' text)",
+            cmd_run,
+            ("start",),
+        ),
         Command("files", "Show the files waiting in input/ and their progress", cmd_files, ("ls",)),
         Command("init", "Set up cappv1, or check what it's set up with", cmd_init, ("setup",)),
         Command("models", "Pick a different AI service or model", cmd_models, ("provider",)),

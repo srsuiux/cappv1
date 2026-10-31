@@ -1,4 +1,5 @@
 """Accessibility report for one deck: what cappv1 noticed but will not change."""
+
 from cappv1 import outputs
 from cappv1.audit import audit_deck
 from cappv1.services import files
@@ -10,8 +11,11 @@ def report(ws: Workspace, name: str) -> dict:
     """Checks the finished copy if there is one, otherwise the original. Read-only."""
     name = files.safe_name(name)
     if not name.lower().endswith(".pptx"):
-        raise ServiceError("audit_unsupported", "The accessibility check only reads PowerPoint decks for now.",
-                           "Word documents get alt text, but are not checked yet.")
+        raise ServiceError(
+            "audit_unsupported",
+            "The accessibility check only reads PowerPoint decks for now.",
+            "Word documents get alt text, but are not checked yet.",
+        )
     finished = outputs.latest(ws.output_dir, name)
     path = finished if finished is not None else ws.input_dir / name
     if not path.is_file():

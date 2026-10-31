@@ -1,6 +1,7 @@
 """Where finished copies live. Each run writes into its own folder, output/<date>_<time>/, so an
 earlier run's copies are kept until someone deletes them. Files placed directly in output/ by older
 versions still count, as the oldest run."""
+
 import re
 import shutil
 from datetime import datetime
@@ -24,8 +25,7 @@ def new_run_dir(root: Path) -> Path:
 def _files(folder: Path) -> list[Path]:
     if not folder.is_dir():
         return []
-    return sorted(p for p in folder.iterdir()
-                  if p.is_file() and p.suffix.lower() in _EXTENSIONS and not p.name.startswith("."))
+    return sorted(p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in _EXTENSIONS and not p.name.startswith("."))
 
 
 def run_ids(root: Path) -> list[str]:

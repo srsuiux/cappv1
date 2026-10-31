@@ -23,6 +23,7 @@ from cappv1.docx_reader import (
 
 LONG = "A bar chart of quarterly sales for each region, used to compare the north and the south"
 
+
 def png(color=(200, 60, 60), size=(300, 200)) -> io.BytesIO:
     buf = io.BytesIO()
     Image.new("RGB", size, color).save(buf, "PNG")
@@ -133,10 +134,14 @@ def set_mode(path, mode):
     xml = parts["word/settings.xml"].decode()
     if "compatibilityMode" in xml:
         import re
+
         xml = re.sub(r'(compatibilityMode"[^>]*w:val=")\d+', rf"\g<1>{mode}", xml)
     else:
-        xml = xml.replace("</w:settings>", f'<w:compat><w:compatSetting w:name="compatibilityMode" '
-                          f'w:uri="http://schemas.microsoft.com/office/word" w:val="{mode}"/></w:compat></w:settings>')
+        xml = xml.replace(
+            "</w:settings>",
+            f'<w:compat><w:compatSetting w:name="compatibilityMode" '
+            f'w:uri="http://schemas.microsoft.com/office/word" w:val="{mode}"/></w:compat></w:settings>',
+        )
     parts["word/settings.xml"] = xml.encode()
     with zipfile.ZipFile(path, "w") as z:
         for name, data in parts.items():
@@ -152,6 +157,7 @@ def test_tables_in_an_old_compatibility_mode_document_are_left_alone(tmp_path, f
     assert "tblDescription" not in xml and "tblCaption" not in xml
     assert 'descr="' in xml and 'descr=""' not in xml  # the picture still got its text
     from cappv1.state import load_state
+
     notes = load_state(config.state_dir, "a.docx").skipped
     assert len(notes) == 1 and notes[0]["kind"] == "tables"
     assert notes[0]["error"].startswith("1 table not described") and "compatibility mode (11)" in notes[0]["error"]
@@ -172,21 +178,36 @@ def add_object(path, *, alt=None):
     inside.add_paragraph("Customer places Order; Order contains Product")
     inside.save(inner)
     alt_attr = f' alt="{alt}"' if alt else ""
-    ns = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
-          'xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" '
-          'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"')
-    obj = (f'<w:p {ns}><w:r><w:object w:dxaOrig="100" w:dyaOrig="100"><v:shape id="ole_rId9" style="width:10pt"{alt_attr}>'
-           f'<v:imagedata o:title=""/></v:shape><o:OLEObject Type="Embed" ProgID="" ShapeID="ole_rId9" '
-           f'DrawAspect="Content" ObjectID="_1" r:id="rId9"/></w:object></w:r></w:p>')
+    ns = (
+        'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+        'xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+    )
+    obj = (
+        f'<w:p {ns}><w:r><w:object w:dxaOrig="100" w:dyaOrig="100"><v:shape id="ole_rId9" style="width:10pt"{alt_attr}>'
+        f'<v:imagedata o:title=""/></v:shape><o:OLEObject Type="Embed" ProgID="" ShapeID="ole_rId9" '
+        f'DrawAspect="Content" ObjectID="_1" r:id="rId9"/></w:object></w:r></w:p>'
+    )
     with zipfile.ZipFile(path) as z:
         parts = {n: z.read(n) for n in z.namelist()}
     parts["word/embeddings/oleObject1.bin"] = inner.getvalue()
-    rels = parts["word/_rels/document.xml.rels"].decode().replace(
-        "</Relationships>", '<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/'
-        'relationships/oleObject" Target="embeddings/oleObject1.bin"/></Relationships>')
+    rels = (
+        parts["word/_rels/document.xml.rels"]
+        .decode()
+        .replace(
+            "</Relationships>",
+            '<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/'
+            'relationships/oleObject" Target="embeddings/oleObject1.bin"/></Relationships>',
+        )
+    )
     parts["word/_rels/document.xml.rels"] = rels.encode()
-    types = parts["[Content_Types].xml"].decode().replace(
-        "<Override", '<Default Extension="bin" ContentType="application/vnd.openxmlformats-officedocument.oleObject"/><Override', 1)
+    types = (
+        parts["[Content_Types].xml"]
+        .decode()
+        .replace(
+            "<Override", '<Default Extension="bin" ContentType="application/vnd.openxmlformats-officedocument.oleObject"/><Override', 1
+        )
+    )
     parts["[Content_Types].xml"] = types.encode()
     doc = parts["word/document.xml"].decode().replace("<w:sectPr", obj.replace(f" {ns}", "") + "<w:sectPr", 1)
     parts["word/document.xml"] = doc.encode()
@@ -257,11 +278,14 @@ def test_header_look_goes_before_an_existing_description(tmp_path):
     assert tags.index("tblLook") < tags.index("tblDescription")
 
 
-@pytest.mark.parametrize("rows", [
-    [["Only", "row"]],
-    [["A"], ["1"]],
-    [["A", ""], ["1", "2"]],
-])
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [["Only", "row"]],
+        [["A"], ["1"]],
+        [["A", ""], ["1", "2"]],
+    ],
+)
 def test_every_table_gets_a_header_row_whatever_it_holds(tmp_path, rows):
     """Ally flags a table without a header row, including one-row boxes and one-column listings."""
     from cappv1.docx_reader import mark_table_header
@@ -450,8 +474,11 @@ def test_an_embedded_excel_sheet_is_read_not_mistaken_for_a_word_file():
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
         z.writestr("xl/workbook.xml", "<workbook/>")
-        z.writestr("xl/sharedStrings.xml", '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-                   "<si><t>Quarter</t></si><si><r><t>Revenue</t></r></si></sst>")
+        z.writestr(
+            "xl/sharedStrings.xml",
+            '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            "<si><t>Quarter</t></si><si><r><t>Revenue</t></r></si></sst>",
+        )
     text = ole_object_to_text(buf.getvalue())
     assert "Quarter" in text and "Revenue" in text
     assert ole_object_to_text(b"PK\x03\x04 not really a zip") == ""
@@ -468,12 +495,14 @@ def test_the_terminal_says_document_not_slide_for_a_word_file():
     view = RunView(Console(file=out, width=100, force_terminal=False), types.SimpleNamespace())
     view.on_event("file_start", {"filename": "a.docx", "index": 1, "total": 1})
     view.on_event("file_open", {"total_slides": 1, "resumed": 0, "kind": "document"})
-    view.on_event("slide_end", {"slide": 0, "empty": False, "captioned": 4, "enhanced": 0, "kept": 0,
-                                "decorative": 0, "cached": 0, "failed": 0})
+    view.on_event(
+        "slide_end", {"slide": 0, "empty": False, "captioned": 4, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0}
+    )
     assert "document" in out.getvalue() and "slide" not in out.getvalue()
 
 
 # ---- structure fixes Ally scores -------------------------------------------------------------
+
 
 def styled(doc, text, style):
     return doc.add_paragraph(text, style=style)
@@ -643,9 +672,11 @@ def test_a_picture_no_model_can_read_is_described_by_its_caption(tmp_path, fake_
     renamed = media.rsplit(".", 1)[0] + ".wmf"
     parts[renamed] = parts.pop(media)
     parts["word/_rels/document.xml.rels"] = parts["word/_rels/document.xml.rels"].replace(
-        media.encode()[len("word/"):], renamed.encode()[len("word/"):])
+        media.encode()[len("word/") :], renamed.encode()[len("word/") :]
+    )
     parts["[Content_Types].xml"] = parts["[Content_Types].xml"].replace(
-        b"<Default", b'<Default Extension="wmf" ContentType="image/x-wmf"/><Default', 1)
+        b"<Default", b'<Default Extension="wmf" ContentType="image/x-wmf"/><Default', 1
+    )
     doc_xml = parts["word/document.xml"].decode().replace("Figure 1 shows the trend.", "Figure 7.3: Hospital layout")
     parts["word/document.xml"] = doc_xml.encode()
     with zipfile.ZipFile(src, "w") as z:

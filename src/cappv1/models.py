@@ -5,6 +5,7 @@ available on OpenRouter, lets you pick one, and writes it into .env as
 MODEL=... - the fix when a paid model 402s for lack of credits. With
 PROVIDER=ollama it lists the vision models installed on this computer instead.
 """
+
 import json
 import sys
 import urllib.error
@@ -81,7 +82,8 @@ def fetch_ollama_vision_models(base_url: str) -> list[tuple[str, str]]:
     models = []
     for name in ollama_installed_models(base_url):
         req = urllib.request.Request(
-            f"{base_url}/api/show", data=json.dumps({"model": name}).encode(),
+            f"{base_url}/api/show",
+            data=json.dumps({"model": name}).encode(),
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=10) as resp:

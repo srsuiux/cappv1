@@ -61,9 +61,7 @@ def get_section_map(prs: Presentation) -> dict[int, str]:
         id_to_index = {sid: i for i, sid in enumerate(order)}
 
         element = prs.slides._sldIdLst.getroottree().getroot()
-        section_lst = element.find(
-            ".//{http://schemas.microsoft.com/office/powerpoint/2010/main}sectionLst"
-        )
+        section_lst = element.find(".//{http://schemas.microsoft.com/office/powerpoint/2010/main}sectionLst")
         if section_lst is None:
             return {}
 
@@ -144,8 +142,7 @@ def _count_raw_pictures(slide) -> int:
     return sum(
         1
         for pic in slide.shapes._element.iter(qn("p:pic"))
-        if len(pic.xpath("./p:nvPicPr/p:nvPr/a:videoFile")) == 0
-        and len(pic.xpath("ancestor::p:oleObj")) == 0
+        if len(pic.xpath("./p:nvPicPr/p:nvPr/a:videoFile")) == 0 and len(pic.xpath("ancestor::p:oleObj")) == 0
     )
 
 

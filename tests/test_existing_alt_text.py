@@ -115,8 +115,7 @@ def test_the_deck_keeps_every_part_except_the_slides_it_wrote_to(configured, tmp
 
     src = make_deck(tmp_path / "a.pptx")
     broken = tmp_path / "broken.pptx"
-    rel = ('<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/'
-           'relationships/oleObject" Target="NULL"/>')
+    rel = '<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/oleObject" Target="NULL"/>'
     with zipfile.ZipFile(src) as zin, zipfile.ZipFile(broken, "w") as zout:
         for info in zin.infolist():
             data = zin.read(info.filename)

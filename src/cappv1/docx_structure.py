@@ -2,6 +2,7 @@
 document Title. Headings are fixed without changing how a page looks: a heading style is a copy of
 the style it replaces, so only its name and outline level differ. Contrast is the one visible
 change, and it is always reported."""
+
 import colorsys
 import copy
 import re
@@ -177,7 +178,7 @@ def fix_contrast(doc) -> list[str]:
         old, back = color.get(qn("w:val")).upper(), run_background(run)
         if contrast(old, back) >= CONTRAST_AA:
             continue
-        r, g, b = (int(old[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        r, g, b = (int(old[i : i + 2], 16) / 255 for i in (0, 2, 4))
         h, light, sat = colorsys.rgb_to_hls(r, g, b)
         new = old
         while contrast(new, back) < CONTRAST_AAA and light > 0:  # only failing text is touched, but it is fixed generously
@@ -187,8 +188,10 @@ def fix_contrast(doc) -> list[str]:
         for attr in ("w:themeColor", "w:themeTint", "w:themeShade"):
             color.attrib.pop(qn(attr), None)
         notes[(old, new, back.upper())] = notes.get((old, new, back.upper()), 0) + 1
-    return [f"text color #{o} darkened to #{n} on #{b} to pass the contrast check ({c} place{'s' if c != 1 else ''})"
-            for (o, n, b), c in notes.items()]
+    return [
+        f"text color #{o} darkened to #{n} on #{b} to pass the contrast check ({c} place{'s' if c != 1 else ''})"
+        for (o, n, b), c in notes.items()
+    ]
 
 
 def set_title(doc) -> str | None:

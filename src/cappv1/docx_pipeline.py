@@ -40,9 +40,7 @@ logger = logging.getLogger("pptx_alt_text")
 _UNSENDABLE_EXTS = {"emf", "wmf", "svg", "tif", "tiff"}
 
 
-async def run_docx_file(
-    config: Config, client: httpx.AsyncClient, semaphore: asyncio.Semaphore, path: Path
-) -> None:
+async def run_docx_file(config: Config, client: httpx.AsyncClient, semaphore: asyncio.Semaphore, path: Path) -> None:
     """Captions one Word document. The whole document is treated as a single
     unit (slide 0 of 1) so progress, resume and the event stream match decks."""
     filename = path.name
@@ -55,8 +53,11 @@ async def run_docx_file(
     save_state(config.state_dir, state)
 
     pictures, tables, objects = [], [], []
-    for kind, find, into in (("pictures", extract_pictures, pictures), ("tables", extract_tables, tables),
-                             ("embedded objects", extract_objects, objects)):
+    for kind, find, into in (
+        ("pictures", extract_pictures, pictures),
+        ("tables", extract_tables, tables),
+        ("embedded objects", extract_objects, objects),
+    ):
         try:
             into.extend(find(doc))
         except Exception as exc:  # unreadable parts of the document are noted, the rest still gets done
@@ -65,11 +66,21 @@ async def run_docx_file(
     if tables and reason:
         count = f"{len(tables)} table" + ("" if len(tables) == 1 else "s")
         record_skip(state, filename, 0, "the document", "tables", PlainNote(f"{count} not described: {reason}"))
-    events.emit("file_open", filename=filename, kind="document", total_slides=1, items=len(pictures) + len(tables) + len(objects),
-                resumed=len(state.completed_slide_indices))
-    events.emit("slide_start", filename=filename, slide=0, total=1,
-                counts={"picture": len(pictures), "table": len(tables), "chart": 0,
-                        "object": len(objects), "diagram": 0, "invisible": 0})
+    events.emit(
+        "file_open",
+        filename=filename,
+        kind="document",
+        total_slides=1,
+        items=len(pictures) + len(tables) + len(objects),
+        resumed=len(state.completed_slide_indices),
+    )
+    events.emit(
+        "slide_start",
+        filename=filename,
+        slide=0,
+        total=1,
+        counts={"picture": len(pictures), "table": len(tables), "chart": 0, "object": len(objects), "diagram": 0, "invisible": 0},
+    )
 
     headers = {"set": 0, "already": 0, "skipped": 0}
     n = {"captioned": 0, "enhanced": 0, "kept": 0, "decorative": 0, "cached": 0, "failed": 0, "skipped": 0}
@@ -105,8 +116,7 @@ async def run_docx_file(
         else:
             n["captioned"] += 1
         write(caption)
-        events.emit("alt_written", filename=filename, slide=0,
-                    outcome="enhanced" if author else "captioned", text=caption)
+        events.emit("alt_written", filename=filename, slide=0, outcome="enhanced" if author else "captioned", text=caption)
         return caption
 
     def from_cache(write, key: str) -> bool:
@@ -128,12 +138,15 @@ async def run_docx_file(
                 return
             # no model can read this format, but the document names it: its own caption is a true description
             text = nearby_caption(pic.block, config.max_alt_text_chars)
-            logger.info("[file: %s] a .%s picture can't be sent to a vision model - %s", filename, pic.ext,
-                        "described by its caption" if text else "no caption beside it")
+            logger.info(
+                "[file: %s] a .%s picture can't be sent to a vision model - %s",
+                filename,
+                pic.ext,
+                "described by its caption" if text else "no caption beside it",
+            )
             n["captioned"] += 1
             set_alt_text(pic.doc_pr, text or "Picture (automatic description unavailable)")
-            events.emit("alt_written", filename=filename, slide=0, outcome="captioned",
-                        text=pic.doc_pr.get("descr"))
+            events.emit("alt_written", filename=filename, slide=0, outcome="captioned", text=pic.doc_pr.get("descr"))
             return
         if is_too_small(pic.image_bytes, config.min_image_size_px):
             if author:
@@ -219,21 +232,38 @@ async def run_docx_file(
     )
 
     failed = n["failed"]
-    logger.info("[file: %s] table header rows: %d marked, %d already, %d left alone", filename,
-                headers["set"], headers["already"], headers["skipped"])
+    logger.info(
+        "[file: %s] table header rows: %d marked, %d already, %d left alone",
+        filename,
+        headers["set"],
+        headers["already"],
+        headers["skipped"],
+    )
     logger.info(
         "[file: %s] captioned %d, enhanced %d, kept author's %d, decorative %d, cached %d, failed %d, "
         "left as is %d, skipped %d (of %d elements: %d images, %d tables, %d objects)",
-        filename, n["captioned"], n["enhanced"], n["kept"], n["decorative"], n["cached"], failed, skipped, n["skipped"],
-        len(pictures) + len(tables) + len(objects), len(pictures), len(tables), len(objects),
+        filename,
+        n["captioned"],
+        n["enhanced"],
+        n["kept"],
+        n["decorative"],
+        n["cached"],
+        failed,
+        skipped,
+        n["skipped"],
+        len(pictures) + len(tables) + len(objects),
+        len(pictures),
+        len(tables),
+        len(objects),
     )
     events.emit("slide_end", filename=filename, slide=0, total=1, empty=not (pictures or tables or objects), **n)
     if failed == 0:
         state.mark_slide_done(0)
         save_state(config.state_dir, state)
     else:
-        logger.warning("[file: %s] finished with some elements uncaptioned - run again to retry them "
-                       "(cached captions won't be re-fetched)", filename)
+        logger.warning(
+            "[file: %s] finished with some elements uncaptioned - run again to retry them (cached captions won't be re-fetched)", filename
+        )
 
     # structure fixes Ally scores: heading levels and the Title are invisible; a contrast fix changes a
     # color, so each one is noted for the person to look at
@@ -245,7 +275,7 @@ async def run_docx_file(
             record_skip(state, filename, 0, "the document", "contrast", PlainNote(note))
         title = set_title(doc)
         if title:
-            logger.info("[file: %s] document title set to \"%s\"", filename, title)
+            logger.info('[file: %s] document title set to "%s"', filename, title)
     except Exception as exc:  # a structure fix that fails leaves the file as it was; it never stops it
         record_skip(state, filename, 0, "the document", "structure", exc)
 
@@ -261,6 +291,10 @@ async def run_docx_file(
         save_state(config.state_dir, state)
     events.emit("file_saved", filename=filename, path=str(out_path), incomplete=failed > 0, skipped=len(state.skipped))
     if state.skipped:
-        logger.warning("[file: %s] %d item(s) were skipped and need a look: %s", filename, len(state.skipped),
-                       "; ".join(f"{s['kind']} on {s['where']}" for s in state.skipped))
+        logger.warning(
+            "[file: %s] %d item(s) were skipped and need a look: %s",
+            filename,
+            len(state.skipped),
+            "; ".join(f"{s['kind']} on {s['where']}" for s in state.skipped),
+        )
     logger.info("[file: %s] saved to %s", filename, out_path)

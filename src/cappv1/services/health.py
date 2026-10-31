@@ -1,4 +1,5 @@
 """Is cappv1 ready to run? The checks behind /doctor and the web Doctor page."""
+
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from urllib.parse import urlparse
@@ -49,8 +50,9 @@ def planned_checks(ws: Workspace, live: bool = True) -> list[PlannedCheck]:
             return have, "" if have else f"Run: ollama pull {model}"
 
         plan += [
-            PlannedCheck("Ollama address is this computer",
-                         lambda: (local, "your slides never leave it" if local else f"{base} is another machine")),
+            PlannedCheck(
+                "Ollama address is this computer", lambda: (local, "your slides never leave it" if local else f"{base} is another machine")
+            ),
             PlannedCheck("Ollama is running", ollama_up),
             PlannedCheck(f"Model {model} is downloaded", model_ready),
         ]
@@ -66,8 +68,10 @@ def planned_checks(ws: Workspace, live: bool = True) -> list[PlannedCheck]:
 
     plan += [
         PlannedCheck("Python packages installed", deps),
-        PlannedCheck("input/ and output/ folders are ready",
-                     lambda: (doctor.check_dir_writable(ws.input_dir) and doctor.check_dir_writable(ws.output_dir), "")),
+        PlannedCheck(
+            "input/ and output/ folders are ready",
+            lambda: (doctor.check_dir_writable(ws.input_dir) and doctor.check_dir_writable(ws.output_dir), ""),
+        ),
     ]
     return plan
 

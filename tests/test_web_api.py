@@ -127,6 +127,7 @@ def test_bad_uploads_are_refused(web, deck, monkeypatch):
     assert status == 201 and body["name"] == "escape.pptx" and not (web.server.ws.root / "escape.pptx").exists()
     web.call("DELETE", "/api/v1/files/escape.pptx")
     from cappv1.services import files
+
     monkeypatch.setattr(files, "MAX_UPLOAD_BYTES", 10)
     assert upload(web, "big.pptx", deck)[1]["error"]["code"] == "too_big"
     assert not list(web.server.ws.input_dir.iterdir())  # nothing half-saved

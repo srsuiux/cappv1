@@ -1,4 +1,5 @@
 """The models a service offers. Only models that can read images are listed."""
+
 from dataclasses import dataclass
 
 from cappv1 import doctor
@@ -17,10 +18,16 @@ class ModelOption:
 
 # Short lists of vision-capable models; an "other" entry covers anything newer.
 CURATED = {
-    "openai": (ModelOption("gpt-4o-mini", "default, lowest cost"), ModelOption("gpt-4o", "higher quality"),
-               ModelOption("gpt-4.1-mini", "newer, low cost")),
-    "anthropic": (ModelOption("claude-haiku-5-5", "default, lowest cost"), ModelOption("claude-sonnet-5-5", "higher quality"),
-                  ModelOption("claude-opus-5-5", "best quality, highest cost")),
+    "openai": (
+        ModelOption("gpt-4o-mini", "default, lowest cost"),
+        ModelOption("gpt-4o", "higher quality"),
+        ModelOption("gpt-4.1-mini", "newer, low cost"),
+    ),
+    "anthropic": (
+        ModelOption("claude-haiku-5-5", "default, lowest cost"),
+        ModelOption("claude-sonnet-5-5", "higher quality"),
+        ModelOption("claude-opus-5-5", "best quality, highest cost"),
+    ),
 }
 
 
@@ -40,8 +47,9 @@ def ollama_installed(ws: Workspace) -> list[str]:
     try:
         return doctor.ollama_installed_models(_base_url(ws))
     except Exception:
-        raise ServiceError("ollama_down", "Ollama isn't running.",
-                           "Open the Ollama app (llama icon). Not installed? Get it at ollama.com/download") from None
+        raise ServiceError(
+            "ollama_down", "Ollama isn't running.", "Open the Ollama app (llama icon). Not installed? Get it at ollama.com/download"
+        ) from None
 
 
 def ollama_vision(ws: Workspace) -> list[ModelOption]:
@@ -71,8 +79,7 @@ def openrouter_catalog() -> OpenRouterCatalog:
     try:
         found = catalog.fetch_openrouter_vision_models()
     except Exception as exc:
-        raise ServiceError("network", f"Couldn't reach OpenRouter ({exc.__class__.__name__}).",
-                           "Check your internet connection.") from None
+        raise ServiceError("network", f"Couldn't reach OpenRouter ({exc.__class__.__name__}).", "Check your internet connection.") from None
     as_option = lambda m: ModelOption(m["id"], price_text(m["price"]), m["price"])  # noqa: E731
     free = sorted((m for m in found if m["free"]), key=lambda m: m["id"])
     paid = sorted((m for m in found if not m["free"]), key=lambda m: (m["price"], m["id"]))

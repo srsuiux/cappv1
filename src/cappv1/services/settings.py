@@ -1,4 +1,5 @@
 """Which AI service and model cappv1 uses."""
+
 from dataclasses import asdict, dataclass
 
 from cappv1 import doctor
@@ -24,15 +25,42 @@ class Service:
 
 
 SERVICES = (
-    Service("ollama", "Ollama", True, "", "",
-            "Runs on this computer. Pictures and slide text never leave it. Needs Ollama installed and a vision model downloaded."),
-    Service("openrouter", "OpenRouter", False, "OPENROUTER_API_KEY", "openrouter.ai -> account settings -> API Keys (starts with sk-or-v1-)",
-            "Pictures and slide text go to OpenRouter, which passes them to the company that runs the model you pick. "
-            "Free models may log requests, so avoid them for private slides.", "https://openrouter.ai/privacy"),
-    Service("openai", "OpenAI", False, "OPENAI_API_KEY", "platform.openai.com/api-keys",
-            "Pictures and slide text go to OpenAI's API.", "https://openai.com/policies/privacy-policy"),
-    Service("anthropic", "Anthropic", False, "ANTHROPIC_API_KEY", "console.anthropic.com -> API Keys",
-            "Pictures and slide text go to Anthropic's API.", "https://www.anthropic.com/legal/privacy"),
+    Service(
+        "ollama",
+        "Ollama",
+        True,
+        "",
+        "",
+        "Runs on this computer. Pictures and slide text never leave it. Needs Ollama installed and a vision model downloaded.",
+    ),
+    Service(
+        "openrouter",
+        "OpenRouter",
+        False,
+        "OPENROUTER_API_KEY",
+        "openrouter.ai -> account settings -> API Keys (starts with sk-or-v1-)",
+        "Pictures and slide text go to OpenRouter, which passes them to the company that runs the model you pick. "
+        "Free models may log requests, so avoid them for private slides.",
+        "https://openrouter.ai/privacy",
+    ),
+    Service(
+        "openai",
+        "OpenAI",
+        False,
+        "OPENAI_API_KEY",
+        "platform.openai.com/api-keys",
+        "Pictures and slide text go to OpenAI's API.",
+        "https://openai.com/policies/privacy-policy",
+    ),
+    Service(
+        "anthropic",
+        "Anthropic",
+        False,
+        "ANTHROPIC_API_KEY",
+        "console.anthropic.com -> API Keys",
+        "Pictures and slide text go to Anthropic's API.",
+        "https://www.anthropic.com/legal/privacy",
+    ),
 )
 
 

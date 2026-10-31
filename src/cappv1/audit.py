@@ -4,6 +4,7 @@ Two checks: text that is hard to read against its background, and slides whose
 reading order (the order a screen reader follows, which is the order shapes
 appear in the slide's XML) disagrees with how they are laid out. Colors and
 layout belong to the author, so nothing here is ever written back."""
+
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -43,13 +44,17 @@ class Report:
         return list(groups.values())
 
     def as_dict(self) -> dict:
-        return {"groups": self.grouped(), "problems": len(self.findings), "checked_text": self.checked_text,
-                "unmeasured_text": self.unmeasured_text}
+        return {
+            "groups": self.grouped(),
+            "problems": len(self.findings),
+            "checked_text": self.checked_text,
+            "unmeasured_text": self.unmeasured_text,
+        }
 
 
 # ---- colors ----------------------------------------------------------------------
 def _lum(hex6: str) -> float:
-    chan = [int(hex6[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    chan = [int(hex6[i : i + 2], 16) / 255 for i in (0, 2, 4)]
     chan = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in chan]
     return 0.2126 * chan[0] + 0.7152 * chan[1] + 0.0722 * chan[2]
 
@@ -61,12 +66,14 @@ def contrast_ratio(a: str, b: str) -> float:
 
 def _hls(hex6):
     import colorsys
-    r, g, b = (int(hex6[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+    r, g, b = (int(hex6[i : i + 2], 16) / 255 for i in (0, 2, 4))
     return colorsys.rgb_to_hls(r, g, b)
 
 
 def _from_hls(h, l, s) -> str:
     import colorsys
+
     r, g, b = colorsys.hls_to_rgb(h, min(max(l, 0), 1), s)
     return "".join(f"{round(c * 255):02X}" for c in (r, g, b))
 
@@ -79,6 +86,7 @@ class _Theme:
         for rel in master.part.rels.values():
             if rel.reltype.endswith("/theme"):
                 from lxml import etree
+
                 root = etree.fromstring(rel.target_part.blob)
                 scheme = root.find(f".//{{{_A}}}clrScheme")
                 for el in scheme if scheme is not None else []:
@@ -238,6 +246,7 @@ def _run_color(theme: _Theme, run, para, slide, sp) -> str | None:
 
 def _synthetic(name):
     from lxml import etree
+
     return etree.Element(f"{{{_A}}}schemeClr", val=name)
 
 
@@ -348,8 +357,14 @@ def check_contrast(prs) -> tuple[list, int, int]:
                     shown = ", ".join("#" + b for b in backdrop)
                     if ratio < need and (fg, tuple(backdrop), text[:30]) not in seen:
                         seen.add((fg, tuple(backdrop), text[:30]))
-                        findings.append(Finding(number, "contrast", f"“{text[:50]}” is hard to read.",
-                                                f"Contrast {ratio:.1f}:1, needs {need}:1 (text #{fg} on {shown})."))
+                        findings.append(
+                            Finding(
+                                number,
+                                "contrast",
+                                f"“{text[:50]}” is hard to read.",
+                                f"Contrast {ratio:.1f}:1, needs {need}:1 (text #{fg} on {shown}).",
+                            )
+                        )
         # table cells: each cell's own fill, else the table frame's backdrop
         for frame in slide._element.iter(qn("p:graphicFrame")):
             tbl = frame.find(f".//{{{_A}}}tbl")
@@ -387,8 +402,14 @@ def check_contrast(prs) -> tuple[list, int, int]:
                         shown = ", ".join("#" + b for b in backdrop)
                         if ratio < need and (fg, tuple(backdrop), text[:30]) not in seen:
                             seen.add((fg, tuple(backdrop), text[:30]))
-                            findings.append(Finding(number, "contrast", f"“{text[:50]}” is hard to read.",
-                                                    f"Contrast {ratio:.1f}:1, needs {need}:1 (text #{fg} on {shown})."))
+                            findings.append(
+                                Finding(
+                                    number,
+                                    "contrast",
+                                    f"“{text[:50]}” is hard to read.",
+                                    f"Contrast {ratio:.1f}:1, needs {need}:1 (text #{fg} on {shown}).",
+                                )
+                            )
     return findings, measured, unmeasured
 
 
@@ -406,14 +427,21 @@ def check_reading_order(prs) -> list:
         items = [s for s in slide.shapes if _meaningful(s) and None not in (s.top, s.height, s.left)]
         title = slide.shapes.title
         if title is not None and title.text_frame.text.strip() and items and items[0].shape_id != title.shape_id:
-            findings.append(Finding(number, "reading_order", "The title is not read first.",
-                                    f"A screen reader starts with “{_label(items[0])}”."))
+            findings.append(
+                Finding(number, "reading_order", "The title is not read first.", f"A screen reader starts with “{_label(items[0])}”.")
+            )
             continue
         for i, first in enumerate(items):
-            above = next((later for later in items[i + 1:] if later.top + later.height <= first.top), None)
+            above = next((later for later in items[i + 1 :] if later.top + later.height <= first.top), None)
             if above is not None:
-                findings.append(Finding(number, "reading_order", "Reading order does not follow the layout.",
-                                        f"“{_label(first)}” is read before “{_label(above)}”, which sits above it."))
+                findings.append(
+                    Finding(
+                        number,
+                        "reading_order",
+                        "Reading order does not follow the layout.",
+                        f"“{_label(first)}” is read before “{_label(above)}”, which sits above it.",
+                    )
+                )
                 break
     return findings
 

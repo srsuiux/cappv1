@@ -74,7 +74,12 @@ def test_pages_and_assets_are_served(configured):
         for path in ["/", "/files", "/services", "/health", "/data", "/how-it-works", "/privacy", "/faq", "/about"]:
             status, body, resp = web.call("GET", path, token=False)
             assert status == 200 and "text/html" in resp.getheader("Content-Type"), path
-        for path, ctype in [("/app.css", "text/css"), ("/files.js", "javascript"), ("/fonts/ah-400.woff2", "font/woff2"), ("/favicon.svg", "image/svg+xml")]:
+        for path, ctype in [
+            ("/app.css", "text/css"),
+            ("/files.js", "javascript"),
+            ("/fonts/ah-400.woff2", "font/woff2"),
+            ("/favicon.svg", "image/svg+xml"),
+        ]:
             status, _, resp = web.call("GET", path, token=False)
             assert status == 200 and ctype in resp.getheader("Content-Type"), path
         status, body, resp = web.call("GET", "/no-such-page", token=False)
@@ -88,11 +93,13 @@ def test_pages_and_assets_are_served(configured):
 def test_privacy_page_states_what_the_code_actually_sends():
     """If these facts change in the code, this page must change with it."""
     from cappv1 import llm_client
+
     text = render_page("privacy").decode()
     for claim in ("speaker notes", "127.0.0.1", "Ollama", "OpenRouter", "OpenAI", "Anthropic", ".state/", "logs/", ".env"):
         assert claim in text
     # the request builder sends these parts of the slide context; the page lists them
     from cappv1.pptx_reader import SlideContext
+
     ctx = SlideContext(0, "Sec", "Title", "Body", "Notes")
     sent = llm_client._context_text(ctx)
     for part in ("Title", "Sec", "Body", "Notes"):
@@ -117,7 +124,7 @@ def _tokens(block: str) -> dict[str, str]:
 
 
 def _luminance(hex_color: str) -> float:
-    r, g, b = (int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    r, g, b = (int(hex_color[i : i + 2], 16) / 255 for i in (1, 3, 5))
     lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in (r, g, b)]
     return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
 
@@ -142,8 +149,20 @@ def test_dark_mode_works_by_device_setting_and_by_choice_and_they_agree():
 @pytest.mark.parametrize("which", [0, 1])
 def test_text_and_controls_have_enough_contrast_in_both_themes(which):
     t = _themes()[which]
-    pairs = [("ink", "paper"), ("ink", "tint"), ("muted", "paper"), ("muted", "tint"), ("blue", "paper"), ("blue", "tint"),
-             ("blue-ink", "blue"), ("ok", "paper"), ("ok", "tint"), ("warn", "paper"), ("bad", "paper"), ("bad", "tint")]
+    pairs = [
+        ("ink", "paper"),
+        ("ink", "tint"),
+        ("muted", "paper"),
+        ("muted", "tint"),
+        ("blue", "paper"),
+        ("blue", "tint"),
+        ("blue-ink", "blue"),
+        ("ok", "paper"),
+        ("ok", "tint"),
+        ("warn", "paper"),
+        ("bad", "paper"),
+        ("bad", "tint"),
+    ]
     for fg, bg in pairs:
         assert _contrast(t[fg], t[bg]) >= 4.5, f"{fg} on {bg} is {_contrast(t[fg], t[bg]):.1f}:1"
 
@@ -192,7 +211,9 @@ def test_the_changelog_is_only_cards():
 def test_the_changelog_groups_changes_and_escapes_what_it_shows():
     from cappv1.web import changelog
 
-    out = changelog.render("## 2.0.0 - 2026-01-02\n\n### New\n\n- A `code` <b>tag</b> and **bold**\n\n### Fixed\n\n- One thing\n\n## Unreleased\n\n- Later\n")
+    out = changelog.render(
+        "## 2.0.0 - 2026-01-02\n\n### New\n\n- A `code` <b>tag</b> and **bold**\n\n### Fixed\n\n- One thing\n\n## Unreleased\n\n- Later\n"
+    )
     assert 'class="kind new"' in out and 'class="kind fixed"' in out and "<code>code</code>" in out
     assert "&lt;b&gt;tag&lt;/b&gt;" in out and "<b>bold</b>" in out
     assert '<time datetime="2026-01-02">2 January 2026</time>' in out and "Not released yet" in out
@@ -224,7 +245,9 @@ def test_every_accent_color_is_readable_as_text_and_under_button_ink(accent):
     light, dark, _ = _themes()
     light_accent = _tokens(re.search(rf"^:root\[data-accent={accent}\]\{{(.*?)\}}", CSS, re.M).group(1))["blue"]
     dark_accent = _tokens(re.search(rf"^:root\[data-theme=dark\]\[data-accent={accent}\]\{{(.*?)\}}", CSS, re.M).group(1))["blue"]
-    system_dark = _tokens(re.search(rf"\(prefers-color-scheme:dark\)\{{:root:not\(\[data-theme=light\]\)\[data-accent={accent}\]\{{(.*?)\}}", CSS).group(1))["blue"]
+    system_dark = _tokens(
+        re.search(rf"\(prefers-color-scheme:dark\)\{{:root:not\(\[data-theme=light\]\)\[data-accent={accent}\]\{{(.*?)\}}", CSS).group(1)
+    )["blue"]
     assert dark_accent == system_dark
     for t, color in ((light, light_accent), (dark, dark_accent)):
         for bg in ("paper", "tint"):

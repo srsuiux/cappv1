@@ -1,4 +1,5 @@
 """One unreadable item must never stop a file: it is skipped, noted, and the rest finishes."""
+
 import asyncio
 import logging
 
@@ -43,7 +44,9 @@ def test_a_broken_picture_is_skipped_and_the_file_still_finishes(tmp_path, fake_
     assert state.status == "complete"
     assert [(s["where"], s["kind"]) for s in state.skipped] == [("slide 1", "picture")]
     assert state.skipped[0]["error"]
-    assert alt_texts(outputs.latest(config.output_dir, "a.pptx")).count(fake_ollama.reply) == 2  # the table and chart on slide 2 were still done
+    assert (
+        alt_texts(outputs.latest(config.output_dir, "a.pptx")).count(fake_ollama.reply) == 2
+    )  # the table and chart on slide 2 were still done
     assert [d["where"] for n, d in seen if n == "element_skipped"] == ["slide 1"]
     saved = next(d for n, d in seen if n == "file_saved")
     assert saved["skipped"] == 1 and not saved["incomplete"]
@@ -143,8 +146,9 @@ def test_an_empty_model_reply_is_asked_again_before_giving_up(monkeypatch):
         return None
 
     monkeypatch.setattr(llm_client.asyncio, "sleep", no_wait)
-    config = types.SimpleNamespace(provider="openrouter", base_url="http://x", api_key="k", request_timeout=5,
-                                   max_alt_text_chars=125, ollama_base_url="", model="m")
+    config = types.SimpleNamespace(
+        provider="openrouter", base_url="http://x", api_key="k", request_timeout=5, max_alt_text_chars=125, ollama_base_url="", model="m"
+    )
     monkeypatch.setattr(llm_client, "_build_request", lambda c, m, msgs: ("http://x/v1", {}, {}))
 
     async def go():

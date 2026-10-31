@@ -3,6 +3,7 @@ checklist). It proves the rules are met in the file's XML; the real score only a
 file is uploaded to Blackboard. Nothing here ever changes a document.
 
     python -m cappv1.docx_check output/*.docx"""
+
 import re
 import sys
 import zipfile
@@ -41,7 +42,7 @@ def _luminance(hex6: str) -> float:
     def channel(c: float) -> float:
         return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
 
-    r, g, b = (int(hex6[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    r, g, b = (int(hex6[i : i + 2], 16) / 255 for i in (0, 2, 4))
     return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
 
 
@@ -51,9 +52,22 @@ def contrast(foreground: str, background: str) -> float:
 
 
 _HEX = re.compile(r"[0-9A-Fa-f]{6}")
-_NAMED = {"black": "000000", "white": "FFFFFF", "yellow": "FFFF00", "lightGray": "C0C0C0", "darkGray": "808080",
-          "red": "FF0000", "green": "00FF00", "blue": "0000FF", "cyan": "00FFFF", "magenta": "FF00FF",
-          "darkBlue": "000080", "darkRed": "800000", "darkGreen": "008000", "darkYellow": "808000"}
+_NAMED = {
+    "black": "000000",
+    "white": "FFFFFF",
+    "yellow": "FFFF00",
+    "lightGray": "C0C0C0",
+    "darkGray": "808080",
+    "red": "FF0000",
+    "green": "00FF00",
+    "blue": "0000FF",
+    "cyan": "00FFFF",
+    "magenta": "FF00FF",
+    "darkBlue": "000080",
+    "darkRed": "800000",
+    "darkGreen": "008000",
+    "darkYellow": "808000",
+}
 
 
 def _heading_level(style_id: str, styles: dict) -> int | None:
@@ -98,10 +112,10 @@ def check(path: Path) -> list[Issue]:
             continue
         decorative = pr.xpath(f".//*[local-name()='decorative' and namespace-uri()='{_ADEC}']")
         if not (pr.get("descr") or "").strip() and not decorative:
-            issues.append(Issue("major", "alt text", f"picture or shape \"{pr.get('name', '')}\" has no description"))
+            issues.append(Issue("major", "alt text", f'picture or shape "{pr.get("name", "")}" has no description'))
     for shape in body.iter(f"{{{_V}}}shape"):
         if shape.getparent().tag == _w("object") and not (shape.get("alt") or "").strip():
-            issues.append(Issue("major", "alt text", f"embedded object \"{shape.get('id', '')}\" has no description"))
+            issues.append(Issue("major", "alt text", f'embedded object "{shape.get("id", "")}" has no description'))
 
     # 3. contrast of every run against the cell, paragraph or highlight behind it
     style_color = {}
@@ -126,8 +140,13 @@ def check(path: Path) -> list[Issue]:
         if ratio < CONTRAST_AAA:
             worst[(value.upper(), back.upper())] = round(ratio, 1)
     for (fg, bg), ratio in sorted(worst.items(), key=lambda kv: kv[1]):
-        issues.append(Issue("major" if ratio < CONTRAST_AA else "note", "contrast",
-                            f"text #{fg} on #{bg} is {ratio}:1 ({'fails 4.5:1' if ratio < CONTRAST_AA else 'passes 4.5:1, short of 7:1'})"))
+        issues.append(
+            Issue(
+                "major" if ratio < CONTRAST_AA else "note",
+                "contrast",
+                f"text #{fg} on #{bg} is {ratio}:1 ({'fails 4.5:1' if ratio < CONTRAST_AA else 'passes 4.5:1, short of 7:1'})",
+            )
+        )
 
     # 4, 5, 8. headings
     names = {}
@@ -135,6 +154,7 @@ def check(path: Path) -> list[Issue]:
         for st in styles_xml.iter(_w("style")):
             n = st.find(_w("name"))
             names[st.get(_w("styleId"))] = n.get(_w("val")) if n is not None else st.get(_w("styleId"))
+
     def in_tables_or_boxes(p) -> bool:
         return any(a.tag in (_w("tc"), _w("txbxContent")) for a in p.iterancestors())
 
@@ -149,13 +169,19 @@ def check(path: Path) -> list[Issue]:
             levels.append(lvl)
     for p in body.iter(_w("p")):
         ps = p.find(f"{_w('pPr')}/{_w('pStyle')}")
-        if (ps is not None and _heading_level(ps.get(_w("val")), names) and not in_tables_or_boxes(p)
-                and not "".join(t.text or "" for t in p.iter(_w("t"))).strip()):
+        if (
+            ps is not None
+            and _heading_level(ps.get(_w("val")), names)
+            and not in_tables_or_boxes(p)
+            and not "".join(t.text or "" for t in p.iter(_w("t"))).strip()
+        ):
             issues.append(Issue("minor", "headings", "a heading is empty"))
     if not levels:
         if len(paragraphs) >= MIN_PARAGRAPHS_FOR_HEADINGS:
             extra = f" ({in_table} heading-styled paragraph(s) are inside table cells, which Ally ignores)" if in_table else ""
-            issues.append(Issue("major", "headings", f"no Heading styles in the body text of a document of {len(paragraphs)} paragraphs{extra}"))
+            issues.append(
+                Issue("major", "headings", f"no Heading styles in the body text of a document of {len(paragraphs)} paragraphs{extra}")
+            )
     else:
         if levels[0] != 1:
             issues.append(Issue("major", "headings", f"the first heading is Heading {levels[0]}, not Heading 1"))
@@ -170,7 +196,9 @@ def check(path: Path) -> list[Issue]:
     for i, tbl in enumerate(body.iter(_w("tbl")), 1):
         rows = tbl.findall(_w("tr"))
         if rows and rows[0].find(f"{_w('trPr')}/{_w('tblHeader')}") is None:
-            issues.append(Issue("major", "table header", f"table {i} ({len(rows)} rows x {len(rows[0].findall(_w('tc')))} columns) has no header row"))
+            issues.append(
+                Issue("major", "table header", f"table {i} ({len(rows)} rows x {len(rows[0].findall(_w('tc')))} columns) has no header row")
+            )
 
     # 7. language
     lang = None
@@ -187,7 +215,7 @@ def check(path: Path) -> list[Issue]:
     if not title:
         issues.append(Issue("note", "title", "the document has no Title property"))
     elif title.lower() not in "".join(body.itertext()).lower():
-        issues.append(Issue("note", "title", f"the Title property \"{title[:50]}\" does not appear in the document"))
+        issues.append(Issue("note", "title", f'the Title property "{title[:50]}" does not appear in the document'))
     return issues
 
 

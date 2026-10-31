@@ -6,6 +6,7 @@ every API call must send in a header (which also rules out cross-site calls,
 since there are no CORS headers); a strict content policy; streamed, size-
 limited uploads that are validated before they are kept.
 """
+
 import hmac
 import html
 import json
@@ -39,15 +40,30 @@ MAX_JSON_BYTES = 64 * 1024
 DEFAULT_PORT = 8765
 TOKEN_HEADER = "X-Cappv1-Token"
 
-_CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; "
-        "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+_CSP = (
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; "
+    "base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+)
 
 _STATUS_FOR_CODE = {
-    "bad_name": 400, "unsupported_file": 400, "audit_unsupported": 400, "bad_service": 400, "no_model": 400, "no_key": 400, "bad_request": 400,
-    "no_output": 404, "not_found": 404,
-    "busy": 409, "nothing_to_do": 409, "no_files": 409, "not_configured": 409, "model_missing": 409,
-    "length_required": 411, "too_big": 413,
-    "network": 502, "ollama_down": 503,
+    "bad_name": 400,
+    "unsupported_file": 400,
+    "audit_unsupported": 400,
+    "bad_service": 400,
+    "no_model": 400,
+    "no_key": 400,
+    "bad_request": 400,
+    "no_output": 404,
+    "not_found": 404,
+    "busy": 409,
+    "nothing_to_do": 409,
+    "no_files": 409,
+    "not_configured": 409,
+    "model_missing": 409,
+    "length_required": 411,
+    "too_big": 413,
+    "network": 502,
+    "ollama_down": 503,
 }
 
 
@@ -62,12 +78,17 @@ def render_page(slug: str) -> bytes | None:
     meta = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1))) if m else {}
     page = (TEMPLATES / f"{meta.get('layout', 'app')}.html").read_text(encoding="utf-8")
     script = f'<script type="module" src="/{meta["script"]}"></script>' if meta.get("script") else ""
-    content = text[m.end():] if m else text
+    content = text[m.end() :] if m else text
     if "{{changelog}}" in content:
         content = content.replace("{{changelog}}", changelog.render())
     page = page.replace("{{content}}", content)
-    for key, value in (("title", html.escape(meta.get("title", "cappv1"))), ("description", html.escape(meta.get("description", ""))),
-                       ("version", VERSION), ("script", script), ("width", meta.get("width", "narrow"))):
+    for key, value in (
+        ("title", html.escape(meta.get("title", "cappv1"))),
+        ("description", html.escape(meta.get("description", ""))),
+        ("version", VERSION),
+        ("script", script),
+        ("width", meta.get("width", "narrow")),
+    ):
         page = page.replace("{{" + key + "}}", value)
     if meta.get("nav"):
         page = page.replace(f'data-nav="{meta["nav"]}"', f'data-nav="{meta["nav"]}" aria-current="page"')
@@ -109,8 +130,11 @@ class Request:
         remaining = int(length)
         if remaining > files.MAX_UPLOAD_BYTES:
             self.h.close_connection = True  # the body is left unread
-            raise ServiceError("too_big", f"That file is larger than {files.MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
-                               "Split the deck or compress its pictures in PowerPoint.")
+            raise ServiceError(
+                "too_big",
+                f"That file is larger than {files.MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
+                "Split the deck or compress its pictures in PowerPoint.",
+            )
         while remaining:
             block = self.h.rfile.read(min(1 << 20, remaining))
             if not block:
@@ -173,8 +197,16 @@ class Handler(BaseHTTPRequestHandler):
             parsed = urlparse(self.path)
             if parsed.path.startswith("/api/"):
                 if not self._token_ok():
-                    return self.send_json(401, {"error": {"code": "unauthorized", "message": "Missing or wrong token.",
-                                                          "fix": "Open the address cappv1 printed, which includes the token."}})
+                    return self.send_json(
+                        401,
+                        {
+                            "error": {
+                                "code": "unauthorized",
+                                "message": "Missing or wrong token.",
+                                "fix": "Open the address cappv1 printed, which includes the token.",
+                            }
+                        },
+                    )
                 return self._api(parsed.path, parse_qs(parsed.query))
             if self.command in ("GET", "HEAD"):
                 return self._static(parsed.path)
@@ -186,8 +218,16 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             logger.exception("web request failed: %s %s", self.command, self.path)
             self.close_connection = True
-            self.send_json(500, {"error": {"code": "internal", "message": "Something went wrong.",
-                                           "fix": "Try again. If it keeps happening, check the logs/ folder."}})
+            self.send_json(
+                500,
+                {
+                    "error": {
+                        "code": "internal",
+                        "message": "Something went wrong.",
+                        "fix": "Try again. If it keeps happening, check the logs/ folder.",
+                    }
+                },
+            )
 
     do_GET = do_HEAD = do_POST = do_PUT = do_DELETE = do_OPTIONS = do_PATCH = lambda self: self._handle()
 
@@ -207,7 +247,11 @@ class Handler(BaseHTTPRequestHandler):
         target = (STATIC / unquote(path).lstrip("/")).resolve()
         if STATIC.resolve() not in target.parents or not target.is_file():
             return self.send_bytes(404, "text/html; charset=utf-8", render_page("404") or b"Not found")
-        ctype = "application/manifest+json" if target.suffix == ".webmanifest" else mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+        ctype = (
+            "application/manifest+json"
+            if target.suffix == ".webmanifest"
+            else mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+        )
         if ctype.startswith("text/") or ctype in ("application/javascript", "application/json", "application/manifest+json"):
             ctype += "; charset=utf-8"
         self.send_bytes(200, ctype, target.read_bytes())
@@ -243,7 +287,7 @@ class WebServer:
             return self.url
         last_error: OSError | None = None
         # port 0 means "any free port" (tests); otherwise take the next free one
-        for port in ([0] if self._wanted_port == 0 else range(self._wanted_port, self._wanted_port + 20)):
+        for port in [0] if self._wanted_port == 0 else range(self._wanted_port, self._wanted_port + 20):
             try:
                 httpd = _Httpd(("127.0.0.1", port), Handler)
                 break

@@ -1,4 +1,5 @@
 """The interactive session: banner, prompt, slash commands, drag-and-drop."""
+
 import difflib
 import shlex
 import shutil
@@ -27,21 +28,39 @@ from cappv1.tui.menu import select
 from cappv1.tui.theme import ACCENT, ARROW, BAD, CROSS, MUTED, OK, TICK, WARN
 from cappv1.version import VERSION
 
-_PROMPT_STYLE = Style.from_dict({
-    "rule": "#555555",
-    "prompt": f"{ACCENT} bold",
-    "bottom-toolbar": "noreverse #888888",
-    "completion-menu": "bg:#222222 #bbbbbb",
-    "completion-menu.completion.current": f"bg:#333333 {ACCENT}",
-    "completion-menu.meta.completion": "bg:#222222 #777777",
-    "completion-menu.meta.completion.current": "bg:#333333 #aaaaaa",
-})
+_PROMPT_STYLE = Style.from_dict(
+    {
+        "rule": "#555555",
+        "prompt": f"{ACCENT} bold",
+        "bottom-toolbar": "noreverse #888888",
+        "completion-menu": "bg:#222222 #bbbbbb",
+        "completion-menu.completion.current": f"bg:#333333 {ACCENT}",
+        "completion-menu.meta.completion": "bg:#222222 #777777",
+        "completion-menu.meta.completion.current": "bg:#333333 #aaaaaa",
+    }
+)
 
 # bare words people will type without the slash
-_WORDS = {"run": "run", "start": "run", "go": "run", "help": "help", "?": "help", "exit": "exit",
-          "quit": "exit", "q": "exit", "init": "init", "setup": "init", "doctor": "doctor",
-          "files": "files", "ls": "files", "models": "models", "status": "status", "open": "open",
-          "clean": "clean", "clear": "clear"}
+_WORDS = {
+    "run": "run",
+    "start": "run",
+    "go": "run",
+    "help": "help",
+    "?": "help",
+    "exit": "exit",
+    "quit": "exit",
+    "q": "exit",
+    "init": "init",
+    "setup": "init",
+    "doctor": "doctor",
+    "files": "files",
+    "ls": "files",
+    "models": "models",
+    "status": "status",
+    "open": "open",
+    "clean": "clean",
+    "clear": "clear",
+}
 
 
 class _SlashCompleter(Completer):
@@ -73,8 +92,12 @@ class Session:
         except OSError:
             history = InMemoryHistory()
         self.prompt = PromptSession(
-            history=history, completer=_SlashCompleter(self.commands), complete_while_typing=True,
-            style=_PROMPT_STYLE, bottom_toolbar=self._toolbar, reserve_space_for_menu=4,
+            history=history,
+            completer=_SlashCompleter(self.commands),
+            complete_while_typing=True,
+            style=_PROMPT_STYLE,
+            bottom_toolbar=self._toolbar,
+            reserve_space_for_menu=4,
         )
 
     # ---- config ----------------------------------------------------------
@@ -114,8 +137,11 @@ class Session:
         body.append(f"\n  {self.ws.root}", style=MUTED)
         self.console.print(Panel(body, box=box.ROUNDED, border_style=ACCENT, padding=(1, 2), expand=False))
         n = self.pending_count()
-        hint = f"{n} file(s) in input/. Type /run to start." if n and s.configured else \
-            "Drag a .pptx or .docx into this window to add it · / for commands · /help"
+        hint = (
+            f"{n} file(s) in input/. Type /run to start."
+            if n and s.configured
+            else "Drag a .pptx or .docx into this window to add it · / for commands · /help"
+        )
         self.console.print(Text(f" {hint}\n", style=MUTED))
 
     def _toolbar(self):
@@ -161,11 +187,13 @@ class Session:
     def add_files(self, paths: list[Path]) -> None:
         added = 0
         for src in paths:
-            for f in (files.input_candidates(src) if src.is_dir() else [src]):
+            for f in files.input_candidates(src) if src.is_dir() else [src]:
                 try:
                     target = self.ws.input_dir / files.safe_name(f.name)
                     if target.exists() and target.resolve() != f.resolve():
-                        pick = select(f"{f.name} is already in input/. Replace it?", [("Keep the one already there", ""), ("Replace it", "")])
+                        pick = select(
+                            f"{f.name} is already in input/. Replace it?", [("Keep the one already there", ""), ("Replace it", "")]
+                        )
                         if pick != 1:
                             continue
                     if target.resolve() != f.resolve():
@@ -213,7 +241,9 @@ class Session:
             return
         close = difflib.get_close_matches(word.lower(), list(_WORDS), n=1)
         hint = f" Did you mean /{_WORDS[close[0]]}?" if close else ""
-        self.console.print(Text(f" I don't understand that yet.{hint} Type /help for commands, or drag a .pptx or .docx file here.\n", style=WARN))
+        self.console.print(
+            Text(f" I don't understand that yet.{hint} Type /help for commands, or drag a .pptx or .docx file here.\n", style=WARN)
+        )
 
     def loop(self) -> None:
         while True:

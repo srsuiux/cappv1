@@ -4,6 +4,7 @@ Stdlib-only apart from the package itself, so it still runs when a
 dependency is missing - it's meant to be the first thing you reach for
 when something looks broken.
 """
+
 import argparse
 import json
 import sys
@@ -120,18 +121,24 @@ def check_ollama(env: dict[str, str]) -> bool:
         report(True, "Ollama address is this computer", "your slides never leave it")
     else:
         allowed = env.get("OLLAMA_ALLOW_REMOTE") == "1"
-        ok &= report(allowed, "Ollama address is this computer",
-                     f"{base_url} is another machine; set OLLAMA_BASE_URL=http://localhost:11434, "
-                     "or OLLAMA_ALLOW_REMOTE=1 if that is intended")
+        ok &= report(
+            allowed,
+            "Ollama address is this computer",
+            f"{base_url} is another machine; set OLLAMA_BASE_URL=http://localhost:11434, or OLLAMA_ALLOW_REMOTE=1 if that is intended",
+        )
     try:
         installed = ollama_installed_models(base_url)
     except Exception:
-        return report(False, "Ollama is running", "start the Ollama app (or run: ollama serve), "
-                      "or install it from ollama.com/download") and ok
+        return (
+            report(False, "Ollama is running", "start the Ollama app (or run: ollama serve), or install it from ollama.com/download") and ok
+        )
     report(True, "Ollama is running")
     model = env.get("MODEL") or DEFAULT_OLLAMA_MODEL
-    ok &= report(model_is_installed(model, installed), f"model '{model}' is downloaded",
-                 "" if model_is_installed(model, installed) else f"run: ollama pull {model}")
+    ok &= report(
+        model_is_installed(model, installed),
+        f"model '{model}' is downloaded",
+        "" if model_is_installed(model, installed) else f"run: ollama pull {model}",
+    )
     return ok
 
 

@@ -3,6 +3,7 @@
 One run at a time, shared by whoever started it: the terminal and the web UI
 look at the same RunManager, so each sees the other's run.
 """
+
 import asyncio
 import threading
 import time
@@ -80,8 +81,9 @@ class RunManager:
             except Exception:
                 raise ServiceError("ollama_down", "Ollama isn't running.", "Open the Ollama app, then try again.") from None
             if not doctor.model_is_installed(config.model, installed):
-                raise ServiceError("model_missing", f"{config.model} isn't downloaded.",
-                                   f"Run: ollama pull {config.model}  (or pick another model)")
+                raise ServiceError(
+                    "model_missing", f"{config.model} isn't downloaded.", f"Run: ollama pull {config.model}  (or pick another model)"
+                )
 
         names = [p.name for p in discover_candidates(config)]
         if only is not None:
@@ -96,8 +98,9 @@ class RunManager:
         pending = _pending(config, resume, force, only)
         if not pending:
             shown = ", ".join(names[:3]) + (f" and {len(names) - 3} more" if len(names) > 3 else "")
-            raise ServiceError("nothing_to_do", f"Already captioned and unchanged: {shown}.",
-                               "Add new files, or edit a deck and add it again.")
+            raise ServiceError(
+                "nothing_to_do", f"Already captioned and unchanged: {shown}.", "Add new files, or edit a deck and add it again."
+            )
         return RunPlan(config, resume, force, pending, only)
 
     def launch(self, plan: RunPlan, console_logs: bool = False) -> None:
