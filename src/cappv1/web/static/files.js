@@ -172,6 +172,7 @@ function summary() {
   $("all").checked = current.length > 0 && inCurrent === current.length;
   $("all").indeterminate = inCurrent > 0 && inCurrent < current.length;
   $("all").disabled = busy;
+  $("length").disabled = busy;
   $("picked").textContent = `${inCurrent} of ${current.length} selected`;
   if (!$("removeall").querySelector("#confirm")) rmBtn.disabled = busy;
   const todo = picked.filter((f) => force || f.state !== "done");
@@ -211,7 +212,21 @@ async function removeAll(names) {
   $("pick").focus();
 }
 
+// The length is the same saved setting as on the Accessibility page.
+async function loadLength() {
+  try { $("length").value = (await getJson("/settings/accessibility")).alt_text_length; } catch { /* the status line already explains */ }
+}
+async function saveLength() {
+  const select = $("length");
+  try {
+    const saved = await (await api("PUT", "/settings/accessibility", { alt_text_length: select.value })).json();
+    announce(`Alt text length: ${saved.alt_text_length}. It applies to the next run.`);
+    showProblem(null);
+  } catch (err) { showProblem(err); await loadLength(); }
+}
+
 async function loadFiles() {
+  loadLength();
   try {
     files = (await getJson("/files")).files;
     showProblem(null);
@@ -494,6 +509,7 @@ $("all").addEventListener("change", () => {
 });
 rmBtn.addEventListener("click", askRemoveAll);
 $("run").addEventListener("click", start);
+$("length").addEventListener("change", saveLength);
 $("dismiss").addEventListener("click", () => { $("stage").hidden = true; fresh.clear(); render(); $("pick").focus(); });
 // the terminal can add, remove and delete too: look again when this window is back in front
 addEventListener("focus", () => { if (!busy) loadFiles(); });

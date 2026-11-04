@@ -300,3 +300,15 @@ def test_history_lists_downloads_and_deletes_finished_copies(web, deck):
 def test_the_manifest_is_served_with_its_own_type(web):
     status, _, resp = web.call("GET", "/manifest.webmanifest", token=False)
     assert status == 200 and "manifest+json" in resp.getheader("Content-Type")
+
+
+def test_alt_text_length_can_be_read_and_changed(web):
+    status, body, _ = web.call("GET", "/api/v1/settings/accessibility")
+    assert status == 200 and body["alt_text_length"] == "standard"
+    assert [c["id"] for c in body["lengths"]] == ["short", "standard", "long"]
+    status, body, _ = web.call("PUT", "/api/v1/settings/accessibility", {"alt_text_length": "long"})
+    assert status == 200 and body["alt_text_length"] == "long"
+    assert web.call("GET", "/api/v1/settings")[1]["alt_text_length"] == "long"
+    status, body, _ = web.call("PUT", "/api/v1/settings/accessibility", {"alt_text_length": "huge"})
+    assert status == 400 and body["error"]["code"] == "bad_length"
+    assert web.call("PUT", "/api/v1/settings/accessibility", {"alt_text_length": "long"}, token=False)[0] in (401, 403)

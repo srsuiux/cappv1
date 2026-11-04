@@ -47,6 +47,21 @@ def put_settings(req):
     req.h.send_json(200, saved.as_dict())
 
 
+def get_accessibility(req):
+    req.h.send_json(
+        200,
+        {
+            "alt_text_length": settings.read(req.ws).alt_text_length,
+            "lengths": [{"id": i, "label": label, "help": text} for i, label, text in settings.LENGTH_CHOICES],
+        },
+    )
+
+
+def put_accessibility(req):
+    saved = settings.set_alt_text_length(req.ws, _need(req.json(), "alt_text_length"))
+    req.h.send_json(200, {"alt_text_length": saved.alt_text_length})
+
+
 def test_settings(req):
     body = req.json()
     ok, detail = settings.check_key(_need(body, "provider"), _need(body, "api_key"))
@@ -240,6 +255,8 @@ def doctor_checks(req):
 ROUTES = [
     ("GET", f"{PREFIX}/settings", get_settings),
     ("PUT", f"{PREFIX}/settings", put_settings),
+    ("GET", f"{PREFIX}/settings/accessibility", get_accessibility),
+    ("PUT", f"{PREFIX}/settings/accessibility", put_accessibility),
     ("POST", f"{PREFIX}/settings/test", test_settings),
     ("DELETE", f"{PREFIX}/settings/keys/{_NAME}", forget_key),
     ("GET", f"{PREFIX}/storage", get_storage),

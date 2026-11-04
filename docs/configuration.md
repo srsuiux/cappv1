@@ -13,7 +13,8 @@ Settings live in `.env` in cappv1's folder (`~/cappv1` by default; see `CAPPV1_H
 | `CONCURRENCY` | `4`, or `1` for Ollama | How many requests run at the same time. |
 | `MIN_IMAGE_SIZE_PX` | `40` | Pictures narrower or shorter than this many pixels, or that cannot be read, are marked decorative instead of described. |
 | `MIN_EXISTING_ALT_CHARS` | `30` | Alt text already in a file that is shorter than this is treated as unfinished and improved. Longer text is kept unless the AI judges it inadequate. |
-| `MAX_ALT_TEXT_CHARS` | `125` | The length the AI is asked to stay under for each description. It is a request in the prompt, not a hard cut-off. |
+| `ALT_TEXT_LENGTH` | `standard` | How long descriptions are: `short` (about 80 characters), `standard` (125) or `long` (a detailed description, up to 400). Set it on the Accessibility page or with `/accessibility`. |
+| `MAX_ALT_TEXT_CHARS` | blank | An exact length in characters, for when the three lengths do not fit. When set it wins over `ALT_TEXT_LENGTH`; choosing a length on the Accessibility page or with `/accessibility` clears it. It is a request in the prompt, not a hard cut-off. |
 | `REQUEST_TIMEOUT` | `60` seconds, or `300` for Ollama | How long to wait for one answer from the AI service before giving up. |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Where Ollama is running. Anything that is not on this computer is refused unless `OLLAMA_ALLOW_REMOTE=1`. |
 | `OLLAMA_ALLOW_REMOTE` | unset | Set to `1` to allow an `OLLAMA_BASE_URL` on another machine you control. Slides are then sent to that machine. |
