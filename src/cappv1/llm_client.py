@@ -7,13 +7,13 @@ import httpx
 
 from cappv1.config import Config
 from cappv1.llm_prompts import (
-    length_rule,
     _CHART_SYSTEM_PROMPT,
     _IMAGE_SYSTEM_PROMPT,
     _OLE_SYSTEM_PROMPT,
     _SMARTART_SYSTEM_PROMPT,
     _TABLE_SYSTEM_PROMPT,
     _with_existing,
+    length_rule,
 )
 from cappv1.llm_providers import _PROVIDER_LABELS, _build_request, _ModelUnavailable, _parse_completion
 from cappv1.pptx_reader import SlideContext
@@ -259,9 +259,7 @@ async def generate_table_alt_text(
     existing: str = "",
 ) -> str | None:
     """Returns a text description of a table's content, or None on permanent failure."""
-    messages = _review(
-        config, _build_text_messages(_TABLE_SYSTEM_PROMPT, table_text, context, _rule(config), "Table"), existing
-    )
+    messages = _review(config, _build_text_messages(_TABLE_SYSTEM_PROMPT, table_text, context, _rule(config), "Table"), existing)
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
 
 
@@ -275,9 +273,7 @@ async def generate_chart_alt_text(
     existing: str = "",
 ) -> str | None:
     """Returns a text description of a chart's data, or None on permanent failure."""
-    messages = _review(
-        config, _build_text_messages(_CHART_SYSTEM_PROMPT, chart_text, context, _rule(config), "Chart data"), existing
-    )
+    messages = _review(config, _build_text_messages(_CHART_SYSTEM_PROMPT, chart_text, context, _rule(config), "Chart data"), existing)
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
 
 
