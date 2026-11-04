@@ -7,6 +7,7 @@ import httpx
 
 from cappv1.config import Config
 from cappv1.llm_prompts import (
+    length_rule,
     _CHART_SYSTEM_PROMPT,
     _IMAGE_SYSTEM_PROMPT,
     _OLE_SYSTEM_PROMPT,
@@ -18,6 +19,10 @@ from cappv1.llm_providers import _PROVIDER_LABELS, _build_request, _ModelUnavail
 from cappv1.pptx_reader import SlideContext
 
 logger = logging.getLogger("pptx_alt_text")
+
+
+def _rule(config: Config) -> str:
+    return length_rule(config.alt_text_length, config.max_alt_text_chars)
 
 
 def _review(config: Config, messages: list[dict], existing: str) -> list[dict]:
@@ -86,11 +91,11 @@ def _for_document(text: str, context: SlideContext) -> str:
     )
 
 
-def _build_image_messages(image_bytes: bytes, ext: str, context: SlideContext, max_chars: int) -> list[dict]:
+def _build_image_messages(image_bytes: bytes, ext: str, context: SlideContext, rule: str) -> list[dict]:
     b64 = base64.b64encode(image_bytes).decode("ascii")
     mime = _ext_to_mime(ext)
     return [
-        {"role": "system", "content": _for_document(_IMAGE_SYSTEM_PROMPT, context).format(max_chars=max_chars)},
+        {"role": "system", "content": _for_document(_IMAGE_SYSTEM_PROMPT, context).format(length_rule=rule)},
         {
             "role": "user",
             "content": [
@@ -104,9 +109,9 @@ def _build_image_messages(image_bytes: bytes, ext: str, context: SlideContext, m
     ]
 
 
-def _build_text_messages(system_prompt: str, element_text: str, context: SlideContext, max_chars: int, label: str) -> list[dict]:
+def _build_text_messages(system_prompt: str, element_text: str, context: SlideContext, rule: str, label: str) -> list[dict]:
     return [
-        {"role": "system", "content": _for_document(system_prompt, context).format(max_chars=max_chars)},
+        {"role": "system", "content": _for_document(system_prompt, context).format(length_rule=rule)},
         {
             "role": "user",
             "content": (
@@ -237,7 +242,7 @@ async def generate_caption(
     existing: str = "",
 ) -> str | None:
     """Returns caption text, "" for a decorative image, or None on permanent failure."""
-    messages = _review(config, _build_image_messages(image_bytes, ext, context, config.max_alt_text_chars), existing)
+    messages = _review(config, _build_image_messages(image_bytes, ext, context, _rule(config)), existing)
     text = await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
     if text is None:
         return None
@@ -255,7 +260,7 @@ async def generate_table_alt_text(
 ) -> str | None:
     """Returns a text description of a table's content, or None on permanent failure."""
     messages = _review(
-        config, _build_text_messages(_TABLE_SYSTEM_PROMPT, table_text, context, config.max_alt_text_chars, "Table"), existing
+        config, _build_text_messages(_TABLE_SYSTEM_PROMPT, table_text, context, _rule(config), "Table"), existing
     )
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
 
@@ -271,7 +276,7 @@ async def generate_chart_alt_text(
 ) -> str | None:
     """Returns a text description of a chart's data, or None on permanent failure."""
     messages = _review(
-        config, _build_text_messages(_CHART_SYSTEM_PROMPT, chart_text, context, config.max_alt_text_chars, "Chart data"), existing
+        config, _build_text_messages(_CHART_SYSTEM_PROMPT, chart_text, context, _rule(config), "Chart data"), existing
     )
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
 
@@ -291,7 +296,7 @@ async def generate_ole_alt_text(
     decides what to do with "UNKNOWN" (e.g. a progId-based fallback string) -
     this function doesn't guess at that."""
     messages = _review(
-        config, _build_text_messages(_OLE_SYSTEM_PROMPT, ole_text, context, config.max_alt_text_chars, "Embedded object content"), existing
+        config, _build_text_messages(_OLE_SYSTEM_PROMPT, ole_text, context, _rule(config), "Embedded object content"), existing
     )
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)
 
@@ -309,7 +314,7 @@ async def generate_smartart_alt_text(
     on permanent failure."""
     messages = _review(
         config,
-        _build_text_messages(_SMARTART_SYSTEM_PROMPT, smartart_text, context, config.max_alt_text_chars, "Diagram outline"),
+        _build_text_messages(_SMARTART_SYSTEM_PROMPT, smartart_text, context, _rule(config), "Diagram outline"),
         existing,
     )
     return await _complete_with_fallback(client, config, messages, max_retries, primary_max_retries)

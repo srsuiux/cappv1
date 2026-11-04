@@ -16,7 +16,7 @@ from rich.table import Table
 from rich.text import Text
 
 from cappv1 import outputs
-from cappv1.services import audit, files, health
+from cappv1.services import audit, files, health, settings
 from cappv1.services.errors import ServiceError
 from cappv1.tui.common import checking, fail, nothing_changed, service_error, success
 from cappv1.tui.menu import select
@@ -52,6 +52,7 @@ def cmd_status(session, args: str) -> None:
     if s.configured:
         rows.add_row(Text("Model", style=MUTED), Text(s.model))
         rows.add_row(Text("At once", style=MUTED), Text(str(s.concurrency)))
+        rows.add_row(Text("Alt text", style=MUTED), Text(s.alt_text_length))
         rows.add_row(Text("Privacy", style=MUTED), session.privacy_text(s.provider))
     rows.add_row(Text("Workspace", style=MUTED), Text(s.workspace))
     session.console.print(Panel(rows, title="Status", title_align="left", border_style="grey42", padding=(1, 2)))
@@ -253,6 +254,26 @@ def cmd_models(session, args: str) -> None:
     configure(session, show_current_first=False)
 
 
+# ---------------------------------------------------------------- /accessibility
+def cmd_accessibility(session, args: str) -> None:
+    """Pick how long the alt text is: /accessibility, or /accessibility short|standard|long."""
+    current = settings.read(session.ws).alt_text_length
+    chosen = args.strip().lower()
+    if not chosen:
+        rows = [(label + ("  (current)" if i == current else ""), text) for i, label, text in settings.LENGTH_CHOICES]
+        pick = select("How long should alt text be?", rows, [i for i, _, _ in settings.LENGTH_CHOICES].index(current))
+        if pick is None:
+            nothing_changed(session)
+            return
+        chosen = settings.LENGTH_CHOICES[pick][0]
+    try:
+        saved = settings.set_alt_text_length(session.ws, chosen)
+    except ServiceError as err:
+        service_error(session, err)
+        return
+    success(session, f"Alt text length: {saved.alt_text_length}. It applies to the next run.")
+
+
 # ---------------------------------------------------------------- /run
 def cmd_run(session, args: str) -> None:
     from cappv1.tui.runview import RunView
@@ -368,6 +389,7 @@ def build_commands() -> list[Command]:
         Command("files", "Show the files waiting in input/ and their progress", cmd_files, ("ls",)),
         Command("init", "Set up cappv1, or check what it's set up with", cmd_init, ("setup",)),
         Command("models", "Pick a different AI service or model", cmd_models, ("provider",)),
+        Command("accessibility", "Choose how long the alt text is (short, standard or long)", cmd_accessibility, ("length",)),
         Command("doctor", "Check that everything is working", cmd_doctor),
         Command("audit", "Report low contrast and reading-order problems (changes nothing)", cmd_audit),
         Command("web", "Open cappv1 in your browser (/web stop turns it off)", cmd_web),

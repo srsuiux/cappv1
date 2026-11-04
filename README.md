@@ -73,6 +73,7 @@ Type `cappv1` in Terminal to open a session, then type `/` to see every command.
 | `/run` | Processes every `.pptx` and `.docx` in `input`, one by one. |
 | `/files` | Shows the files waiting in `input` and how far along each is. |
 | `/init`, `/models` | Choose the AI service and model. |
+| `/accessibility` | Choose how long the alt text is: short, standard or long. |
 | `/web` | Opens cappv1 in your browser, on this computer only. |
 | `/doctor` | Checks your setup. Changes nothing. |
 | `/history`, `/open` | List the finished copies from each run, or open the `output` folder. |

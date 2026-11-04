@@ -27,6 +27,18 @@ PROVIDERS = {
 }
 
 
+# How long a description is asked to be: name -> the character count the prompt gives the model.
+ALT_TEXT_LENGTHS = {"short": 80, "standard": 125, "long": 400}
+DEFAULT_ALT_TEXT_LENGTH = "standard"
+
+
+def resolve_alt_text_length(env: Mapping[str, str]) -> str:
+    chosen = env.get("ALT_TEXT_LENGTH", "").strip().lower() or DEFAULT_ALT_TEXT_LENGTH
+    if chosen not in ALT_TEXT_LENGTHS:
+        raise RuntimeError(f"ALT_TEXT_LENGTH must be one of: {', '.join(ALT_TEXT_LENGTHS)} (got '{chosen}').")
+    return chosen
+
+
 def resolve_provider(env: Mapping[str, str]) -> str:
     """PROVIDER if set, otherwise the first provider that has a key."""
     chosen = env.get("PROVIDER", "").strip().lower()
@@ -61,6 +73,7 @@ class Config:
     logs_dir: Path
     min_existing_alt_chars: int = 30
     overwrite_existing: bool = False
+    alt_text_length: str = DEFAULT_ALT_TEXT_LENGTH  # short, standard or long
     run_dir: Path | None = None  # where this run saves; set when the run starts
 
 
@@ -81,6 +94,7 @@ def load_config(root: Path | None = None) -> Config:
             )
 
     is_local = provider == "ollama"
+    alt_text_length = resolve_alt_text_length(os.environ)
     return Config(
         provider=provider,
         api_key=api_key,
@@ -92,7 +106,9 @@ def load_config(root: Path | None = None) -> Config:
         # one at a time: a single local GPU/CPU doesn't speed up with parallel requests
         concurrency=int(os.environ.get("CONCURRENCY", "").strip() or (1 if is_local else 4)),
         min_image_size_px=int(os.environ.get("MIN_IMAGE_SIZE_PX", "40")),
-        max_alt_text_chars=int(os.environ.get("MAX_ALT_TEXT_CHARS", "125")),
+        # an exact MAX_ALT_TEXT_CHARS wins over the chosen length
+        max_alt_text_chars=int(os.environ.get("MAX_ALT_TEXT_CHARS", "").strip() or ALT_TEXT_LENGTHS[alt_text_length]),
+        alt_text_length=alt_text_length,
         input_dir=root / "input",
         output_dir=root / "output",
         state_dir=root / ".state",

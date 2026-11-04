@@ -39,6 +39,11 @@ def _to_anthropic_image(url: str) -> dict:
     return {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}}
 
 
+def _token_limit(config: Config) -> int:
+    """Room for the reply: 200 tokens, more when long descriptions are asked for."""
+    return max(200, config.max_alt_text_chars)
+
+
 def _build_request(config: Config, model: str, messages: list[dict]) -> tuple[str, dict, dict]:
     """Returns (url, headers, payload) for the configured provider. Messages are
     built once in OpenAI chat format and translated here for Anthropic."""
@@ -62,7 +67,7 @@ def _build_request(config: Config, model: str, messages: list[dict]) -> tuple[st
             if isinstance(content, list):
                 content = [_to_anthropic_image(part["image_url"]["url"]) if part["type"] == "image_url" else part for part in content]
             converted.append({"role": m["role"], "content": content})
-        payload = {"model": model, "system": system, "messages": converted, "max_tokens": 200}
+        payload = {"model": model, "system": system, "messages": converted, "max_tokens": _token_limit(config)}
         return url, headers, payload
 
     headers = {"Content-Type": "application/json"}
@@ -70,7 +75,7 @@ def _build_request(config: Config, model: str, messages: list[dict]) -> tuple[st
         headers["Authorization"] = f"Bearer {config.api_key}"
     payload = {"model": model, "messages": messages}
     # OpenAI's newer models reject max_tokens in favor of max_completion_tokens
-    payload["max_completion_tokens" if config.provider == "openai" else "max_tokens"] = 200
+    payload["max_completion_tokens" if config.provider == "openai" else "max_tokens"] = _token_limit(config)
     return url, headers, payload
 
 
