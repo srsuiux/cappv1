@@ -55,3 +55,19 @@ def test_empty_model_is_refused(ws):
 def test_unknown_service_is_refused(ws):
     with pytest.raises(ServiceError):
         settings.save(ws, "nonsense", "x")
+
+
+def test_alt_text_length_defaults_to_standard_and_is_saved(ws):
+    from cappv1.services import envfile
+
+    assert settings.read(ws).alt_text_length == "standard"
+    envfile.set_values(ws, {"MAX_ALT_TEXT_CHARS": "125"})  # an older .env with the exact limit
+    assert settings.set_alt_text_length(ws, "Long").alt_text_length == "long"
+    env = envfile.read(ws)
+    assert env["ALT_TEXT_LENGTH"] == "long" and env["MAX_ALT_TEXT_CHARS"] == ""
+
+
+def test_unknown_alt_text_length_is_refused(ws):
+    with pytest.raises(ServiceError) as err:
+        settings.set_alt_text_length(ws, "huge")
+    assert err.value.code == "bad_length"

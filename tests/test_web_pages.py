@@ -280,3 +280,17 @@ def test_the_app_can_be_installed():
 def test_cards_show_only_a_question_mark_for_processing_notes():
     js = (STATIC / "files.js").read_text()
     assert 'role: "tooltip"' in js and '"?"' in js and "skipNotes" not in js
+
+
+def test_the_accessibility_page_is_in_the_menu_and_loads_its_script():
+    html = render_page("accessibility").decode()
+    assert "accessibility.js" in html and "<h1>Accessibility</h1>" in html
+    assert 'href="/accessibility"' in render_page("files").decode()
+    assert (STATIC / "accessibility.js").is_file()
+
+
+def test_the_files_page_can_change_the_alt_text_length():
+    html = render_page("files").decode()
+    assert 'id="length"' in html and all(f'value="{v}"' in html for v in ("short", "standard", "long"))
+    js = (STATIC / "files.js").read_text()
+    assert "/settings/accessibility" in js and '"length"' in js

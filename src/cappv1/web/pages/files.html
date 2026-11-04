@@ -28,6 +28,13 @@
       </div>
       <ul class="files" id="files" aria-label="Current files"></ul>
       <div class="options">
+        <label class="f" for="length">Alt text length</label>
+        <select id="length" aria-describedby="lengthhelp" autocomplete="off">
+          <option value="short">Short (about 80 characters)</option>
+          <option value="standard">Standard (about 125 characters)</option>
+          <option value="long">Long and detailed (up to about 400 characters)</option>
+        </select>
+        <p class="muted" id="lengthhelp">Saved as your choice for every run. Also on the <a href="/accessibility">Accessibility</a> page.</p>
         <label class="check"><input type="checkbox" id="force" autocomplete="off"><span>Replace alt text that people already wrote<br><span class="muted">When this is off, cappv1 keeps or improves what the author wrote.</span></span></label>
       </div>
       <div class="actions"><button id="run" type="button" disabled>Improve accessibility</button><span class="muted" id="runhelp">Items already described are reused, not paid for twice.</span></div>

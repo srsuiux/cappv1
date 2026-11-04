@@ -2,6 +2,12 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
+## Unreleased
+
+### Added
+
+- Choose how long the alt text is: short, standard (the default) or long and detailed. Set it on the Files page, on the new Accessibility page, with `/accessibility`, or with `ALT_TEXT_LENGTH` in `.env`. `MAX_ALT_TEXT_CHARS` still sets an exact limit and wins when filled in.
+
 ## 1.7.1 - 2026-10-30
 
 ### Changed

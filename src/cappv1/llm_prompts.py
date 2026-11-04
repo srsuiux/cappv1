@@ -1,10 +1,25 @@
 """The instructions sent to the model, and how the author's existing alt text is added to a request."""
 
+_LENGTH_RULES = {
+    "short": "Be very brief: one short phrase or sentence, under {max_chars} characters. Only the essentials.",
+    "standard": "Be concise: aim for under {max_chars} characters.",
+    "long": (
+        "Be detailed: describe what matters in full sentences, including the specifics a screen-reader "
+        "user would otherwise miss, in up to {max_chars} characters. No filler."
+    ),
+}
+
+
+def length_rule(length: str, max_chars: int) -> str:
+    """The sentence in each prompt that says how long the alt text should be."""
+    return _LENGTH_RULES.get(length, _LENGTH_RULES["standard"]).format(max_chars=max_chars)
+
+
 _IMAGE_SYSTEM_PROMPT = (
     "You write alt-text for images embedded in PowerPoint slides, for screen-reader "
     "accessibility. Rules:\n"
     "- Describe the image's content AND its function/purpose on the slide.\n"
-    "- Be concise: aim for under {max_chars} characters.\n"
+    "- {length_rule}\n"
     "- Never start with 'Image of', 'Picture of', or similar - screen readers already "
     "announce it as an image.\n"
     "- Don't restate text that's already on the slide verbatim; describe what the "
@@ -20,7 +35,7 @@ _TABLE_SYSTEM_PROMPT = (
     "accessibility. Rules:\n"
     "- Summarize what the table shows and its purpose on the slide - don't just "
     "restate every cell, a screen reader will read those separately.\n"
-    "- Be concise: aim for under {max_chars} characters.\n"
+    "- {length_rule}\n"
     "- Never start with 'Table of' or 'A table showing' - screen readers already "
     "announce it as a table.\n"
     "- Output only the alt-text. No quotes, no preamble."
@@ -32,7 +47,7 @@ _CHART_SYSTEM_PROMPT = (
     "accessibility. You are given the chart's type, title, categories, and series "
     "data (not an image). Rules:\n"
     "- Describe the key trend or takeaway the chart conveys, not every data point.\n"
-    "- Be concise: aim for under {max_chars} characters.\n"
+    "- {length_rule}\n"
     "- Never start with 'Chart of' or 'A chart showing' - screen readers already "
     "announce it as a chart.\n"
     "- Output only the alt-text. No quotes, no preamble."
@@ -50,7 +65,7 @@ _OLE_SYSTEM_PROMPT = (
     "noise and anything you can't confidently interpret.\n"
     "- Describe what the object shows and its purpose on the slide, the same way "
     "you would for a table or chart.\n"
-    "- Be concise: aim for under {max_chars} characters.\n"
+    "- {length_rule}\n"
     "- Never start with 'Embedded object' or 'A document showing' - screen readers "
     "already announce it as an object.\n"
     "- If the extracted text gives no usable signal at all - it's entirely noise, "
@@ -65,7 +80,7 @@ _SMARTART_SYSTEM_PROMPT = (
     "indented outline reflecting its actual hierarchy (not an image). Rules:\n"
     "- Describe the structure and relationships the diagram conveys - who reports "
     "to whom, what leads to what - not just a flat list of every node's text.\n"
-    "- Be concise: aim for under {max_chars} characters.\n"
+    "- {length_rule}\n"
     "- Never start with 'Diagram of' or 'SmartArt showing' - screen readers "
     "already announce it as a diagram.\n"
     "- Output only the alt-text. No quotes, no preamble."

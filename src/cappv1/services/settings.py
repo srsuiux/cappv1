@@ -3,7 +3,7 @@
 from dataclasses import asdict, dataclass
 
 from cappv1 import doctor
-from cappv1.config import load_config
+from cappv1.config import ALT_TEXT_LENGTHS, load_config, resolve_alt_text_length
 from cappv1.services import envfile
 from cappv1.services.errors import ServiceError
 from cappv1.services.workspace import Workspace
@@ -79,6 +79,7 @@ class Settings:
     model: str
     private: bool
     concurrency: int
+    alt_text_length: str
     keys_saved: dict[str, bool]  # service -> a key is saved (never the key itself)
     remembered: dict[str, str]  # service -> the model last used with it
     error: str
@@ -104,11 +105,36 @@ def read(ws: Workspace) -> Settings:
         model=config.model if config else "",
         private=bool(provider and service(provider).private),
         concurrency=config.concurrency if config else 0,
+        alt_text_length=config.alt_text_length if config else _length_from(env),
         keys_saved=keys,
         remembered=remembered,
         error=error,
         workspace=str(ws.root),
     )
+
+
+def _length_from(env: dict[str, str]) -> str:
+    try:
+        return resolve_alt_text_length(env)
+    except RuntimeError:
+        return "standard"
+
+
+# What each length means, in plain words (shown on the Accessibility page and by /accessibility).
+LENGTH_CHOICES = (
+    ("short", "Short", "One brief phrase, about 80 characters. Quick to hear."),
+    ("standard", "Standard", "One or two sentences, about 125 characters. A good fit for most slides."),
+    ("long", "Long", "A detailed description, up to about 400 characters. For complex pictures, charts and tables."),
+)
+
+
+def set_alt_text_length(ws: Workspace, length: str) -> Settings:
+    """Saves how long descriptions should be. An exact MAX_ALT_TEXT_CHARS from an older .env is cleared so this choice applies."""
+    length = length.strip().lower()
+    if length not in ALT_TEXT_LENGTHS:
+        raise ServiceError("bad_length", f"Unknown length '{length}'.", "Choose one of: " + ", ".join(ALT_TEXT_LENGTHS))
+    envfile.set_values(ws, {"ALT_TEXT_LENGTH": length, "MAX_ALT_TEXT_CHARS": ""})
+    return read(ws)
 
 
 def check_key(provider: str, key: str) -> tuple[bool, str]:

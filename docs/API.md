@@ -14,7 +14,7 @@ Without the right token every `/api/` call returns `401`. A request whose `Host`
 
 ## Pages
 
-The same server serves the web pages: `/` (front page: introduction and overview), `/files`, `/services`, `/health`, `/data`, `/how-it-works`, `/privacy`, `/faq`, `/changelog`, `/appearance`, `/about`. Pages need no token; only `/api/` does.
+The same server serves the web pages: `/` (front page: introduction and overview), `/files`, `/services`, `/health`, `/data`, `/how-it-works`, `/privacy`, `/faq`, `/changelog`, `/accessibility`, `/appearance`, `/about`. Pages need no token; only `/api/` does.
 
 ## Errors
 
@@ -41,6 +41,8 @@ All paths start with `/api/v1`. Bodies are JSON unless noted.
 |---|---|
 | `GET /settings` | Current service, model, and which services have a saved key. Never returns a key. |
 | `PUT /settings` | `{provider, model, api_key?}`: make this the active choice. |
+| `GET /settings/accessibility` | `{alt_text_length, lengths}`: the chosen alt text length (`short`, `standard` or `long`) and the choices with a plain-words description. |
+| `PUT /settings/accessibility` | `{alt_text_length}`: save the length. Also clears an exact `MAX_ALT_TEXT_CHARS` so the choice applies. Unknown values give `bad_length`. |
 | `POST /settings/test` | `{provider, api_key}` → `{ok, detail}`: ask the service whether it accepts the key. |
 | `GET /services` | The four services: whether each is private, what it does with slides (`handling`), its privacy policy link, whether it needs a key and has one saved, and the model last used. |
 | `DELETE /settings/keys/<id>` | Forget a saved key. |
