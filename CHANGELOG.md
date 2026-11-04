@@ -2,11 +2,15 @@
 
 All notable changes to cappv1. Versions follow [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
 
-## Unreleased
+## 1.8.0 - 2026-11-04
 
 ### Added
 
 - Choose how long the alt text is: short, standard (the default) or long and detailed. Set it on the Files page, on the new Accessibility page, with `/accessibility`, or with `ALT_TEXT_LENGTH` in `.env`. `MAX_ALT_TEXT_CHARS` still sets an exact limit and wins when filled in.
+
+### Changed
+
+- Updated the libraries cappv1 uses: python-dotenv 1.2.4, httpx 0.28.1, Pillow 13.0.0, ImageHash 4.3.2, rich 15.0.0 and prompt-toolkit 3.0.53.
 
 ## 1.7.1 - 2026-10-30
 
